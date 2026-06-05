@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1 class="mb-4">Панель преподавателя</h1>
+
+<div class="mb-4">
+    <a href="{{ url_for('manage_students') }}" class="btn btn-outline-primary">
+        Управление студентами
+    </a>
+</div>
+
+<div class="row mb-4">
+
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card border-0 shadow-sm rounded-4">
+            <div class="card-body">
+                <div class="text-muted">Всего студентов</div>
+                <div class="display-6 fw-bold">{{ stats["total_students"] or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card border-0 shadow-sm rounded-4">
+            <div class="card-body">
+                <div class="text-muted">Лабораторных работ</div>
+                <div class="display-6 fw-bold">{{ stats["total_labs"] or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card border-0 shadow-sm rounded-4">
+            <div class="card-body">
+                <div class="text-muted">Всего попыток</div>
+                <div class="display-6 fw-bold">{{ stats["total_submissions"] or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card stat-card border-0 shadow-sm rounded-4">
+            <div class="card-body">
+                <div class="text-muted">Средний балл</div>
+                <div class="display-6 fw-bold">{{ stats["average_score"] or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="row mb-4">
+
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body">
+                <div class="text-muted">Успешных решений</div>
+                <div class="display-6 fw-bold text-success">{{ stats["passed"] or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body">
+                <div class="text-muted">Частично выполнено</div>
+                <div class="display-6 fw-bold text-info">{{ stats["partial"] or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body">
+                <div class="text-muted">Непройденных тестов</div>
+                <div class="display-6 fw-bold text-danger">{{ stats["failed"] or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body">
+                <div class="text-muted">Ошибок компиляции</div>
+                <div class="display-6 fw-bold text-warning">{{ stats["compile_errors"] or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body">
+        <h4 class="mb-2">Средний процент успешности</h4>
+
+        {% set success_percent = stats['success_percent'] or 0 %}
+
+        <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted">Полностью успешные проверки</span>
+            <b>{{ success_percent }}%</b>
+        </div>
+
+        <div class="progress" style="height: 24px;">
+            <div class="progress-bar bg-success"
+                 role="progressbar"
+                 style="width: {{ success_percent }}%;"
+                 aria-valuenow="{{ success_percent }}"
+                 aria-valuemin="0"
+                 aria-valuemax="100">
+                {{ success_percent }}%
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body p-4">
+        <h3>Добавить лабораторную работу</h3>
+
+        <form method="post" action="{{ url_for('add_lab') }}">
+            <div class="mb-3">
+                <label class="form-label">Название</label>
+                <input type="text" name="title" class="form-control" placeholder="Например: Лабораторная работа 2. Мультиплексор">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Описание</label>
+                <textarea name="description" rows="4" class="form-control"></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Проверочный сценарий testbench</label>
+                <textarea name="testbench" rows="12" class="form-control code-area"></textarea>
+            </div>
+
+            <button class="btn btn-primary" type="submit">
+                Добавить задание
+            </button>
+        </form>
+    </div>
+</div>
+
+
+<h3 class="mb-3">Учебная аналитика по студентам</h3>
+
+{% if student_lab_summary and student_lab_summary|length > 0 %}
+
+    <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-body p-0">
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Студент</th>
+                            <th>Группа</th>
+                            <th>Лабораторная</th>
+                            <th>Попыток</th>
+                            <th>Лучший результат</th>
+                            <th>Последний статус</th>
+                            <th>Последний файл</th>
+                            <th>Последняя попытка</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for row in student_lab_summary %}
+                            <tr>
+                                <td>
+                                    <b>{{ row["full_name"] }}</b>
+                                    <div class="text-muted small">{{ row["username"] }}</div>
+                                </td>
+
+                                <td>{{ row["student_group"] or "—" }}</td>
+
+                                <td>{{ row["lab_title"] }}</td>
+
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        {{ row["attempts_count"] }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="badge bg-dark">
+                                        {{ row["best_score"] or 0 }} / 100
+                                    </span>
+                                </td>
+
+                                <td>
+                                    {% if row["last_status"] == "PASSED" %}
+                                        <span class="badge bg-success">PASSED</span>
+                                    {% elif row["last_status"] == "PARTIAL" %}
+                                        <span class="badge bg-info text-dark">PARTIAL</span>
+                                    {% elif row["last_status"] == "FAILED" %}
+                                        <span class="badge bg-danger">FAILED</span>
+                                    {% elif row["last_status"] == "COMPILE_ERROR" %}
+                                        <span class="badge bg-warning text-dark">COMPILE ERROR</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ row["last_status"] }}</span>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    <span class="small">{{ row["last_filename"] }}</span>
+                                </td>
+
+                                <td>
+                                    <span class="small text-muted">
+                                        {{ row["last_attempt_at"] }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+{% else %}
+
+    <div class="alert alert-info rounded-4">
+        Пока нет данных для аналитики. Они появятся после первых отправленных решений студентов.
+    </div>
+
+{% endif %}
+
+
+<h3 class="mb-3">Список лабораторных работ</h3>
+
+{% for lab in labs %}
+    <div class="card shadow-sm border-0 rounded-4 mb-3">
+        <div class="card-body d-flex justify-content-between align-items-start">
+            <div>
+                <h5>{{ lab["title"] }}</h5>
+                <p class="text-muted mb-0">{{ lab["description"] }}</p>
+            </div>
+
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('lab_detail', lab_id=lab['id']) }}" class="btn btn-outline-primary btn-sm">
+                    Открыть результаты
+                </a>
+
+                <a href="{{ url_for('edit_lab', lab_id=lab['id']) }}" class="btn btn-outline-warning btn-sm">
+                    Редактировать
+                </a>
+
+                <form method="post" action="{{ url_for('delete_lab', lab_id=lab['id']) }}">
+                    <button class="btn btn-outline-danger btn-sm" type="submit">
+                        Удалить
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+
+
+<h3 class="mt-4 mb-3">Последние попытки студентов</h3>
+
+{% for sub in submissions %}
+    <div class="card shadow-sm border-0 rounded-4 mb-3">
+        <div class="card-body">
+
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h5>{{ sub["lab_title"] }}</h5>
+
+                    <p class="mb-1">
+                        <b>Студент:</b>
+                        {{ sub["full_name"] or sub["username"] }}
+                    </p>
+
+                    <p class="mb-1">
+                        <b>Группа:</b>
+                        {{ sub["student_group"] or "—" }}
+                    </p>
+
+                    <p class="mb-1">
+                        <b>Файл:</b> {{ sub["filename"] }}
+                    </p>
+
+                    <p class="text-muted small">
+                        {{ sub["created_at"] }}
+                    </p>
+                </div>
+
+                <div class="text-end">
+                    {% if sub["status"] == "PASSED" %}
+                        <span class="badge bg-success fs-6">PASSED</span>
+                    {% elif sub["status"] == "PARTIAL" %}
+                        <span class="badge bg-info text-dark fs-6">PARTIAL</span>
+                    {% elif sub["status"] == "FAILED" %}
+                        <span class="badge bg-danger fs-6">FAILED</span>
+                    {% elif sub["status"] == "COMPILE_ERROR" %}
+                        <span class="badge bg-warning text-dark fs-6">COMPILE ERROR</span>
+                    {% else %}
+                        <span class="badge bg-secondary fs-6">{{ sub["status"] }}</span>
+                    {% endif %}
+
+                    <div class="mt-2">
+                        <span class="badge bg-dark">
+                            Баллы: {{ sub["score"] }} / 100
+                        </span>
+                    </div>
+
+                    <div class="mt-1">
+                        <span class="badge bg-light text-dark border">
+                            Тесты: {{ sub["passed_tests"] }} из {{ sub["total_tests"] }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <pre class="result-box">{{ sub["output"] }}</pre>
+        </div>
+    </div>
+{% endfor %}
+
+{% if submissions|length == 0 %}
+    <div class="alert alert-info rounded-4">
+        Пока нет отправленных решений.
+    </div>
+{% endif %}
+
+{% endblock %}

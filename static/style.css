@@ -1,0 +1,86 @@
+body {
+    background: #f4f6fb;
+}
+
+.navbar {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.card {
+    transition: 0.2s ease;
+}
+
+.lab-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12) !important;
+}
+
+.result-box {
+    background: #111827;
+    color: #e5e7eb;
+    padding: 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    max-height: 260px;
+    overflow: auto;
+    margin-top: 12px;
+}
+
+.code-area {
+    font-family: Consolas, monospace;
+    font-size: 14px;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #ffffff, #eef2ff);
+}
+
+.student-tools-card h3 {
+    font-size: 24px;
+    font-weight: 900;
+}
+
+.tool-section {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 18px;
+}
+
+.danger-section {
+    background: #fff7f7;
+    border-color: #fecaca;
+}
+
+.section-label {
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    margin-bottom: 12px;
+}
+
+.student-tools-card .form-label {
+    margin-bottom: 6px;
+}
+
+.student-tools-card .btn {
+    white-space: nowrap;
+}
+
+.student-search-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.student-search-actions .btn {
+    height: 38px;
+    min-width: 78px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 0;
+    padding-bottom: 0;
+}
