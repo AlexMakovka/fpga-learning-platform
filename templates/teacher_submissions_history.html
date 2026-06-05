@@ -66,17 +66,30 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">Статус</label>
-                    <select name="status" class="form-select">
-                        <option value="">Все статусы</option>
-                        <option value="PASSED" {% if selected_status == "PASSED" %}selected{% endif %}>PASSED</option>
-                        <option value="PARTIAL" {% if selected_status == "PARTIAL" %}selected{% endif %}>PARTIAL</option>
-                        <option value="FAILED" {% if selected_status == "FAILED" %}selected{% endif %}>FAILED</option>
-                        <option value="COMPILE_ERROR" {% if selected_status == "COMPILE_ERROR" %}selected{% endif %}>COMPILE ERROR</option>
-                        <option value="SYSTEM_ERROR" {% if selected_status == "SYSTEM_ERROR" %}selected{% endif %}>SYSTEM ERROR</option>
-                        <option value="TIMEOUT" {% if selected_status == "TIMEOUT" %}selected{% endif %}>TIMEOUT</option>
+                    <label class="form-label">Тип ошибки</label>
+                    <select name="error_type" class="form-select">
+                        <option value="">Все типы ошибок</option>
+                        <option value="COMPILE_ERROR" {% if selected_error_type == "COMPILE_ERROR" %}selected{% endif %}>Ошибка компиляции</option>
+                        <option value="MODULE_NAME_MISMATCH" {% if selected_error_type == "MODULE_NAME_MISMATCH" %}selected{% endif %}>Несовпадение имени модуля</option>
+                        <option value="PORT_MISMATCH" {% if selected_error_type == "PORT_MISMATCH" %}selected{% endif %}>Несовпадение портов</option>
+                        <option value="WRONG_COMBINATIONAL_LOGIC" {% if selected_error_type == "WRONG_COMBINATIONAL_LOGIC" %}selected{% endif %}>Неверная комбинационная логика</option>
+                        <option value="INCOMPLETE_CONDITION" {% if selected_error_type == "INCOMPLETE_CONDITION" %}selected{% endif %}>Неполное описание условий</option>
+                        <option value="CONTROL_SIGNAL_ERROR" {% if selected_error_type == "CONTROL_SIGNAL_ERROR" %}selected{% endif %}>Ошибка управляющего сигнала</option>
+                        <option value="RESET_CLOCK_ERROR" {% if selected_error_type == "RESET_CLOCK_ERROR" %}selected{% endif %}>Ошибка reset/clock</option>
+                        <option value="BOUNDARY_TEST_FAILED" {% if selected_error_type == "BOUNDARY_TEST_FAILED" %}selected{% endif %}>Граничные тесты</option>
+                        <option value="FUNCTIONAL_ERROR" {% if selected_error_type == "FUNCTIONAL_ERROR" %}selected{% endif %}>Функциональная ошибка</option>
                     </select>
                 </div>
+
+                <td>
+                    {% if sub["error_title"] %}
+                        <span class="badge bg-warning text-dark">
+                            {{ sub["error_title"] }}
+                        </span>
+                    {% else %}
+                        <span class="text-muted small">—</span>
+                    {% endif %}
+                </td>
 
                 <div class="col-md-3">
                     <label class="form-label">Дата выполнения от</label>
@@ -151,6 +164,7 @@
                             <th>Попытка</th>
                             <th>Дата выполнения</th>
                             <th>Статус</th>
+                            <th>Тип ошибки</th>
                             <th>Оценка</th>
                             <th>Лучшая оценка</th>
                             <th>Тесты</th>

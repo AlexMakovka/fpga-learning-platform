@@ -81,23 +81,43 @@ def init_db():
 
 
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS submissions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        lab_id INTEGER NOT NULL,
-        username TEXT NOT NULL,
-        filename TEXT NOT NULL,
-        status TEXT NOT NULL,
-        score INTEGER DEFAULT 0,
-        passed_tests INTEGER DEFAULT 0,
-        total_tests INTEGER DEFAULT 0,
-        output TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY (lab_id) REFERENCES labs(id)
+        CREATE TABLE IF NOT EXISTS submissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lab_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            status TEXT NOT NULL,
+            score INTEGER DEFAULT 0,
+            passed_tests INTEGER DEFAULT 0,
+            total_tests INTEGER DEFAULT 0,
+            error_type TEXT DEFAULT '',
+            error_title TEXT DEFAULT '',
+            error_details TEXT DEFAULT '',
+            recommendation TEXT DEFAULT '',
+            error_confidence INTEGER DEFAULT 0,
+            output TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (lab_id) REFERENCES labs(id)
         )
     """)
 
     columns = cur.execute("PRAGMA table_info(submissions)").fetchall()
     column_names = [column["name"] for column in columns]
+
+    if "error_type" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN error_type TEXT DEFAULT ''")
+
+    if "error_title" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN error_title TEXT DEFAULT ''")
+
+    if "error_details" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN error_details TEXT DEFAULT ''")
+
+    if "recommendation" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN recommendation TEXT DEFAULT ''")
+
+    if "error_confidence" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN error_confidence INTEGER DEFAULT 0")
 
     if "attempt_number" not in column_names:
         cur.execute("ALTER TABLE submissions ADD COLUMN attempt_number INTEGER DEFAULT 1")
@@ -441,6 +461,286 @@ def run_hdl_check(user_code_path, testbench_text):
             0,
             0
         )
+    
+
+def detect_lab_topic_for_diagnostics(lab, code):
+    """
+    Определяет тему лабораторной работы по названию, описанию, testbench и коду студента.
+    Это нужно, чтобы классификатор понимал, какую логику проверять.
+    """
+
+    text = (
+        str(lab["title"]) + " " +
+        str(lab["description"]) + " " +
+        str(lab["testbench"]) + " " +
+        str(code)
+    ).lower()
+
+    if "mux" in text or "мультиплексор" in text or "селектор" in text:
+        return "mux"
+
+    if "adder" in text or "сумматор" in text or "sum" in text or "carry" in text:
+        return "adder"
+
+    if "counter" in text or "счетчик" in text or "счётчик" in text or "count" in text:
+        return "counter"
+
+    if "register" in text or "регистр" in text:
+        return "register"
+
+    if "fsm" in text or "автомат" in text or "state" in text:
+        return "fsm"
+
+    return "general"
+
+
+def has_any(text, keywords):
+    """
+    Проверяет, встречается ли в тексте хотя бы одно ключевое слово.
+    """
+
+    text = text.lower()
+
+    for keyword in keywords:
+        if keyword.lower() in text:
+            return True
+
+    return False
+
+
+def code_has_incomplete_condition(code):
+    """
+    Примитивно выявляет риск неполного описания условий в комбинационной логике.
+    Например:
+    - есть if, но нет else;
+    - есть case, но нет default.
+    """
+
+    code_lower = code.lower()
+
+    has_if = "if" in code_lower
+    has_else = "else" in code_lower
+
+    has_case = "case" in code_lower
+    has_default = "default" in code_lower
+
+    if has_if and not has_else:
+        return True
+
+    if has_case and not has_default:
+        return True
+
+    return False
+
+
+def get_failed_test_blocks(output):
+    """
+    Извлекает из отчета проверки блоки ошибочных тестов.
+    Работает с русским отчетом:
+    Тест 4: ... — ошибка
+    Ожидалось: ...
+    Получено: ...
+    """
+
+    lines = output.splitlines()
+    failed_blocks = []
+
+    for index, line in enumerate(lines):
+        line_lower = line.lower()
+
+        if "ошибка" in line_lower and line_lower.strip().startswith("тест"):
+            block = [line]
+
+            if index + 1 < len(lines):
+                block.append(lines[index + 1])
+
+            if index + 2 < len(lines):
+                block.append(lines[index + 2])
+
+            failed_blocks.append("\n".join(block))
+
+    return failed_blocks
+
+
+def classify_hdl_error(status, output, lab, code):
+    """
+    Классифицирует ошибку HDL-решения.
+    
+    Возвращает словарь:
+    {
+        error_type,
+        error_title,
+        error_details,
+        recommendation,
+        error_confidence
+    }
+    """
+
+    output_lower = str(output).lower()
+    code_lower = str(code).lower()
+    topic = detect_lab_topic_for_diagnostics(lab, code)
+    failed_blocks = get_failed_test_blocks(output)
+    failed_text = "\n".join(failed_blocks).lower()
+
+    if status == "PASSED":
+        return {
+            "error_type": "NO_ERROR",
+            "error_title": "Ошибок не обнаружено",
+            "error_details": "HDL-решение успешно прошло все тесты.",
+            "recommendation": "Дополнительные действия не требуются.",
+            "error_confidence": 100
+        }
+
+    # 1. Несовпадение имени модуля
+    if status == "COMPILE_ERROR" and has_any(output_lower, [
+        "unknown module",
+        "module not found",
+        "unable to bind",
+        "unknown module type",
+        "root module"
+    ]):
+        return {
+            "error_type": "MODULE_NAME_MISMATCH",
+            "error_title": "Несовпадение имени модуля",
+            "error_details": (
+                "Testbench не смог подключить модуль студента. "
+                "Чаще всего это происходит, когда имя модуля в HDL-файле не совпадает с именем, ожидаемым в задании."
+            ),
+            "recommendation": (
+                "Проверьте, что имя после ключевого слова module полностью совпадает с именем, указанным в лабораторной работе."
+            ),
+            "error_confidence": 95
+        }
+
+    # 2. Несовпадение портов
+    if status == "COMPILE_ERROR" and has_any(output_lower, [
+        "port",
+        "is not a port",
+        "cannot bind",
+        "failed to elaborate port",
+        "no port named"
+    ]):
+        return {
+            "error_type": "PORT_MISMATCH",
+            "error_title": "Несовпадение портов модуля",
+            "error_details": (
+                "Testbench ожидает определённые входы и выходы, но в модуле студента они названы иначе "
+                "или отсутствуют."
+            ),
+            "recommendation": (
+                "Сравните список портов в задании и в вашем Verilog-модуле. "
+                "Имена входов и выходов должны совпадать с testbench."
+            ),
+            "error_confidence": 90
+        }
+
+    # 3. Общая ошибка компиляции
+    if status == "COMPILE_ERROR":
+        return {
+            "error_type": "COMPILE_ERROR",
+            "error_title": "Ошибка компиляции HDL-кода",
+            "error_details": (
+                "Код не был скомпилирован. Возможны синтаксические ошибки, пропущенные точки с запятой, "
+                "неверные объявления сигналов или ошибки структуры module/endmodule."
+            ),
+            "recommendation": (
+                "Проверьте синтаксис Verilog: точки с запятой, объявления input/output, assign, always, begin/end и endmodule."
+            ),
+            "error_confidence": 85
+        }
+
+    # 4. Ошибка reset/clock для последовательностных схем
+    if topic in ["counter", "register", "fsm"] and has_any(failed_text + output_lower, [
+        "reset", "rst", "clock", "clk", "posedge", "negedge", "сброс", "такт"
+    ]):
+        return {
+            "error_type": "RESET_CLOCK_ERROR",
+            "error_title": "Ошибка reset/clock в последовательностной логике",
+            "error_details": (
+                "Ошибка связана с поведением схемы при тактовом сигнале или сигнале сброса. "
+                "Для последовательностных схем важно корректно описать clock, reset и изменение состояния."
+            ),
+            "recommendation": (
+                "Проверьте блок always, чувствительность к clock/reset и начальное значение после сброса."
+            ),
+            "error_confidence": 88
+        }
+
+    # 5. Ошибка управляющего сигнала для мультиплексора
+    if topic == "mux" and has_any(failed_text + output_lower, [
+        "sel", "select", "выбор", "управля"
+    ]):
+        return {
+            "error_type": "CONTROL_SIGNAL_ERROR",
+            "error_title": "Ошибка выбора управляющего сигнала",
+            "error_details": (
+                "В ошибочных тестах видно, что выходной сигнал выбирает не тот вход при одном из значений управляющего сигнала."
+            ),
+            "recommendation": (
+                "Проверьте, что при sel = 0 на выход передаётся d0, а при sel = 1 — d1."
+            ),
+            "error_confidence": 92
+        }
+
+    # 6. Неполное описание условий
+    if code_has_incomplete_condition(code) or has_any(output_lower, [
+        "x", "z", "latch", "undefined"
+    ]):
+        return {
+            "error_type": "INCOMPLETE_CONDITION",
+            "error_title": "Неполное описание условий",
+            "error_details": (
+                "В коде может быть не описана часть вариантов входных сигналов. "
+                "Из-за этого выход может получать неопределённое значение или сохранять старое состояние."
+            ),
+            "recommendation": (
+                "Проверьте наличие ветки else для if-условий или default для case-конструкций."
+            ),
+            "error_confidence": 80
+        }
+
+    # 7. Неверная комбинационная логика
+    if topic in ["mux", "adder", "general"] and status in ["FAILED", "PARTIAL"]:
+        return {
+            "error_type": "WRONG_COMBINATIONAL_LOGIC",
+            "error_title": "Неверная комбинационная логика",
+            "error_details": (
+                "Код компилируется, но результаты работы схемы не совпадают с ожидаемыми значениями testbench."
+            ),
+            "recommendation": (
+                "Составьте таблицу истинности для задания и сравните её с выражениями assign или always в вашем коде."
+            ),
+            "error_confidence": 78
+        }
+
+    # 8. Не пройдены граничные тесты
+    if status in ["FAILED", "PARTIAL"] and has_any(failed_text, [
+        "1, b=1", "111", "max", "min", "0", "гранич"
+    ]):
+        return {
+            "error_type": "BOUNDARY_TEST_FAILED",
+            "error_title": "Не пройдены граничные тесты",
+            "error_details": (
+                "Решение работает для части входных данных, но ошибается на предельных или важных комбинациях сигналов."
+            ),
+            "recommendation": (
+                "Отдельно проверьте случаи со всеми нулями, всеми единицами, reset и переходными состояниями."
+            ),
+            "error_confidence": 70
+        }
+
+    # 9. Общая ошибка поведения
+    return {
+        "error_type": "FUNCTIONAL_ERROR",
+        "error_title": "Функциональная ошибка HDL-решения",
+        "error_details": (
+            "Решение не прошло часть тестов. Ошибка связана не с компиляцией, а с поведением HDL-модуля."
+        ),
+        "recommendation": (
+            "Проанализируйте строки 'Ожидалось' и 'Получено' в отчёте testbench и найдите, для каких входов логика работает неверно."
+        ),
+        "error_confidence": 60
+    }
 
 
 def read_submission_code(filename):
@@ -1546,27 +1846,43 @@ def submit_solution(lab_id):
 
     status, output, score, passed_tests, total_tests = run_hdl_check(saved_path, lab["testbench"])
 
-    conn.execute(
-        """
-        INSERT INTO submissions
-        (lab_id, username, filename, status, score, passed_tests, total_tests,
-         output, created_at, attempt_number, file_deleted)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            lab_id,
-            session["username"],
-            saved_filename,
-            status,
-            score,
-            passed_tests,
-            total_tests,
-            output,
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            attempt_number,
-            0
-        )
+    with open(saved_path, "r", encoding="utf-8", errors="replace") as code_file:
+        student_code = code_file.read()
+
+    diagnostics = classify_hdl_error(
+        status=status,
+        output=output,
+        lab=lab,
+        code=student_code
     )
+
+    conn.execute(
+    """
+    INSERT INTO submissions
+    (lab_id, username, filename, status, score, passed_tests, total_tests,
+     error_type, error_title, error_details, recommendation, error_confidence,
+     output, created_at, attempt_number, file_deleted)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """,
+    (
+        lab_id,
+        session["username"],
+        saved_filename,
+        status,
+        score,
+        passed_tests,
+        total_tests,
+        diagnostics["error_type"],
+        diagnostics["error_title"],
+        diagnostics["error_details"],
+        diagnostics["recommendation"],
+        diagnostics["error_confidence"],
+        output,
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        attempt_number,
+        0
+    )
+)
 
     conn.commit()
     conn.close()
@@ -1879,13 +2195,27 @@ def teacher_panel():
         ORDER BY last_attempt_at DESC
     """).fetchall()
 
+    error_summary = conn.execute("""
+        SELECT
+            error_type,
+            error_title,
+            COUNT(*) AS count
+        FROM submissions
+        WHERE error_type IS NOT NULL
+        AND error_type != ''
+        AND error_type != 'NO_ERROR'
+        GROUP BY error_type, error_title
+        ORDER BY count DESC
+    """).fetchall()
+
     conn.close()
 
     return render_template(
         "teacher.html",
         labs=labs,
         stats=stats,
-        student_lab_summary=student_lab_summary
+        student_lab_summary=student_lab_summary,
+        error_summary=error_summary
     )
 
 
@@ -1898,8 +2228,10 @@ def teacher_submissions_history():
     selected_lab_id = request.args.get("lab_id", "").strip()
     selected_group = request.args.get("group", "").strip()
     selected_status = request.args.get("status", "").strip()
+    selected_error_type = request.args.get("error_type", "").strip()
     date_from = request.args.get("date_from", "").strip()
     date_to = request.args.get("date_to", "").strip()
+    
 
     sort = request.args.get("sort", "submitted_at")
     direction = request.args.get("direction", "desc")
@@ -1967,6 +2299,10 @@ def teacher_submissions_history():
         sql += " AND submissions.status = ?"
         params.append(selected_status)
 
+    if selected_error_type:
+        sql += " AND submissions.error_type = ?"
+        params.append(selected_error_type)
+
     if date_from:
         sql += " AND submissions.created_at >= ?"
         params.append(date_from + " 00:00:00")
@@ -2009,6 +2345,7 @@ def teacher_submissions_history():
         selected_lab_id=selected_lab_id,
         selected_group=selected_group,
         selected_status=selected_status,
+        selected_error_type=selected_error_type,
         date_from=date_from,
         date_to=date_to,
         sort=sort,

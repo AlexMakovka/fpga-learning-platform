@@ -255,6 +255,32 @@
                 </div>
             </div>
 
+                    {% if sub["error_type"] and sub["error_type"] != "NO_ERROR" %}
+            <div class="alert alert-warning rounded-4 mt-3">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <h5 class="mb-2">Диагностика ошибки</h5>
+
+                        <p class="mb-1">
+                            <b>Тип ошибки:</b> {{ sub["error_title"] }}
+                        </p>
+
+                        <p class="mb-1">
+                            <b>Пояснение:</b> {{ sub["error_details"] }}
+                        </p>
+
+                        <p class="mb-0">
+                            <b>Рекомендация:</b> {{ sub["recommendation"] }}
+                        </p>
+                    </div>
+
+                    <span class="badge bg-dark">
+                        {{ sub["error_confidence"] }}%
+                    </span>
+                </div>
+            </div>
+        {% endif %}
+
             <pre class="result-box">{{ sub["output"] }}</pre>
 
             {% if session.get("role") == "student" and sub["status"] != "PASSED" %}
