@@ -12,8 +12,8 @@
         <h1 class="mb-3">Редактирование лабораторной работы</h1>
 
         <p class="text-muted">
-            Здесь можно изменить название, описание задания и проверочный testbench-сценарий.
-            Изменения будут применяться к новым проверкам студентов.
+            Здесь можно изменить название, описание задания, проверочный testbench-сценарий,
+            количество попыток и возможность улучшения оценки через дополнительные вопросы.
         </p>
 
         <form method="post" action="{{ url_for('edit_lab', lab_id=lab['id']) }}">
@@ -38,6 +38,37 @@
                 <textarea name="testbench"
                           rows="18"
                           class="form-control code-area">{{ lab['testbench'] }}</textarea>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Максимальное количество попыток</label>
+                    <input type="number"
+                           name="max_attempts"
+                           class="form-control"
+                           value="{{ lab['max_attempts'] or 3 }}"
+                           min="1">
+
+                    <div class="form-text">
+                        Сколько раз студент может отправить HDL-решение по этой лабораторной работе.
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3 d-flex align-items-end">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               name="allow_extra_questions"
+                               id="allow_extra_questions"
+                               {% if lab["allow_extra_questions"] %}
+                                   checked
+                               {% endif %}>
+
+                        <label class="form-check-label" for="allow_extra_questions">
+                            Разрешить улучшение оценки через дополнительные вопросы
+                        </label>
+                    </div>
+                </div>
             </div>
 
             <div class="d-flex gap-2">

@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<a href="{{ url_for('teacher_panel') }}" class="btn btn-outline-secondary btn-sm mb-3">
+    ← Назад в панель преподавателя
+</a>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="mb-1">История попыток студентов</h1>
+        <p class="text-muted mb-0">
+            Здесь отображаются все отправки HDL-решений с фильтрацией и сортировкой.
+        </p>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body p-4">
+
+        <h3 class="mb-3">Фильтры и сортировка</h3>
+
+        <form method="get" action="{{ url_for('teacher_submissions_history') }}">
+
+            <div class="row g-3">
+
+                <div class="col-md-4">
+                    <label class="form-label">Поиск</label>
+                    <input type="text"
+                           name="q"
+                           class="form-control"
+                           value="{{ search_query }}"
+                           placeholder="ФИО, логин, лабораторная или файл">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Лабораторная работа</label>
+                    <select name="lab_id" class="form-select">
+                        <option value="">Все лабораторные</option>
+
+                        {% for lab in labs %}
+                            <option value="{{ lab['id'] }}"
+                                {% if selected_lab_id|string == lab['id']|string %}
+                                    selected
+                                {% endif %}>
+                                {{ lab["title"] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Группа</label>
+                    <select name="group" class="form-select">
+                        <option value="">Все группы</option>
+
+                        {% for group in groups %}
+                            <option value="{{ group['student_group'] }}"
+                                {% if selected_group == group['student_group'] %}
+                                    selected
+                                {% endif %}>
+                                {{ group["student_group"] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Статус</label>
+                    <select name="status" class="form-select">
+                        <option value="">Все статусы</option>
+                        <option value="PASSED" {% if selected_status == "PASSED" %}selected{% endif %}>PASSED</option>
+                        <option value="PARTIAL" {% if selected_status == "PARTIAL" %}selected{% endif %}>PARTIAL</option>
+                        <option value="FAILED" {% if selected_status == "FAILED" %}selected{% endif %}>FAILED</option>
+                        <option value="COMPILE_ERROR" {% if selected_status == "COMPILE_ERROR" %}selected{% endif %}>COMPILE ERROR</option>
+                        <option value="SYSTEM_ERROR" {% if selected_status == "SYSTEM_ERROR" %}selected{% endif %}>SYSTEM ERROR</option>
+                        <option value="TIMEOUT" {% if selected_status == "TIMEOUT" %}selected{% endif %}>TIMEOUT</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Дата выполнения от</label>
+                    <input type="date"
+                           name="date_from"
+                           class="form-control"
+                           value="{{ date_from }}">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Дата выполнения до</label>
+                    <input type="date"
+                           name="date_to"
+                           class="form-control"
+                           value="{{ date_to }}">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Сортировать по</label>
+                    <select name="sort" class="form-select">
+                        <option value="submitted_at" {% if sort == "submitted_at" %}selected{% endif %}>дате выполнения</option>
+                        <option value="lab_created" {% if sort == "lab_created" %}selected{% endif %}>дате добавления лабораторной</option>
+                        <option value="student" {% if sort == "student" %}selected{% endif %}>студенту</option>
+                        <option value="group" {% if sort == "group" %}selected{% endif %}>группе</option>
+                        <option value="lab" {% if sort == "lab" %}selected{% endif %}>лабораторной</option>
+                        <option value="score" {% if sort == "score" %}selected{% endif %}>оценке попытки</option>
+                        <option value="best_score" {% if sort == "best_score" %}selected{% endif %}>лучшей оценке</option>
+                        <option value="status" {% if sort == "status" %}selected{% endif %}>статусу</option>
+                        <option value="attempt" {% if sort == "attempt" %}selected{% endif %}>номеру попытки</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Порядок</label>
+                    <select name="direction" class="form-select">
+                        <option value="desc" {% if direction == "desc" %}selected{% endif %}>по убыванию</option>
+                        <option value="asc" {% if direction == "asc" %}selected{% endif %}>по возрастанию</option>
+                    </select>
+                </div>
+
+                <div class="col-md-9 d-flex align-items-end gap-2">
+                    <button class="btn btn-dark" type="submit">
+                        Применить
+                    </button>
+
+                    <a href="{{ url_for('teacher_submissions_history') }}" class="btn btn-outline-secondary">
+                        Сбросить
+                    </a>
+                </div>
+
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-0">
+
+        {% if submissions and submissions|length > 0 %}
+
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Студент</th>
+                            <th>Группа</th>
+                            <th>Лабораторная</th>
+                            <th>Дата добавления лаб.</th>
+                            <th>Попытка</th>
+                            <th>Дата выполнения</th>
+                            <th>Статус</th>
+                            <th>Оценка</th>
+                            <th>Лучшая оценка</th>
+                            <th>Тесты</th>
+                            <th>Файл</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for sub in submissions %}
+                            <tr>
+                                <td>
+                                    <b>{{ sub["full_name"] or sub["username"] }}</b>
+                                    <div class="text-muted small">
+                                        {{ sub["username"] }}
+                                    </div>
+                                </td>
+
+                                <td>
+                                    {{ sub["student_group"] or "—" }}
+                                </td>
+
+                                <td>
+                                    <span class="small">
+                                        {{ sub["lab_title"] }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="small text-muted">
+                                        {{ sub["lab_created_at"] or "—" }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        {{ sub["attempt_number"] or 1 }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="small text-muted">
+                                        {{ sub["created_at"] }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    {% if sub["status"] == "PASSED" %}
+                                        <span class="badge bg-success">PASSED</span>
+                                    {% elif sub["status"] == "PARTIAL" %}
+                                        <span class="badge bg-info text-dark">PARTIAL</span>
+                                    {% elif sub["status"] == "FAILED" %}
+                                        <span class="badge bg-danger">FAILED</span>
+                                    {% elif sub["status"] == "COMPILE_ERROR" %}
+                                        <span class="badge bg-warning text-dark">COMPILE ERROR</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ sub["status"] }}</span>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    <span class="badge bg-dark">
+                                        {{ sub["score"] or 0 }} / 100
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="badge bg-success">
+                                        {{ sub["best_score"] or sub["score"] or 0 }} / 100
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="badge bg-light text-dark border">
+                                        {{ sub["passed_tests"] }} / {{ sub["total_tests"] }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    {% if sub["file_deleted"] %}
+                                        <span class="badge bg-secondary">
+                                            файл удалён
+                                        </span>
+                                    {% else %}
+                                        <a href="{{ url_for('download_submission', submission_id=sub['id']) }}"
+                                           class="btn btn-outline-primary btn-sm">
+                                            Скачать
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+        {% else %}
+
+            <div class="p-4">
+                <div class="alert alert-info rounded-4 mb-0">
+                    По выбранным условиям попытки студентов не найдены.
+                </div>
+            </div>
+
+        {% endif %}
+
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<a href="{{ url_for('lab_detail', lab_id=submission['lab_id']) }}" class="btn btn-outline-secondary btn-sm mb-3">
+    ← Назад к лабораторной работе
+</a>
+
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body p-4">
+
+        <h1 class="mb-3">Помощь ИИ по ошибке</h1>
+
+        <p class="text-muted">
+            ИИ-помощник анализирует результат проверки, сообщения testbench и HDL-код.
+            Он не дает готовое решение, а подсказывает направление исправления.
+        </p>
+
+        <div class="mb-3">
+            <span class="badge bg-secondary">Попытка #{{ submission["id"] }}</span>
+            <span class="badge bg-dark">{{ submission["score"] }} / 100 баллов</span>
+            <span class="badge bg-info text-dark">Подсказка {{ level }} уровня</span>
+        </div>
+
+        <pre class="result-box">{{ hint }}</pre>
+
+        <div class="d-flex gap-2 mt-3">
+
+            {% if level < 3 %}
+                <a href="{{ url_for('ai_help', submission_id=submission['id'], level=level + 1) }}"
+                   class="btn btn-primary">
+                    Получить более конкретную подсказку
+                </a>
+            {% endif %}
+
+            <a href="{{ url_for('improve_score', submission_id=submission['id']) }}"
+               class="btn btn-outline-success">
+                Улучшить оценку
+            </a>
+
+            <a href="{{ url_for('lab_detail', lab_id=submission['lab_id']) }}"
+               class="btn btn-outline-secondary">
+                Попробовать снова
+            </a>
+
+        </div>
+
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-4">
+        <h3>Детали проверки</h3>
+        <pre class="result-box">{{ submission["output"] }}</pre>
+    </div>
+</div>
+
+{% endblock %}

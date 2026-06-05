@@ -11,24 +11,60 @@
         <h1 class="mb-3">{{ lab["title"] }}</h1>
         <p class="text-muted">{{ lab["description"] }}</p>
 
+        {% if session.get("role") == "student" %}
+            <div class="alert alert-light border rounded-4 mt-3 mb-0">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div>
+                        <b>Попытки:</b> {{ attempts_count or 0 }} из {{ lab["max_attempts"] or 3 }}
+
+                        {% if lab["allow_extra_questions"] %}
+                            <span class="badge bg-success ms-2">
+                                Доп. вопросы доступны
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary ms-2">
+                                Доп. вопросы отключены
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <a href="{{ url_for('student_lab_history', lab_id=lab['id']) }}"
+                       class="btn btn-outline-primary btn-sm">
+                        История попыток
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+
         <hr>
 
         {% if session.get("role") == "student" %}
 
-            <h4>Загрузка HDL-решения</h4>
-            <p class="text-muted">
-                Загрузите Verilog-файл с расширением <b>.v</b>. После отправки система автоматически запустит testbench.
-            </p>
+            {% if (attempts_count or 0) < (lab["max_attempts"] or 3) %}
 
-            <form method="post" action="{{ url_for('submit_solution', lab_id=lab['id']) }}" enctype="multipart/form-data">
-                <div class="mb-3">
-                    <input type="file" name="solution" accept=".v" class="form-control">
+                <h4>Загрузка HDL-решения</h4>
+                <p class="text-muted">
+                    Загрузите Verilog-файл с расширением <b>.v</b>. После отправки система автоматически запустит testbench.
+                </p>
+
+                <form method="post" action="{{ url_for('submit_solution', lab_id=lab['id']) }}" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <input type="file" name="solution" accept=".v" class="form-control">
+                    </div>
+
+                    <button type="submit" class="btn btn-success">
+                        Запустить проверку
+                    </button>
+                </form>
+
+            {% else %}
+
+                <div class="alert alert-warning rounded-4 mb-0">
+                    Лимит попыток по этой лабораторной работе исчерпан.
+                    Новые HDL-файлы отправить нельзя.
                 </div>
 
-                <button type="submit" class="btn btn-success">
-                    Запустить проверку
-                </button>
-            </form>
+            {% endif %}
 
         {% elif session.get("role") == "teacher" %}
 
@@ -145,7 +181,7 @@
 
 {% else %}
 
-    <h3 class="mb-3">История моих попыток</h3>
+    <h3 class="mb-3">Последняя попытка</h3>
 
 {% endif %}
 
@@ -156,7 +192,17 @@
 
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <div>
-                    <b>{{ sub["filename"] }}</b>
+                    {% if session.get("role") == "student" %}
+                        <h5 class="mb-1">Попытка {{ sub["attempt_number"] or 1 }}</h5>
+                    {% endif %}
+
+                    {% if sub["file_deleted"] %}
+                        <div class="text-muted small">
+                            HDL-файл этой попытки удалён после повторной отправки.
+                        </div>
+                    {% else %}
+                        <b>{{ sub["filename"] }}</b>
+                    {% endif %}
 
                     {% if session.get("role") == "teacher" %}
                         <div class="text-muted small">
@@ -198,7 +244,7 @@
                         </span>
                     </div>
 
-                    {% if session.get("role") == "teacher" %}
+                    {% if session.get("role") == "teacher" and not sub["file_deleted"] %}
                         <div class="mt-2">
                             <a class="btn btn-outline-primary btn-sm"
                                href="{{ url_for('download_submission', submission_id=sub['id']) }}">
@@ -210,6 +256,42 @@
             </div>
 
             <pre class="result-box">{{ sub["output"] }}</pre>
+
+            {% if session.get("role") == "student" and sub["status"] != "PASSED" %}
+                <div class="d-flex flex-wrap gap-2 mt-3">
+
+                    <a href="{{ url_for('ai_help', submission_id=sub['id'], level=1) }}"
+                       class="btn btn-outline-primary btn-sm">
+                        Получить помощь ИИ
+                    </a>
+
+                    {% if lab["allow_extra_questions"] and sub["extra_attempts_count"] == 0 %}
+                        <a href="{{ url_for('improve_score', submission_id=sub['id']) }}"
+                           class="btn btn-outline-success btn-sm">
+                            Улучшить оценку
+                        </a>
+                    {% elif not lab["allow_extra_questions"] %}
+                        <span class="badge bg-secondary align-self-center">
+                            Улучшение оценки отключено преподавателем
+                        </span>
+                    {% else %}
+                        <span class="badge bg-secondary align-self-center">
+                            Улучшение оценки уже использовано
+                        </span>
+                    {% endif %}
+
+                    {% if (attempts_count or 0) < (lab["max_attempts"] or 3) %}
+                        <form method="post"
+                              action="{{ url_for('retry_submission', submission_id=sub['id']) }}">
+                            <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                Попробовать снова
+                            </button>
+                        </form>
+                    {% endif %}
+
+                </div>
+            {% endif %}
+
         </div>
     </div>
 {% endfor %}

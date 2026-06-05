@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<a href="{{ url_for('lab_detail', lab_id=lab['id']) }}" class="btn btn-outline-secondary btn-sm mb-3">
+    ← Назад к лабораторной работе
+</a>
+
+<h1 class="mb-4">История попыток</h1>
+
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body">
+        <h4>{{ lab["title"] }}</h4>
+        <p class="text-muted mb-0">
+            Здесь отображаются все ваши попытки по выбранной лабораторной работе.
+        </p>
+    </div>
+</div>
+
+{% for sub in submissions %}
+    <div class="card shadow-sm border-0 rounded-4 mb-3">
+        <div class="card-body">
+
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h5>Попытка {{ sub["attempt_number"] }}</h5>
+
+                    <div class="text-muted small">
+                        Дата: {{ sub["created_at"] }}
+                    </div>
+
+                    {% if sub["file_deleted"] %}
+                        <div class="text-muted small">
+                            HDL-файл удалён после повторной отправки.
+                        </div>
+                    {% else %}
+                        <div class="text-muted small">
+                            Файл: {{ sub["filename"] }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="text-end">
+                    {% if sub["status"] == "PASSED" %}
+                        <span class="badge bg-success fs-6">PASSED</span>
+                    {% elif sub["status"] == "PARTIAL" %}
+                        <span class="badge bg-info text-dark fs-6">PARTIAL</span>
+                    {% elif sub["status"] == "FAILED" %}
+                        <span class="badge bg-danger fs-6">FAILED</span>
+                    {% elif sub["status"] == "COMPILE_ERROR" %}
+                        <span class="badge bg-warning text-dark fs-6">COMPILE ERROR</span>
+                    {% else %}
+                        <span class="badge bg-secondary fs-6">{{ sub["status"] }}</span>
+                    {% endif %}
+
+                    <div class="mt-2">
+                        <span class="badge bg-dark">
+                            {{ sub["score"] }} / 100
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <pre class="result-box">{{ sub["output"] }}</pre>
+
+        </div>
+    </div>
+{% endfor %}
+
+{% if submissions|length == 0 %}
+    <div class="alert alert-info rounded-4">
+        Попыток пока нет.
+    </div>
+{% endif %}
+
+{% endblock %}
