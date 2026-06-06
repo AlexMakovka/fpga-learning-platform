@@ -25,6 +25,39 @@
             </span>
         </div>
 
+        <div class="alert alert-light border rounded-4">
+            <h5 class="mb-2">Адаптивный анализ попытки</h5>
+
+            <p class="mb-1">
+                <b>Тема:</b> {{ adaptive_plan["topic"] }}
+            </p>
+
+            <p class="mb-1">
+                <b>Тип ошибки:</b> {{ adaptive_plan["error_title"] }}
+            </p>
+
+            <p class="mb-1">
+                <b>Уровень подсказки:</b> {{ adaptive_plan["hint_level"] }}
+            </p>
+
+            <p class="mb-0">
+                <b>Максимальный бонус:</b> {{ adaptive_plan["max_bonus"] }} баллов,
+                максимум после улучшения — {{ adaptive_plan["bonus_cap"] }} / 100.
+            </p>
+        </div>
+
+        <div class="card shadow-sm border-0 rounded-4 mb-3">
+            <div class="card-body">
+                <h5>Рекомендации к повторению</h5>
+
+                <ul class="mb-0">
+                    {% for topic in adaptive_plan["repeat_topics"] %}
+                        <li>{{ topic }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
         {% if check_result %}
             {% if check_result["score_after"] > check_result["score_before"] %}
                 <div class="alert alert-success rounded-4">

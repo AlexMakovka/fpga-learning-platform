@@ -772,7 +772,10 @@ def get_submission_for_current_user(submission_id):
         SELECT 
             submissions.*,
             labs.title AS lab_title,
-            labs.description AS lab_description
+            labs.description AS lab_description,
+            labs.testbench AS lab_testbench,
+            labs.allow_extra_questions,
+            labs.max_attempts
         FROM submissions
         JOIN labs ON submissions.lab_id = labs.id
         WHERE submissions.id = ?
@@ -886,6 +889,501 @@ def extract_failed_tests(output):
             failed.append("\n".join(block))
 
     return failed
+
+def extract_failed_tests_for_adaptive_module(output):
+    """
+    Извлекает ошибочные тесты из отчета проверки.
+    Используется адаптивным модулем для понимания конкретной ошибки.
+    """
+
+    lines = output.splitlines()
+    failed_tests = []
+
+    for index, line in enumerate(lines):
+        line_lower = line.lower()
+
+        if line_lower.strip().startswith("тест") and "ошибка" in line_lower:
+            test_block = {
+                "test_line": line,
+                "expected": "",
+                "actual": ""
+            }
+
+            if index + 1 < len(lines) and "ожидалось" in lines[index + 1].lower():
+                test_block["expected"] = lines[index + 1]
+
+            if index + 2 < len(lines) and "получено" in lines[index + 2].lower():
+                test_block["actual"] = lines[index + 2]
+
+            failed_tests.append(test_block)
+
+    return failed_tests
+
+
+def get_student_error_history(username, lab_id):
+    """
+    Возвращает историю ошибок студента по конкретной лабораторной.
+    Нужна для адаптации подсказок: если студент повторяет одну и ту же ошибку,
+    система делает подсказку конкретнее.
+    """
+
+    conn = get_db()
+
+    rows = conn.execute(
+        """
+        SELECT error_type, error_title, COUNT(*) AS count
+        FROM submissions
+        WHERE username = ?
+          AND lab_id = ?
+          AND error_type IS NOT NULL
+          AND error_type != ''
+          AND error_type != 'NO_ERROR'
+        GROUP BY error_type, error_title
+        ORDER BY count DESC
+        """,
+        (username, lab_id)
+    ).fetchall()
+
+    conn.close()
+
+    return rows
+
+
+def detect_lab_topic_adaptive(submission, code):
+    """
+    Определяет тему лабораторной на основе названия, описания, testbench и кода.
+    """
+
+    text = (
+        str(submission["lab_title"]) + " " +
+        str(submission["lab_description"]) + " " +
+        str(submission["lab_testbench"]) + " " +
+        str(code)
+    ).lower()
+
+    if "mux" in text or "мультиплексор" in text or "sel" in text:
+        return "mux"
+
+    if "adder" in text or "сумматор" in text or "sum" in text or "carry" in text:
+        return "adder"
+
+    if "counter" in text or "счетчик" in text or "счётчик" in text or "count" in text:
+        return "counter"
+
+    if "register" in text or "регистр" in text:
+        return "register"
+
+    if "fsm" in text or "автомат" in text or "state" in text:
+        return "fsm"
+
+    return "general"
+
+
+def define_hint_level(submission, error_history):
+    """
+    Определяет уровень подсказки.
+    Чем больше попыток и повторов ошибки, тем конкретнее подсказка.
+    """
+
+    attempt_number = int(submission["attempt_number"] or 1)
+    repeated_error_count = 0
+
+    for row in error_history:
+        if row["error_type"] == submission["error_type"]:
+            repeated_error_count = row["count"]
+            break
+
+    if attempt_number <= 1 and repeated_error_count <= 1:
+        return 1
+
+    if attempt_number == 2 or repeated_error_count == 2:
+        return 2
+
+    return 3
+
+
+def build_recommendations_to_repeat(topic, error_type):
+    """
+    Формирует список тем, которые студенту рекомендуется повторить.
+    """
+
+    recommendations = []
+
+    if error_type == "MODULE_NAME_MISMATCH":
+        recommendations.append("структура Verilog-модуля и имя module")
+        recommendations.append("соответствие имени модуля testbench-сценарию")
+
+    elif error_type == "PORT_MISMATCH":
+        recommendations.append("объявление входов и выходов input/output")
+        recommendations.append("соответствие портов модуля проверочному testbench")
+
+    elif error_type == "COMPILE_ERROR":
+        recommendations.append("синтаксис Verilog")
+        recommendations.append("точки с запятой, assign, module и endmodule")
+
+    elif error_type == "CONTROL_SIGNAL_ERROR":
+        recommendations.append("управляющие сигналы в комбинационной логике")
+        recommendations.append("условный оператор Verilog")
+        recommendations.append("таблица истинности мультиплексора")
+
+    elif error_type == "INCOMPLETE_CONDITION":
+        recommendations.append("полное описание условий if-else")
+        recommendations.append("default-ветка в case-конструкциях")
+        recommendations.append("избежание неопределенных значений")
+
+    elif error_type == "RESET_CLOCK_ERROR":
+        recommendations.append("последовательностная логика")
+        recommendations.append("clock/reset")
+        recommendations.append("always-блоки и изменение состояния")
+
+    elif error_type == "BOUNDARY_TEST_FAILED":
+        recommendations.append("граничные тесты")
+        recommendations.append("проверка всех комбинаций входных сигналов")
+
+    elif error_type == "WRONG_COMBINATIONAL_LOGIC":
+        recommendations.append("комбинационная логика")
+        recommendations.append("оператор assign")
+        recommendations.append("таблицы истинности")
+
+    else:
+        recommendations.append("анализ testbench")
+        recommendations.append("сравнение ожидаемых и полученных значений")
+
+    if topic == "mux":
+        recommendations.append("мультиплексор 2 к 1")
+
+    if topic == "adder":
+        recommendations.append("логика суммы и переноса")
+
+    if topic == "counter":
+        recommendations.append("счетчики и изменение значения по такту")
+
+    return list(dict.fromkeys(recommendations))
+
+
+def generate_adaptive_hint(submission, topic, failed_tests, hint_level):
+    """
+    Формирует подсказку с учетом темы, типа ошибки, ошибочных тестов и уровня подсказки.
+    """
+
+    error_type = submission["error_type"]
+
+    failed_text = ""
+
+    if failed_tests:
+        first_failed = failed_tests[0]
+        failed_text = (
+            f"\n\nОдин из ошибочных тестов:\n"
+            f"{first_failed['test_line']}\n"
+            f"{first_failed['expected']}\n"
+            f"{first_failed['actual']}"
+        )
+
+    if error_type == "MODULE_NAME_MISMATCH":
+        if hint_level == 1:
+            return (
+                "ИИ-подсказка 1 уровня:\n\n"
+                "Проблема связана не с логикой схемы, а с подключением модуля к testbench. "
+                "Проверьте, совпадает ли имя вашего module с тем, которое требуется в задании."
+            )
+
+        if hint_level == 2:
+            return (
+                "ИИ-подсказка 2 уровня:\n\n"
+                "Testbench вызывает конкретное имя модуля. Если в задании требуется mux2to1, "
+                "то в коде должно быть написано именно module mux2to1(...)."
+            )
+
+        return (
+            "ИИ-подсказка 3 уровня:\n\n"
+            "Проверьте первую строку вашего Verilog-кода. Она должна иметь вид:\n\n"
+            "module имя_из_задания(...);\n\n"
+            "Не меняйте имя модуля произвольно, иначе testbench не сможет его проверить."
+        )
+
+    if error_type == "PORT_MISMATCH":
+        if hint_level == 1:
+            return (
+                "ИИ-подсказка 1 уровня:\n\n"
+                "Проблема может быть связана с тем, что имена входов и выходов в вашем модуле "
+                "не совпадают с теми, которые ожидает testbench."
+            )
+
+        if hint_level == 2:
+            return (
+                "ИИ-подсказка 2 уровня:\n\n"
+                "Сравните список портов в условии лабораторной работы и в вашем module. "
+                "Даже одна лишняя буква в имени порта может привести к ошибке подключения."
+            )
+
+        return (
+            "ИИ-подсказка 3 уровня:\n\n"
+            "Проверьте заголовок модуля. Например, если testbench ожидает d0, d1, sel и y, "
+            "то именно эти имена должны быть указаны в списке input/output."
+        )
+
+    if error_type == "CONTROL_SIGNAL_ERROR" and topic == "mux":
+        if hint_level == 1:
+            return (
+                "ИИ-подсказка 1 уровня:\n\n"
+                "Ошибка связана с выбором входа. В мультиплексоре управляющий сигнал sel определяет, "
+                "какой вход должен попасть на выход y."
+                f"{failed_text}"
+            )
+
+        if hint_level == 2:
+            return (
+                "ИИ-подсказка 2 уровня:\n\n"
+                "Проверьте, какой вход выбирается при sel = 0 и какой при sel = 1. "
+                "Если часть тестов не проходит, возможно, d0 и d1 перепутаны местами."
+                f"{failed_text}"
+            )
+
+        return (
+            "ИИ-подсказка 3 уровня:\n\n"
+            "Для мультиплексора 2 к 1 логика выбора должна учитывать оба случая: "
+            "sel = 0 и sel = 1. Проверьте условное выражение справа от assign и сопоставьте его "
+            "с таблицей истинности."
+            f"{failed_text}"
+        )
+
+    if error_type == "RESET_CLOCK_ERROR":
+        if hint_level == 1:
+            return (
+                "ИИ-подсказка 1 уровня:\n\n"
+                "Ошибка связана с последовательностной логикой. Для таких схем важно правильно описать "
+                "clock, reset и момент изменения значения."
+            )
+
+        if hint_level == 2:
+            return (
+                "ИИ-подсказка 2 уровня:\n\n"
+                "Проверьте, что состояние схемы меняется по нужному фронту clock, а reset задает корректное "
+                "начальное значение."
+            )
+
+        return (
+            "ИИ-подсказка 3 уровня:\n\n"
+            "Обратите внимание на always-блок. Для последовательностных схем обычно проверяют чувствительность "
+            "к clock/reset и порядок условий внутри блока."
+        )
+
+    if error_type == "INCOMPLETE_CONDITION":
+        if hint_level == 1:
+            return (
+                "ИИ-подсказка 1 уровня:\n\n"
+                "В коде может быть не описан один из вариантов входных сигналов."
+            )
+
+        if hint_level == 2:
+            return (
+                "ИИ-подсказка 2 уровня:\n\n"
+                "Проверьте, есть ли ветка else для if-условий или default для case-конструкций."
+            )
+
+        return (
+            "ИИ-подсказка 3 уровня:\n\n"
+            "Для комбинационной логики важно, чтобы выход получал значение при всех возможных вариантах входов. "
+            "Иначе могут появиться неопределенные значения или защелки."
+        )
+
+    if error_type == "WRONG_COMBINATIONAL_LOGIC":
+        if hint_level == 1:
+            return (
+                "ИИ-подсказка 1 уровня:\n\n"
+                "Код компилируется, но логика схемы не совпадает с ожидаемой."
+                f"{failed_text}"
+            )
+
+        if hint_level == 2:
+            return (
+                "ИИ-подсказка 2 уровня:\n\n"
+                "Сравните таблицу истинности задания с выражениями assign или always в вашем коде."
+                f"{failed_text}"
+            )
+
+        return (
+            "ИИ-подсказка 3 уровня:\n\n"
+            "Сосредоточьтесь на тех входных комбинациях, где testbench показывает различие между "
+            "ожидаемым и полученным значением."
+            f"{failed_text}"
+        )
+
+    return (
+        f"ИИ-подсказка {hint_level} уровня:\n\n"
+        "Система обнаружила ошибку в решении. Начните с анализа строк отчета testbench: "
+        "сравните ожидаемые и полученные значения."
+        f"{failed_text}"
+    )
+
+
+def generate_adaptive_questions(submission, topic, failed_tests, hint_level):
+    """
+    Формирует индивидуальные дополнительные вопросы.
+    Вопросы зависят от темы лабораторной, типа ошибки и уровня подсказки.
+    """
+
+    error_type = submission["error_type"]
+
+    if topic == "mux":
+        if error_type == "CONTROL_SIGNAL_ERROR":
+            return [
+                build_task(
+                    "answer_1",
+                    "Вопрос 1. Роль управляющего сигнала",
+                    "Объясните, какую роль выполняет сигнал sel в мультиплексоре 2 к 1.",
+                    [
+                        ["sel"],
+                        ["выбор", "выбирает", "управляет"],
+                        ["d0", "d1", "вход"]
+                    ]
+                ),
+                build_task(
+                    "answer_2",
+                    "Вопрос 2. Поведение выхода",
+                    "Что должно быть на выходе y при sel = 0 и при sel = 1?",
+                    [
+                        ["sel=0", "sel = 0"],
+                        ["d0"],
+                        ["sel=1", "sel = 1"],
+                        ["d1"]
+                    ]
+                ),
+                build_task(
+                    "answer_3",
+                    "Вопрос 3. Анализ ошибки",
+                    "Какая ошибка могла возникнуть в выражении для y, если при некоторых значениях sel выбирается не тот вход?",
+                    [
+                        ["sel", "d0", "d1", "y"],
+                        ["перепут", "наоборот", "неверно", "ошибка", "условие"]
+                    ]
+                )
+            ]
+
+        return [
+            build_task(
+                "answer_1",
+                "Вопрос 1. Назначение мультиплексора",
+                "Объясните, для чего используется мультиплексор 2 к 1.",
+                [
+                    ["мультиплексор", "mux"],
+                    ["выбор", "выбирает", "один"],
+                    ["вход", "выход"]
+                ]
+            ),
+            build_task(
+                "answer_2",
+                "Вопрос 2. Таблица истинности",
+                "Опишите, как изменяется выход y в зависимости от d0, d1 и sel.",
+                [
+                    ["y", "выход"],
+                    ["sel"],
+                    ["d0", "d1"]
+                ]
+            ),
+            build_task(
+                "answer_3",
+                "Вопрос 3. План исправления",
+                "Что вы проверите в HDL-коде перед повторной отправкой решения?",
+                [
+                    ["провер", "исправ", "измен"],
+                    ["assign", "условие", "sel", "код"]
+                ]
+            )
+        ]
+
+    if topic == "adder":
+        return [
+            build_task(
+                "answer_1",
+                "Вопрос 1. Сумма и перенос",
+                "Объясните различие между выходом sum и выходом carry.",
+                [
+                    ["sum", "сумма"],
+                    ["carry", "перенос"]
+                ]
+            ),
+            build_task(
+                "answer_2",
+                "Вопрос 2. Граничный случай",
+                "Что должно произойти при входах 1 и 1 в сумматоре?",
+                [
+                    ["1"],
+                    ["carry", "перенос"],
+                    ["sum", "сумма"]
+                ]
+            ),
+            build_task(
+                "answer_3",
+                "Вопрос 3. Логические операции",
+                "Какие логические операции Verilog можно использовать для описания sum и carry?",
+                [
+                    ["^", "xor", "исключающее"],
+                    ["&", "and", "и"]
+                ]
+            )
+        ]
+
+    if topic == "counter":
+        return [
+            build_task(
+                "answer_1",
+                "Вопрос 1. Работа счетчика",
+                "Объясните, как должен изменяться выход счетчика при поступлении тактового сигнала.",
+                [
+                    ["clock", "clk", "такт"],
+                    ["увелич", "счит", "значение"]
+                ]
+            ),
+            build_task(
+                "answer_2",
+                "Вопрос 2. Reset",
+                "Зачем нужен reset и какое значение должен принимать счетчик после сброса?",
+                [
+                    ["reset", "rst", "сброс"],
+                    ["0", "ноль", "начальное"]
+                ]
+            ),
+            build_task(
+                "answer_3",
+                "Вопрос 3. Ошибка последовательностной логики",
+                "Какая ошибка может возникнуть, если неправильно описать clock или reset?",
+                [
+                    ["clock", "clk", "такт", "reset", "rst"],
+                    ["ошибка", "значение", "состояние", "неверно"]
+                ]
+            )
+        ]
+
+    return [
+        build_task(
+            "answer_1",
+            "Вопрос 1. Назначение модуля",
+            "Опишите назначение HDL-модуля из данной лабораторной работы.",
+            [
+                ["модуль", "module"],
+                ["вход", "выход", "сигнал"]
+            ]
+        ),
+        build_task(
+            "answer_2",
+            "Вопрос 2. Анализ ошибки",
+            "Сравните ожидаемые и полученные значения в ошибочных тестах. Что именно не совпадает?",
+            [
+                ["ожид", "получ"],
+                ["ошибка", "не совпадает", "неверно"]
+            ]
+        ),
+        build_task(
+            "answer_3",
+            "Вопрос 3. Повторная отправка",
+            "Какую часть кода нужно проверить перед повторной отправкой?",
+            [
+                ["провер", "исправ", "измен"],
+                ["код", "логика", "условие", "сигнал"]
+            ]
+        )
+    ]
 
 
 def generate_ai_hint(submission, code, level):
@@ -1551,6 +2049,84 @@ def evaluate_extra_task_answers(submission, answers):
     return correct_count, bonus, "\n".join(feedback_lines)
 
 
+def build_adaptive_learning_plan(submission, code):
+    """
+    Главный алгоритм адаптивного обучающего модуля.
+
+    Вход:
+    - тема лабораторной;
+    - описание задания;
+    - HDL-код студента;
+    - результат testbench;
+    - список ошибочных тестов;
+    - номер попытки;
+    - история ошибок студента.
+
+    Выход:
+    - тип ошибки;
+    - уровень подсказки;
+    - текст подсказки;
+    - дополнительные вопросы;
+    - рекомендации к повторению;
+    - ограниченный бонус.
+    """
+
+    topic = detect_lab_topic_adaptive(submission, code)
+    failed_tests = extract_failed_tests_for_adaptive_module(submission["output"])
+    error_history = get_student_error_history(
+        submission["username"],
+        submission["lab_id"]
+    )
+
+    hint_level = define_hint_level(submission, error_history)
+
+    hint_text = generate_adaptive_hint(
+        submission=submission,
+        topic=topic,
+        failed_tests=failed_tests,
+        hint_level=hint_level
+    )
+
+    questions = generate_adaptive_questions(
+        submission=submission,
+        topic=topic,
+        failed_tests=failed_tests,
+        hint_level=hint_level
+    )
+
+    repeat_topics = build_recommendations_to_repeat(
+        topic=topic,
+        error_type=submission["error_type"]
+    )
+
+    if submission["status"] == "PASSED":
+        max_bonus = 0
+        bonus_cap = int(submission["score"] or 100)
+    elif hint_level == 1:
+        max_bonus = 20
+        bonus_cap = 80
+    elif hint_level == 2:
+        max_bonus = 15
+        bonus_cap = 75
+    else:
+        max_bonus = 10
+        bonus_cap = 70
+
+    return {
+        "topic": topic,
+        "error_type": submission["error_type"],
+        "error_title": submission["error_title"],
+        "hint_level": hint_level,
+        "hint_text": hint_text,
+        "questions": questions,
+        "repeat_topics": repeat_topics,
+        "max_bonus": max_bonus,
+        "bonus_cap": bonus_cap,
+        "failed_tests": failed_tests,
+        "error_history": error_history
+    }
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -1962,31 +2538,20 @@ def download_submission(submission_id):
 def ai_help(submission_id):
     submission = get_submission_for_current_user(submission_id)
 
-    if submission["file_deleted"]:
-        flash("Файл этой попытки был удалён после повторной отправки.")
-        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
-
     if submission["status"] == "PASSED":
         flash("Решение уже прошло все тесты. Подсказка ИИ не требуется.")
         return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
 
-    level = request.args.get("level", 1, type=int)
-
-    if level < 1:
-        level = 1
-
-    if level > 3:
-        level = 3
-
     code = read_submission_code(submission["filename"])
-    hint = generate_ai_hint(submission, code, level)
+    adaptive_plan = build_adaptive_learning_plan(submission, code)
 
     return render_template(
         "ai_help.html",
         submission=submission,
-        hint=hint,
-        level=level,
-        code=code
+        hint=adaptive_plan["hint_text"],
+        level=adaptive_plan["hint_level"],
+        code=code,
+        adaptive_plan=adaptive_plan
     )
 
 
@@ -2030,7 +2595,8 @@ def improve_score(submission_id):
         return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
 
     code = read_submission_code(submission["filename"])
-    tasks = generate_extra_tasks(submission, code)
+    adaptive_plan = build_adaptive_learning_plan(submission, code)
+    tasks = adaptive_plan["questions"]
 
     check_result = None
 
@@ -2054,10 +2620,8 @@ def improve_score(submission_id):
 
         score_before = int(submission["score"] or 0)
 
-        if correct_count == 3:
-            score_after = min(80, score_before + bonus)
-        elif correct_count == 2:
-            score_after = min(70, score_before + bonus)
+        if correct_count >= 2:
+            score_after = min(adaptive_plan["bonus_cap"], score_before + bonus)
         else:
             score_after = score_before
 
@@ -2126,7 +2690,8 @@ def improve_score(submission_id):
         submission=submission,
         tasks=tasks,
         check_result=check_result,
-        student_answers=student_answers
+        student_answers=student_answers,
+        adaptive_plan=adaptive_plan
     )
 
 @app.route("/teacher")

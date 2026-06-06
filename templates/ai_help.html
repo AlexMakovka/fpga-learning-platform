@@ -20,9 +20,26 @@
             <span class="badge bg-secondary">Попытка #{{ submission["id"] }}</span>
             <span class="badge bg-dark">{{ submission["score"] }} / 100 баллов</span>
             <span class="badge bg-info text-dark">Подсказка {{ level }} уровня</span>
+
+            <span class="badge bg-warning text-dark">
+                {{ adaptive_plan["error_title"] }}
+            </span>
+
         </div>
 
         <pre class="result-box">{{ hint }}</pre>
+
+        <div class="card shadow-sm border-0 rounded-4 mt-4">
+            <div class="card-body">
+                <h3>Рекомендации к повторению</h3>
+
+                <ul class="mb-0">
+                    {% for topic in adaptive_plan["repeat_topics"] %}
+                        <li>{{ topic }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
 
         <div class="d-flex gap-2 mt-3">
 
