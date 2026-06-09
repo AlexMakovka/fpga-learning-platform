@@ -1,0 +1,8 @@
+FROM python:3.11-slim
+
+RUN pip install --no-cache-dir pytest
+
+WORKDIR /workspace
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTEST_DISABLE_PLUGIN_AUTOLOAD=1

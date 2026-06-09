@@ -2,42 +2,131 @@
 
 {% block content %}
 
-<a href="{{ url_for('teacher_panel') }}" class="btn btn-outline-secondary btn-sm mb-3">
-    ← Назад в панель преподавателя
-</a>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="mb-1">Редактирование лабораторной работы</h1>
+        <p class="text-muted mb-0">
+            Изменение описания, проверочного сценария и паспорта лабораторной работы.
+        </p>
+    </div>
 
-<div class="card shadow-sm border-0 rounded-4">
+    <a href="{{ url_for('teacher_panel') }}" class="btn btn-outline-secondary">
+        Назад
+    </a>
+</div>
+
+<div class="card shadow-sm border-0 rounded-4 mb-4">
     <div class="card-body p-4">
 
-        <h1 class="mb-3">Редактирование лабораторной работы</h1>
-
-        <p class="text-muted">
-            Здесь можно изменить название, описание задания, проверочный testbench-сценарий,
-            количество попыток и возможность улучшения оценки через дополнительные вопросы.
-        </p>
-
-        <form method="post" action="{{ url_for('edit_lab', lab_id=lab['id']) }}">
+        <form method="post">
 
             <div class="mb-3">
-                <label class="form-label">Название лабораторной работы</label>
+                <label class="form-label">Название</label>
                 <input type="text"
                        name="title"
                        class="form-control"
-                       value="{{ lab['title'] }}">
+                       value="{{ lab['title'] }}"
+                       required>
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Описание задания</label>
+                <label class="form-label">Описание</label>
                 <textarea name="description"
-                          rows="6"
-                          class="form-control">{{ lab['description'] }}</textarea>
+                          rows="4"
+                          class="form-control"
+                          required>{{ lab["description"] }}</textarea>
+            </div>
+
+            <hr class="my-4">
+
+            <h4 class="mb-3">Паспорт лабораторной работы</h4>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Дисциплина</label>
+                    <input type="text"
+                           name="discipline"
+                           class="form-control"
+                           value="{{ lab['discipline'] or 'FPGA-проектирование' }}">
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Язык / технология</label>
+                    <select name="programming_language" class="form-select">
+                        <option value="Verilog" {% if lab["programming_language"] == "Verilog" %}selected{% endif %}>Verilog</option>
+                        <option value="Python" {% if lab["programming_language"] == "Python" %}selected{% endif %}>Python</option>
+                        <option value="SQL" {% if lab["programming_language"] == "SQL" %}selected{% endif %}>SQL</option>
+                        <option value="C++" {% if lab["programming_language"] == "C++" %}selected{% endif %}>C++</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Тип проверки</label>
+                    <select name="checker_type" class="form-select">
+                        <option value="hdl_testbench" {% if lab["checker_type"] == "hdl_testbench" %}selected{% endif %}>HDL testbench</option>
+                        <option value="python_unit_tests" {% if lab["checker_type"] == "python_unit_tests" %}selected{% endif %}>Python unit tests</option>
+                        <option value="sql_query" {% if lab["checker_type"] == "sql_query" %}selected{% endif %}>SQL query check</option>
+                        <option value="cpp_tests" {% if lab["checker_type"] == "cpp_tests" %}selected{% endif %}>C++ tests</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Тема задания</label>
+                    <input type="text"
+                           name="topic"
+                           class="form-control"
+                           value="{{ lab['topic'] or '' }}"
+                           placeholder="Например: mux, adder, counter, loops">
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Сложность</label>
+                    <select name="difficulty" class="form-select">
+                        <option value="basic" {% if lab["difficulty"] == "basic" %}selected{% endif %}>Базовая</option>
+                        <option value="medium" {% if lab["difficulty"] == "medium" %}selected{% endif %}>Средняя</option>
+                        <option value="hard" {% if lab["difficulty"] == "hard" %}selected{% endif %}>Высокая</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Ключевые понятия</label>
+                    <input type="text"
+                           name="concepts"
+                           class="form-control"
+                           value="{{ lab['concepts'] or '' }}"
+                           placeholder="sel, assign, d0, d1">
+                </div>
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Проверочный сценарий testbench</label>
+                <label class="form-label">Критерии оценивания</label>
+                <textarea name="grading_policy"
+                          class="form-control"
+                          rows="3"
+                          placeholder="Например: 80% — прохождение testbench, 20% — дополнительные вопросы">{{ lab["grading_policy"] or "" }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Стартовый шаблон кода</label>
+                <textarea name="starter_code"
+                          class="form-control code-area"
+                          rows="8"
+                          placeholder="Шаблон, который студент увидит при открытии задания">{{ lab["starter_code"] or "" }}</textarea>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="mb-3">
+                <label class="form-label">Проверочный сценарий testbench / проверочный код</label>
                 <textarea name="testbench"
-                          rows="18"
-                          class="form-control code-area">{{ lab['testbench'] }}</textarea>
+                          rows="12"
+                          class="form-control code-area"
+                          required>{{ lab["testbench"] }}</textarea>
+                <div class="form-text">
+                    Для Verilog здесь указывается testbench. Для будущих Python-заданий здесь можно хранить unit-тесты.
+                </div>
             </div>
 
             <div class="row">
@@ -48,9 +137,8 @@
                            class="form-control"
                            value="{{ lab['max_attempts'] or 3 }}"
                            min="1">
-
                     <div class="form-text">
-                        Сколько раз студент может отправить HDL-решение по этой лабораторной работе.
+                        Если студент уже использовал больше попыток, старые попытки сохранятся, но новые будут ограничены этим числом.
                     </div>
                 </div>
 
@@ -60,10 +148,7 @@
                                type="checkbox"
                                name="allow_extra_questions"
                                id="allow_extra_questions"
-                               {% if lab["allow_extra_questions"] %}
-                                   checked
-                               {% endif %}>
-
+                               {% if lab["allow_extra_questions"] %}checked{% endif %}>
                         <label class="form-check-label" for="allow_extra_questions">
                             Разрешить улучшение оценки через дополнительные вопросы
                         </label>
@@ -71,7 +156,7 @@
                 </div>
             </div>
 
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 mt-4">
                 <button class="btn btn-primary" type="submit">
                     Сохранить изменения
                 </button>

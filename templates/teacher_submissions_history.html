@@ -10,7 +10,7 @@
     <div>
         <h1 class="mb-1">История попыток студентов</h1>
         <p class="text-muted mb-0">
-            Здесь отображаются все отправки HDL-решений с фильтрацией и сортировкой.
+            Здесь отображаются все отправки решений. Основной список сгруппирован по студенту и лабораторной работе.
         </p>
     </div>
 </div>
@@ -66,9 +66,24 @@
                 </div>
 
                 <div class="col-md-3">
+                    <label class="form-label">Статус</label>
+                    <select name="status" class="form-select">
+                        <option value="">Все статусы</option>
+                        <option value="PASSED" {% if selected_status == "PASSED" %}selected{% endif %}>PASSED</option>
+                        <option value="PARTIAL" {% if selected_status == "PARTIAL" %}selected{% endif %}>PARTIAL</option>
+                        <option value="FAILED" {% if selected_status == "FAILED" %}selected{% endif %}>FAILED</option>
+                        <option value="COMPILE_ERROR" {% if selected_status == "COMPILE_ERROR" %}selected{% endif %}>COMPILE ERROR</option>
+                        <option value="SYSTEM_ERROR" {% if selected_status == "SYSTEM_ERROR" %}selected{% endif %}>SYSTEM ERROR</option>
+                        <option value="TIMEOUT" {% if selected_status == "TIMEOUT" %}selected{% endif %}>TIMEOUT</option>
+                        <option value="SECURITY_BLOCK" {% if selected_status == "SECURITY_BLOCK" %}selected{% endif %}>SECURITY BLOCK</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
                     <label class="form-label">Тип ошибки</label>
                     <select name="error_type" class="form-select">
                         <option value="">Все типы ошибок</option>
+
                         <option value="COMPILE_ERROR" {% if selected_error_type == "COMPILE_ERROR" %}selected{% endif %}>Ошибка компиляции</option>
                         <option value="MODULE_NAME_MISMATCH" {% if selected_error_type == "MODULE_NAME_MISMATCH" %}selected{% endif %}>Несовпадение имени модуля</option>
                         <option value="PORT_MISMATCH" {% if selected_error_type == "PORT_MISMATCH" %}selected{% endif %}>Несовпадение портов</option>
@@ -78,18 +93,17 @@
                         <option value="RESET_CLOCK_ERROR" {% if selected_error_type == "RESET_CLOCK_ERROR" %}selected{% endif %}>Ошибка reset/clock</option>
                         <option value="BOUNDARY_TEST_FAILED" {% if selected_error_type == "BOUNDARY_TEST_FAILED" %}selected{% endif %}>Граничные тесты</option>
                         <option value="FUNCTIONAL_ERROR" {% if selected_error_type == "FUNCTIONAL_ERROR" %}selected{% endif %}>Функциональная ошибка</option>
+
+                        <option value="PYTHON_SYNTAX_ERROR" {% if selected_error_type == "PYTHON_SYNTAX_ERROR" %}selected{% endif %}>Python: синтаксическая ошибка</option>
+                        <option value="PYTHON_INDENTATION_ERROR" {% if selected_error_type == "PYTHON_INDENTATION_ERROR" %}selected{% endif %}>Python: ошибка отступов</option>
+                        <option value="PYTHON_NAME_ERROR" {% if selected_error_type == "PYTHON_NAME_ERROR" %}selected{% endif %}>Python: ошибка имени</option>
+                        <option value="PYTHON_TYPE_ERROR" {% if selected_error_type == "PYTHON_TYPE_ERROR" %}selected{% endif %}>Python: ошибка типа данных</option>
+                        <option value="PYTHON_LOGIC_ERROR" {% if selected_error_type == "PYTHON_LOGIC_ERROR" %}selected{% endif %}>Python: логическая ошибка</option>
+                        <option value="PYTHON_TIMEOUT" {% if selected_error_type == "PYTHON_TIMEOUT" %}selected{% endif %}>Python: превышено время</option>
+                        <option value="PYTHON_SECURITY_BLOCK" {% if selected_error_type == "PYTHON_SECURITY_BLOCK" %}selected{% endif %}>Python: запрещённая конструкция</option>
+                        <option value="PYTHON_RUNTIME_ERROR" {% if selected_error_type == "PYTHON_RUNTIME_ERROR" %}selected{% endif %}>Python: ошибка выполнения</option>
                     </select>
                 </div>
-
-                <td>
-                    {% if sub["error_title"] %}
-                        <span class="badge bg-warning text-dark">
-                            {{ sub["error_title"] }}
-                        </span>
-                    {% else %}
-                        <span class="text-muted small">—</span>
-                    {% endif %}
-                </td>
 
                 <div class="col-md-3">
                     <label class="form-label">Дата выполнения от</label>
@@ -115,7 +129,6 @@
                         <option value="student" {% if sort == "student" %}selected{% endif %}>студенту</option>
                         <option value="group" {% if sort == "group" %}selected{% endif %}>группе</option>
                         <option value="lab" {% if sort == "lab" %}selected{% endif %}>лабораторной</option>
-                        <option value="score" {% if sort == "score" %}selected{% endif %}>оценке попытки</option>
                         <option value="best_score" {% if sort == "best_score" %}selected{% endif %}>лучшей оценке</option>
                         <option value="status" {% if sort == "status" %}selected{% endif %}>статусу</option>
                         <option value="attempt" {% if sort == "attempt" %}selected{% endif %}>номеру попытки</option>
@@ -147,130 +160,195 @@
     </div>
 </div>
 
+{% if submission_groups and submission_groups|length > 0 %}
 
-<div class="card shadow-sm border-0 rounded-4">
-    <div class="card-body p-0">
+    {% for group in submission_groups %}
 
-        {% if submissions and submissions|length > 0 %}
+        {% set main = group["display_attempt"] %}
 
-            <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle mb-0">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Студент</th>
-                            <th>Группа</th>
-                            <th>Лабораторная</th>
-                            <th>Дата добавления лаб.</th>
-                            <th>Попытка</th>
-                            <th>Дата выполнения</th>
-                            <th>Статус</th>
-                            <th>Тип ошибки</th>
-                            <th>Оценка</th>
-                            <th>Лучшая оценка</th>
-                            <th>Тесты</th>
-                            <th>Файл</th>
-                        </tr>
-                    </thead>
+        <details class="card shadow-sm border-0 rounded-4 mb-3">
+            <summary class="card-body p-3" style="cursor: pointer;">
+                <div class="d-flex justify-content-between align-items-start gap-3">
 
-                    <tbody>
-                        {% for sub in submissions %}
+                    <div>
+                        <h5 class="mb-1">
+                            {{ group["full_name"] }}
+                        </h5>
+
+                        <div class="text-muted small">
+                            Логин: {{ group["username"] }} |
+                            Группа: {{ group["student_group"] }}
+                        </div>
+
+                        <div class="mt-2">
+                            <b>{{ group["lab_title"] }}</b>
+                        </div>
+
+                        <div class="text-muted small">
+                            {{ group["programming_language"] }} · {{ group["checker_type"] }}
+                        </div>
+                    </div>
+
+                    <div class="text-end">
+                        <div class="mb-2">
+                            <span class="badge bg-secondary">
+                                Всего попыток: {{ group["attempts_count"] }}
+                            </span>
+                        </div>
+
+                        <div class="mb-2">
+                            <span class="badge bg-primary">
+                                {{ group["display_label"] }} №{{ main["attempt_number"] or 1 }}
+                            </span>
+                        </div>
+
+                        {% if main["status"] == "PASSED" %}
+                            <span class="badge bg-success">PASSED</span>
+                        {% elif main["status"] == "PARTIAL" %}
+                            <span class="badge bg-info text-dark">PARTIAL</span>
+                        {% elif main["status"] == "FAILED" %}
+                            <span class="badge bg-danger">FAILED</span>
+                        {% elif main["status"] == "COMPILE_ERROR" %}
+                            <span class="badge bg-warning text-dark">COMPILE ERROR</span>
+                        {% elif main["status"] == "SYSTEM_ERROR" %}
+                            <span class="badge bg-secondary">SYSTEM ERROR</span>
+                        {% elif main["status"] == "TIMEOUT" %}
+                            <span class="badge bg-warning text-dark">TIMEOUT</span>
+                        {% elif main["status"] == "SECURITY_BLOCK" %}
+                            <span class="badge bg-dark">SECURITY BLOCK</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ main["status"] }}</span>
+                        {% endif %}
+
+                        <span class="badge bg-dark ms-1">
+                            {{ main["score"] or 0 }} / 100
+                        </span>
+
+                        <div class="text-muted small mt-2">
+                            Дата: {{ main["created_at"] }}
+                        </div>
+                    </div>
+
+                </div>
+            </summary>
+
+            <div class="card-body pt-0">
+                <hr class="mt-0">
+
+                <h6 class="mb-3">Все попытки студента по этой лабораторной</h6>
+
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
                             <tr>
-                                <td>
-                                    <b>{{ sub["full_name"] or sub["username"] }}</b>
-                                    <div class="text-muted small">
-                                        {{ sub["username"] }}
-                                    </div>
-                                </td>
-
-                                <td>
-                                    {{ sub["student_group"] or "—" }}
-                                </td>
-
-                                <td>
-                                    <span class="small">
-                                        {{ sub["lab_title"] }}
-                                    </span>
-                                </td>
-
-                                <td>
-                                    <span class="small text-muted">
-                                        {{ sub["lab_created_at"] or "—" }}
-                                    </span>
-                                </td>
-
-                                <td>
-                                    <span class="badge bg-secondary">
-                                        {{ sub["attempt_number"] or 1 }}
-                                    </span>
-                                </td>
-
-                                <td>
-                                    <span class="small text-muted">
-                                        {{ sub["created_at"] }}
-                                    </span>
-                                </td>
-
-                                <td>
-                                    {% if sub["status"] == "PASSED" %}
-                                        <span class="badge bg-success">PASSED</span>
-                                    {% elif sub["status"] == "PARTIAL" %}
-                                        <span class="badge bg-info text-dark">PARTIAL</span>
-                                    {% elif sub["status"] == "FAILED" %}
-                                        <span class="badge bg-danger">FAILED</span>
-                                    {% elif sub["status"] == "COMPILE_ERROR" %}
-                                        <span class="badge bg-warning text-dark">COMPILE ERROR</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">{{ sub["status"] }}</span>
-                                    {% endif %}
-                                </td>
-
-                                <td>
-                                    <span class="badge bg-dark">
-                                        {{ sub["score"] or 0 }} / 100
-                                    </span>
-                                </td>
-
-                                <td>
-                                    <span class="badge bg-success">
-                                        {{ sub["best_score"] or sub["score"] or 0 }} / 100
-                                    </span>
-                                </td>
-
-                                <td>
-                                    <span class="badge bg-light text-dark border">
-                                        {{ sub["passed_tests"] }} / {{ sub["total_tests"] }}
-                                    </span>
-                                </td>
-
-                                <td>
-                                    {% if sub["file_deleted"] %}
-                                        <span class="badge bg-secondary">
-                                            файл удалён
-                                        </span>
-                                    {% else %}
-                                        <a href="{{ url_for('download_submission', submission_id=sub['id']) }}"
-                                           class="btn btn-outline-primary btn-sm">
-                                            Скачать
-                                        </a>
-                                    {% endif %}
-                                </td>
+                                <th>Попытка</th>
+                                <th>Дата</th>
+                                <th>Статус</th>
+                                <th>Тип ошибки</th>
+                                <th>Оценка</th>
+                                <th>Тесты</th>
+                                <th>Файл</th>
                             </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
 
-        {% else %}
+                        <tbody>
+                            {% for sub in group["attempts"] %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-secondary">
+                                            №{{ sub["attempt_number"] or 1 }}
+                                        </span>
+                                    </td>
 
-            <div class="p-4">
-                <div class="alert alert-info rounded-4 mb-0">
-                    По выбранным условиям попытки студентов не найдены.
+                                    <td>
+                                        <span class="small text-muted">
+                                            {{ sub["created_at"] }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        {% if sub["status"] == "PASSED" %}
+                                            <span class="badge bg-success">PASSED</span>
+                                        {% elif sub["status"] == "PARTIAL" %}
+                                            <span class="badge bg-info text-dark">PARTIAL</span>
+                                        {% elif sub["status"] == "FAILED" %}
+                                            <span class="badge bg-danger">FAILED</span>
+                                        {% elif sub["status"] == "COMPILE_ERROR" %}
+                                            <span class="badge bg-warning text-dark">COMPILE ERROR</span>
+                                        {% elif sub["status"] == "SYSTEM_ERROR" %}
+                                            <span class="badge bg-secondary">SYSTEM ERROR</span>
+                                        {% elif sub["status"] == "TIMEOUT" %}
+                                            <span class="badge bg-warning text-dark">TIMEOUT</span>
+                                        {% elif sub["status"] == "SECURITY_BLOCK" %}
+                                            <span class="badge bg-dark">SECURITY BLOCK</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ sub["status"] }}</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <td>
+                                        {% if sub["error_title"] %}
+                                            <span class="badge bg-warning text-dark">
+                                                {{ sub["error_title"] }}
+                                            </span>
+                                            <div class="text-muted small mt-1">
+                                                {{ sub["error_type"] }}
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted small">—</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <td>
+                                        <span class="badge bg-dark">
+                                            {{ sub["score"] or 0 }} / 100
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <span class="badge bg-light text-dark border">
+                                            {{ sub["passed_tests"] }} / {{ sub["total_tests"] }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        {% if sub["file_deleted"] %}
+                                            <span class="badge bg-secondary">
+                                                файл недоступен
+                                            </span>
+                                        {% else %}
+                                            <a href="{{ url_for('download_submission', submission_id=sub['id']) }}"
+                                            class="btn btn-outline-primary btn-sm">
+                                                Скачать
+                                            </a>
+
+                                            <div class="text-muted small mt-1">
+                                                {{ sub["filename"] }}
+                                            </div>
+
+                                            {% if sub["file_hidden_for_student"] %}
+                                                <div class="text-muted small mt-1">
+                                                    скрыт от студента
+                                                </div>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
+        </details>
 
-        {% endif %}
+    {% endfor %}
 
+{% else %}
+
+    <div class="alert alert-info rounded-4">
+        По выбранным условиям попытки студентов не найдены.
     </div>
-</div>
+
+{% endif %}
 
 {% endblock %}

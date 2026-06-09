@@ -84,3 +84,44 @@ body {
     padding-top: 0;
     padding-bottom: 0;
 }
+
+details.card summary {
+    list-style: none;
+}
+
+details.card summary::-webkit-details-marker {
+    display: none;
+}
+
+details.card summary::after {
+    content: "Раскрыть попытки";
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 13px;
+    color: #0d6efd;
+}
+
+details.card[open] summary::after {
+    content: "Свернуть попытки";
+}
+
+
+
+.journal-table th,
+.journal-table td {
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.journal-table td:first-child,
+.journal-table th:first-child {
+    position: sticky;
+    left: 0;
+    background: #fff;
+    z-index: 2;
+}
+
+.journal-table thead th:first-child {
+    background: #212529;
+    z-index: 3;
+}

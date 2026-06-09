@@ -11,6 +11,31 @@
         <h1 class="mb-3">{{ lab["title"] }}</h1>
         <p class="text-muted">{{ lab["description"] }}</p>
 
+        {% set checker_type = lab["checker_type"] or "hdl_testbench" %}
+        {% set programming_language = lab["programming_language"] or "Verilog" %}
+
+        {% if checker_type == "python_unit_tests" %}
+            {% set upload_title = "Загрузка Python-решения" %}
+            {% set upload_description = "Загрузите Python-файл с расширением .py. После отправки система запустит unit-тесты pytest в изолированной среде Docker." %}
+            {% set accepted_extensions = ".py" %}
+            {% set solution_file_name = "Python-файл" %}
+        {% elif checker_type == "sql_query" %}
+            {% set upload_title = "Загрузка SQL-решения" %}
+            {% set upload_description = "Загрузите SQL-файл с расширением .sql. После отправки система выполнит проверку SQL-запроса." %}
+            {% set accepted_extensions = ".sql" %}
+            {% set solution_file_name = "SQL-файл" %}
+        {% elif checker_type == "cpp_tests" %}
+            {% set upload_title = "Загрузка C++-решения" %}
+            {% set upload_description = "Загрузите C++-файл с расширением .cpp, .cc или .cxx. После отправки система выполнит компиляцию и тестирование." %}
+            {% set accepted_extensions = ".cpp,.cc,.cxx" %}
+            {% set solution_file_name = "C++-файл" %}
+        {% else %}
+            {% set upload_title = "Загрузка Verilog HDL-решения" %}
+            {% set upload_description = "Загрузите Verilog-файл с расширением .v. После отправки система автоматически запустит testbench." %}
+            {% set accepted_extensions = ".v" %}
+            {% set solution_file_name = "HDL-файл" %}
+        {% endif %}
+
         {% if session.get("role") == "student" %}
             <div class="alert alert-light border rounded-4 mt-3 mb-0">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -36,20 +61,90 @@
             </div>
         {% endif %}
 
+        <div class="card border-0 bg-light rounded-4 mt-3">
+            <div class="card-body">
+                <h5 class="mb-3">Паспорт лабораторной работы</h5>
+
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <div class="text-muted small">Дисциплина</div>
+                        <b>{{ lab["discipline"] or "—" }}</b>
+                    </div>
+
+                    <div class="col-md-4 mb-2">
+                        <div class="text-muted small">Язык / технология</div>
+                        <b>{{ lab["programming_language"] or "—" }}</b>
+                    </div>
+
+                    <div class="col-md-4 mb-2">
+                        <div class="text-muted small">Тип проверки</div>
+                        <b>{{ lab["checker_type"] or "—" }}</b>
+                    </div>
+                </div>
+
+                <div class="row mt-2">
+                    <div class="col-md-4 mb-2">
+                        <div class="text-muted small">Тема</div>
+                        <b>{{ lab["topic"] or "—" }}</b>
+                    </div>
+
+                    <div class="col-md-4 mb-2">
+                        <div class="text-muted small">Сложность</div>
+                        <b>{{ lab["difficulty"] or "—" }}</b>
+                    </div>
+
+                    <div class="col-md-4 mb-2">
+                        <div class="text-muted small">Ключевые понятия</div>
+                        <b>{{ lab["concepts"] or "—" }}</b>
+                    </div>
+                </div>
+
+                {% if lab["grading_policy"] %}
+                    <hr>
+                    <div class="text-muted small">Критерии оценивания</div>
+                    <div>{{ lab["grading_policy"] }}</div>
+                {% endif %}
+            </div>
+        </div>
+
         <hr>
 
         {% if session.get("role") == "student" %}
 
             {% if (attempts_count or 0) < (lab["max_attempts"] or 3) %}
 
-                <h4>Загрузка HDL-решения</h4>
+                <h4>{{ upload_title }}</h4>
+
                 <p class="text-muted">
-                    Загрузите Verilog-файл с расширением <b>.v</b>. После отправки система автоматически запустит testbench.
+                    {{ upload_description }}
                 </p>
 
-                <form method="post" action="{{ url_for('submit_solution', lab_id=lab['id']) }}" enctype="multipart/form-data">
+                {% if lab["starter_code"] %}
+                    <div class="card border-0 bg-light rounded-4 mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Стартовый шаблон кода</h6>
+                                <span class="badge bg-secondary">{{ programming_language }}</span>
+                            </div>
+
+                            <pre class="result-box mb-0">{{ lab["starter_code"] }}</pre>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <form method="post"
+                    action="{{ url_for('submit_solution', lab_id=lab['id']) }}"
+                    enctype="multipart/form-data">
                     <div class="mb-3">
-                        <input type="file" name="solution" accept=".v" class="form-control">
+                        <label class="form-label">{{ solution_file_name }}</label>
+                        <input type="file"
+                            name="solution"
+                            accept="{{ accepted_extensions }}"
+                            class="form-control"
+                            required>
+                        <div class="form-text">
+                            Допустимое расширение файла: {{ accepted_extensions }}
+                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-success">
@@ -61,7 +156,7 @@
 
                 <div class="alert alert-warning rounded-4 mb-0">
                     Лимит попыток по этой лабораторной работе исчерпан.
-                    Новые HDL-файлы отправить нельзя.
+                    Новые решения отправить нельзя.
                 </div>
 
             {% endif %}
@@ -198,7 +293,11 @@
 
                     {% if sub["file_deleted"] %}
                         <div class="text-muted small">
-                            HDL-файл этой попытки удалён после повторной отправки.
+                            Файл этой попытки недоступен.
+                        </div>
+                    {% elif session.get("role") == "student" and sub["file_hidden_for_student"] %}
+                        <div class="text-muted small">
+                            Файл этой попытки скрыт после повторной отправки.
                         </div>
                     {% else %}
                         <b>{{ sub["filename"] }}</b>
@@ -228,6 +327,12 @@
                         <span class="badge bg-danger fs-6">FAILED</span>
                     {% elif sub["status"] == "COMPILE_ERROR" %}
                         <span class="badge bg-warning text-dark fs-6">COMPILE ERROR</span>
+                    {% elif sub["status"] == "TIMEOUT" %}
+                        <span class="badge bg-warning text-dark fs-6">TIMEOUT</span>
+                    {% elif sub["status"] == "SECURITY_BLOCK" %}
+                        <span class="badge bg-dark fs-6">SECURITY BLOCK</span>
+                    {% elif sub["status"] == "SYSTEM_ERROR" %}
+                        <span class="badge bg-secondary fs-6">SYSTEM ERROR</span>
                     {% else %}
                         <span class="badge bg-secondary fs-6">{{ sub["status"] }}</span>
                     {% endif %}

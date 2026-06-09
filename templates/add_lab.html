@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<a href="{{ url_for('teacher_labs') }}" class="btn btn-outline-secondary btn-sm mb-3">
+    ← Назад к лабораторным
+</a>
+
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body p-4">
+        <h1 class="mb-4">Добавить лабораторную работу</h1>
+
+        <form method="post" action="{{ url_for('add_lab') }}">
+            <!-- сюда вставляешь всю форму -->
+        </form>
+    </div>
+</div>
+
+{% endblock %}

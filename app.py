@@ -4,6 +4,8 @@ import subprocess
 import tempfile
 import shutil
 import re
+import sys
+import ast
 from datetime import datetime
 from functools import wraps
 
@@ -17,6 +19,9 @@ app.secret_key = "change_this_secret_key"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "database.db")
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+
+PYTHON_DOCKER_IMAGE = "fpga-python-checker:latest"
+PYTHON_CHECK_TIMEOUT_SECONDS = 15
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -57,27 +62,48 @@ def init_db():
             title TEXT NOT NULL,
             description TEXT NOT NULL,
             testbench TEXT NOT NULL,
+
+            discipline TEXT DEFAULT 'FPGA-проектирование',
+            programming_language TEXT DEFAULT 'Verilog',
+            checker_type TEXT DEFAULT 'hdl_testbench',
+            topic TEXT DEFAULT '',
+            difficulty TEXT DEFAULT 'basic',
+            concepts TEXT DEFAULT '',
+            grading_policy TEXT DEFAULT '',
+            starter_code TEXT DEFAULT '',
+
             max_attempts INTEGER DEFAULT 3,
             allow_extra_questions INTEGER DEFAULT 1,
             created_at TEXT DEFAULT ''
         )
     """)
 
-    lab_columns = cur.execute("PRAGMA table_info(labs)").fetchall()
-    lab_column_names = [column["name"] for column in lab_columns]
+    columns = cur.execute("PRAGMA table_info(labs)").fetchall()
+    column_names = [column["name"] for column in columns]
 
-    if "max_attempts" not in lab_column_names:
-        cur.execute("ALTER TABLE labs ADD COLUMN max_attempts INTEGER DEFAULT 3")
+    if "discipline" not in column_names:
+        cur.execute("ALTER TABLE labs ADD COLUMN discipline TEXT DEFAULT 'FPGA-проектирование'")
 
-    if "allow_extra_questions" not in lab_column_names:
-        cur.execute("ALTER TABLE labs ADD COLUMN allow_extra_questions INTEGER DEFAULT 1")
+    if "programming_language" not in column_names:
+        cur.execute("ALTER TABLE labs ADD COLUMN programming_language TEXT DEFAULT 'Verilog'")
 
-    if "created_at" not in lab_column_names:
-        cur.execute("ALTER TABLE labs ADD COLUMN created_at TEXT DEFAULT ''")
-        cur.execute(
-            "UPDATE labs SET created_at = ? WHERE created_at = '' OR created_at IS NULL",
-            (datetime.now().strftime("%Y-%m-%d %H:%M:%S"),)
-        )
+    if "checker_type" not in column_names:
+        cur.execute("ALTER TABLE labs ADD COLUMN checker_type TEXT DEFAULT 'hdl_testbench'")
+
+    if "topic" not in column_names:
+        cur.execute("ALTER TABLE labs ADD COLUMN topic TEXT DEFAULT ''")
+
+    if "difficulty" not in column_names:
+        cur.execute("ALTER TABLE labs ADD COLUMN difficulty TEXT DEFAULT 'basic'")
+
+    if "concepts" not in column_names:
+        cur.execute("ALTER TABLE labs ADD COLUMN concepts TEXT DEFAULT ''")
+
+    if "grading_policy" not in column_names:
+        cur.execute("ALTER TABLE labs ADD COLUMN grading_policy TEXT DEFAULT ''")
+
+    if "starter_code" not in column_names:
+        cur.execute("ALTER TABLE labs ADD COLUMN starter_code TEXT DEFAULT ''")
 
 
     cur.execute("""
@@ -97,6 +123,9 @@ def init_db():
             error_confidence INTEGER DEFAULT 0,
             output TEXT NOT NULL,
             created_at TEXT NOT NULL,
+            attempt_number INTEGER DEFAULT 1,
+            file_deleted INTEGER DEFAULT 0,
+            file_hidden_for_student INTEGER DEFAULT 0,
             FOREIGN KEY (lab_id) REFERENCES labs(id)
         )
     """)
@@ -124,6 +153,9 @@ def init_db():
 
     if "file_deleted" not in column_names:
         cur.execute("ALTER TABLE submissions ADD COLUMN file_deleted INTEGER DEFAULT 0")
+    
+    if "file_hidden_for_student" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN file_hidden_for_student INTEGER DEFAULT 0")
 
 
     cur.execute("""
@@ -463,6 +495,358 @@ def run_hdl_check(user_code_path, testbench_text):
         )
     
 
+def is_docker_available():
+    """
+    Проверяет, доступен ли Docker на компьютере.
+    """
+
+    try:
+        result = subprocess.run(
+            ["docker", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        return result.returncode == 0
+
+    except Exception:
+        return False
+
+
+def is_python_checker_image_available():
+    """
+    Проверяет, собран ли Docker-образ для Python-проверки.
+    """
+
+    try:
+        result = subprocess.run(
+            ["docker", "image", "inspect", PYTHON_DOCKER_IMAGE],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        return result.returncode == 0
+
+    except Exception:
+        return False
+    
+
+
+def contains_dangerous_python_code(code):
+    """
+    Первичная проверка потенциально опасных конструкций Python.
+
+    Важно:
+    это не заменяет Docker-песочницу, а работает как дополнительный защитный слой.
+    """
+
+    forbidden_imports = {
+        "os",
+        "subprocess",
+        "socket",
+        "shutil",
+        "pathlib",
+        "requests",
+        "urllib",
+        "ftplib",
+        "http",
+        "multiprocessing"
+    }
+
+    forbidden_calls = {
+        "eval",
+        "exec",
+        "compile",
+        "__import__",
+        "open",
+        "input"
+    }
+
+    try:
+        tree = ast.parse(code)
+
+    except SyntaxError:
+        return False, ""
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                module_name = alias.name.split(".")[0]
+
+                if module_name in forbidden_imports:
+                    return True, f"import {module_name}"
+
+        if isinstance(node, ast.ImportFrom):
+            module_name = (node.module or "").split(".")[0]
+
+            if module_name in forbidden_imports:
+                return True, f"from {module_name} import ..."
+
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                function_name = node.func.id
+
+                if function_name in forbidden_calls:
+                    return True, f"{function_name}(...)"
+
+        if isinstance(node, ast.While):
+            if isinstance(node.test, ast.Constant) and node.test.value is True:
+                return True, "while True"
+
+    return False, ""
+
+
+def parse_pytest_result(output):
+    """
+    Извлекает количество пройденных и общее количество тестов из вывода pytest.
+    """
+
+    output_lower = output.lower()
+
+    passed = 0
+    failed = 0
+    errors = 0
+
+    passed_match = re.search(r"(\d+)\s+passed", output_lower)
+    failed_match = re.search(r"(\d+)\s+failed", output_lower)
+    error_match = re.search(r"(\d+)\s+error", output_lower)
+
+    if passed_match:
+        passed = int(passed_match.group(1))
+
+    if failed_match:
+        failed = int(failed_match.group(1))
+
+    if error_match:
+        errors = int(error_match.group(1))
+
+    total = passed + failed + errors
+
+    return passed, total
+
+
+def format_python_report(raw_output, passed_tests, total_tests):
+    """
+    Формирует понятный отчет для студента.
+    """
+
+    if total_tests > 0:
+        score = round((passed_tests / total_tests) * 100)
+    else:
+        score = 0
+
+    report = []
+    report.append(f"Результат: {score} / 100 баллов")
+    report.append(f"Пройдено тестов: {passed_tests} из {total_tests}")
+    report.append("")
+    report.append("Отчет pytest:")
+    report.append(raw_output.strip())
+
+    return "\n".join(report)
+
+def run_python_unit_tests_check(solution_path, lab):
+    """
+    Проверяет Python-решение в Docker-контейнере.
+
+    Вход:
+    - solution_path: путь к файлу студента;
+    - lab["testbench"]: pytest-тесты преподавателя.
+
+    Выход:
+    - status;
+    - output;
+    - score;
+    - passed_tests;
+    - total_tests.
+    """
+
+    if not is_docker_available():
+        return {
+            "status": "SYSTEM_ERROR",
+            "output": (
+                "Docker недоступен.\n\n"
+                "Проверьте, что Docker Desktop установлен и запущен."
+            ),
+            "score": 0,
+            "passed_tests": 0,
+            "total_tests": 0
+        }
+
+    if not is_python_checker_image_available():
+        return {
+            "status": "SYSTEM_ERROR",
+            "output": (
+                f"Docker-образ {PYTHON_DOCKER_IMAGE} не найден.\n\n"
+                "Соберите его командой:\n"
+                "docker build -t fpga-python-checker:latest docker/python-checker"
+            ),
+            "score": 0,
+            "passed_tests": 0,
+            "total_tests": 0
+        }
+
+    temp_dir = tempfile.mkdtemp(prefix="python_check_")
+
+    try:
+        with open(solution_path, "r", encoding="utf-8", errors="replace") as file:
+            student_code = file.read()
+
+        is_dangerous, dangerous_fragment = contains_dangerous_python_code(student_code)
+
+        if is_dangerous:
+            return {
+                "status": "SECURITY_BLOCK",
+                "output": (
+                    "Код не был запущен, так как система обнаружила потенциально опасную конструкцию.\n\n"
+                    f"Обнаруженный фрагмент: {dangerous_fragment}\n\n"
+                    "В учебной среде запрещены операции с файловой системой, системными командами, "
+                    "сетью и динамическим выполнением кода."
+                ),
+                "score": 0,
+                "passed_tests": 0,
+                "total_tests": 0
+            }
+
+        solution_file = os.path.join(temp_dir, "solution.py")
+        test_file = os.path.join(temp_dir, "test_solution.py")
+
+        shutil.copy(solution_path, solution_file)
+
+        with open(test_file, "w", encoding="utf-8") as file:
+            file.write(lab["testbench"])
+
+        host_workspace = os.path.abspath(temp_dir)
+
+        docker_command = [
+            "docker",
+            "run",
+            "--rm",
+
+            "--network",
+            "none",
+
+            "--cpus",
+            "0.5",
+
+            "--memory",
+            "128m",
+
+            "--pids-limit",
+            "64",
+
+            "--read-only",
+
+            "--tmpfs",
+            "/tmp:rw,nosuid,nodev,size=64m",
+
+            "--security-opt",
+            "no-new-privileges",
+
+            "--cap-drop",
+            "ALL",
+
+            "-e",
+            "PYTHONDONTWRITEBYTECODE=1",
+
+            "-e",
+            "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1",
+
+            "-v",
+            f"{host_workspace}:/workspace:rw",
+
+            "-w",
+            "/workspace",
+
+            PYTHON_DOCKER_IMAGE,
+
+            "python",
+            "-m",
+            "pytest",
+            "-q",
+            "--tb=short",
+            "-p",
+            "no:cacheprovider",
+            "test_solution.py"
+        ]
+
+        result = subprocess.run(
+            docker_command,
+            capture_output=True,
+            text=True,
+            timeout=PYTHON_CHECK_TIMEOUT_SECONDS
+        )
+
+        output = result.stdout + "\n" + result.stderr
+
+        passed_tests, total_tests = parse_pytest_result(output)
+
+        if "syntaxerror" in output.lower() or "indentationerror" in output.lower():
+            return {
+                "status": "COMPILE_ERROR",
+                "output": format_python_report(output, 0, total_tests),
+                "score": 0,
+                "passed_tests": 0,
+                "total_tests": total_tests
+            }
+
+        if total_tests == 0:
+            return {
+                "status": "FAILED",
+                "output": format_python_report(
+                    output + "\n\nНе удалось определить количество тестов.",
+                    0,
+                    0
+                ),
+                "score": 0,
+                "passed_tests": 0,
+                "total_tests": 0
+            }
+
+        score = round((passed_tests / total_tests) * 100)
+
+        if result.returncode == 0:
+            status = "PASSED"
+        elif passed_tests > 0:
+            status = "PARTIAL"
+        else:
+            status = "FAILED"
+
+        return {
+            "status": status,
+            "output": format_python_report(output, passed_tests, total_tests),
+            "score": score,
+            "passed_tests": passed_tests,
+            "total_tests": total_tests
+        }
+
+    except subprocess.TimeoutExpired:
+        return {
+            "status": "TIMEOUT",
+            "output": (
+                "Превышено время выполнения Python-кода.\n\n"
+                "Возможна ошибка в цикле, рекурсии или слишком тяжелый алгоритм."
+            ),
+            "score": 0,
+            "passed_tests": 0,
+            "total_tests": 0
+        }
+
+    except Exception as error:
+        return {
+            "status": "SYSTEM_ERROR",
+            "output": f"Ошибка системы проверки Python-задания: {str(error)}",
+            "score": 0,
+            "passed_tests": 0,
+            "total_tests": 0
+        }
+
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    
+
 def detect_lab_topic_for_diagnostics(lab, code):
     """
     Определяет тему лабораторной работы по названию, описанию, testbench и коду студента.
@@ -560,6 +944,39 @@ def get_failed_test_blocks(output):
             failed_blocks.append("\n".join(block))
 
     return failed_blocks
+
+
+def classify_solution_error(status, output, lab, code):
+    """
+    Универсальный диспетчер классификации ошибок.
+    """
+
+    checker_type = lab["checker_type"] or "hdl_testbench"
+
+    if checker_type == "hdl_testbench":
+        return classify_hdl_error(
+            status=status,
+            output=output,
+            lab=lab,
+            code=code
+        )
+
+    if checker_type == "python_unit_tests":
+        return classify_python_error(
+            status=status,
+            output=output,
+            lab=lab,
+            code=code
+        )
+
+    return {
+        "error_type": "FUNCTIONAL_ERROR",
+        "error_title": "Ошибка выполнения задания",
+        "error_details": "Решение не прошло автоматическую проверку.",
+        "recommendation": "Проанализируйте отчет проверки и исправьте решение.",
+        "error_confidence": 60
+    }
+
 
 
 def classify_hdl_error(status, output, lab, code):
@@ -743,6 +1160,58 @@ def classify_hdl_error(status, output, lab, code):
     }
 
 
+
+
+def classify_python_error(status, output, lab, code):
+    output_lower = str(output).lower()
+
+    if status == "PASSED":
+        return {
+            "error_type": "NO_ERROR",
+            "error_title": "Ошибок не обнаружено",
+            "error_details": "Решение прошло все unit-тесты.",
+            "recommendation": "Дополнительные действия не требуются.",
+            "error_confidence": 100
+        }
+
+    if "syntaxerror" in output_lower:
+        return {
+            "error_type": "PYTHON_SYNTAX_ERROR",
+            "error_title": "Синтаксическая ошибка Python",
+            "error_details": "Код не был выполнен из-за синтаксической ошибки.",
+            "recommendation": "Проверьте двоеточия, отступы, скобки и написание ключевых слов Python.",
+            "error_confidence": 95
+        }
+
+    if "assertionerror" in output_lower:
+        return {
+            "error_type": "PYTHON_LOGIC_ERROR",
+            "error_title": "Логическая ошибка Python-решения",
+            "error_details": "Код запускается, но результат функции не совпадает с ожидаемым.",
+            "recommendation": "Сравните ожидаемый результат теста с тем, что возвращает ваша функция.",
+            "error_confidence": 85
+        }
+
+    if "nameerror" in output_lower:
+        return {
+            "error_type": "PYTHON_NAME_ERROR",
+            "error_title": "Ошибка имени переменной или функции",
+            "error_details": "В коде используется имя, которое не было определено.",
+            "recommendation": "Проверьте названия переменных и функций.",
+            "error_confidence": 90
+        }
+
+    return {
+        "error_type": "PYTHON_RUNTIME_ERROR",
+        "error_title": "Ошибка выполнения Python-кода",
+        "error_details": "Код не прошел проверку unit-тестами.",
+        "recommendation": "Изучите вывод тестов и проверьте логику решения.",
+        "error_confidence": 70
+    }
+
+
+
+
 def read_submission_code(filename):
     """
     Читает HDL-код отправленного студентом файла.
@@ -771,11 +1240,23 @@ def get_submission_for_current_user(submission_id):
         """
         SELECT 
             submissions.*,
+
             labs.title AS lab_title,
             labs.description AS lab_description,
             labs.testbench AS lab_testbench,
+
+            labs.discipline AS lab_discipline,
+            labs.programming_language AS lab_programming_language,
+            labs.checker_type AS lab_checker_type,
+            labs.topic AS lab_topic,
+            labs.difficulty AS lab_difficulty,
+            labs.concepts AS concepts,
+            labs.grading_policy AS lab_grading_policy,
+            labs.starter_code AS lab_starter_code,
+
             labs.allow_extra_questions,
             labs.max_attempts
+
         FROM submissions
         JOIN labs ON submissions.lab_id = labs.id
         WHERE submissions.id = ?
@@ -843,6 +1324,26 @@ def mark_submission_file_deleted(submission_id):
         """
         UPDATE submissions
         SET file_deleted = 1
+        WHERE id = ?
+        """,
+        (submission_id,)
+    )
+
+    conn.commit()
+    conn.close()
+
+def hide_submission_file_from_student(submission_id):
+    """
+    Скрывает файл попытки от студента, но не удаляет его физически.
+    Преподаватель при этом сможет скачать файл.
+    """
+
+    conn = get_db()
+
+    conn.execute(
+        """
+        UPDATE submissions
+        SET file_hidden_for_student = 1
         WHERE id = ?
         """,
         (submission_id,)
@@ -2049,6 +2550,68 @@ def evaluate_extra_task_answers(submission, answers):
     return correct_count, bonus, "\n".join(feedback_lines)
 
 
+def get_lab_concepts(lab_or_submission):
+    """
+    Возвращает список ключевых понятий из паспорта лабораторной работы.
+    Например строка:
+    sel, assign, d0, d1
+
+    превратится в список:
+    ["sel", "assign", "d0", "d1"]
+    """
+
+    concepts = ""
+
+    if "concepts" in lab_or_submission.keys():
+        concepts = lab_or_submission["concepts"] or ""
+
+    elif "lab_concepts" in lab_or_submission.keys():
+        concepts = lab_or_submission["lab_concepts"] or ""
+
+    return [
+        concept.strip()
+        for concept in str(concepts).split(",")
+        if concept.strip()
+    ]
+
+
+def get_lab_topic_from_passport(lab_or_submission, code=""):
+    """
+    Сначала берет тему из паспорта лабораторной работы.
+    Если тема не заполнена, пытается определить тему по коду.
+    """
+
+    if "topic" in lab_or_submission.keys() and lab_or_submission["topic"]:
+        return lab_or_submission["topic"].strip().lower()
+
+    if "lab_topic" in lab_or_submission.keys() and lab_or_submission["lab_topic"]:
+        return lab_or_submission["lab_topic"].strip().lower()
+
+    text = str(code).lower()
+
+    if "mux" in text or "sel" in text:
+        return "mux"
+
+    if "adder" in text or "sum" in text or "carry" in text:
+        return "adder"
+
+    if "counter" in text or "count" in text:
+        return "counter"
+
+    if "register" in text or "регистр" in text:
+        return "register"
+
+    if "fsm" in text or "state" in text:
+        return "fsm"
+
+    if "for " in text or "range" in text:
+        return "python_loops"
+
+    return "general"
+
+
+
+
 def build_adaptive_learning_plan(submission, code):
     """
     Главный алгоритм адаптивного обучающего модуля.
@@ -2071,7 +2634,8 @@ def build_adaptive_learning_plan(submission, code):
     - ограниченный бонус.
     """
 
-    topic = detect_lab_topic_adaptive(submission, code)
+    topic = get_lab_topic_from_passport(submission, code)
+    concepts = get_lab_concepts(submission)
     failed_tests = extract_failed_tests_for_adaptive_module(submission["output"])
     error_history = get_student_error_history(
         submission["username"],
@@ -2114,6 +2678,7 @@ def build_adaptive_learning_plan(submission, code):
 
     return {
         "topic": topic,
+        "concepts": concepts,
         "error_type": submission["error_type"],
         "error_title": submission["error_title"],
         "hint_level": hint_level,
@@ -2184,6 +2749,8 @@ def index():
         labs=labs,
         my_submissions=my_submissions
     )
+
+
 
 @app.route("/lab/<int:lab_id>")
 @login_required
@@ -2350,19 +2917,7 @@ def student_lab_history(lab_id):
 @login_required
 def submit_solution(lab_id):
     if session.get("role") != "student":
-        flash("Отправлять HDL-решения может только студент.")
-        return redirect(url_for("lab_detail", lab_id=lab_id))
-
-    file = request.files.get("solution")
-
-    if not file:
-        flash("Файл не выбран.")
-        return redirect(url_for("lab_detail", lab_id=lab_id))
-
-    filename = secure_filename(file.filename)
-
-    if not filename.endswith(".v"):
-        flash("Можно загружать только Verilog-файлы с расширением .v")
+        flash("Отправлять решения может только студент.")
         return redirect(url_for("lab_detail", lab_id=lab_id))
 
     conn = get_db()
@@ -2372,9 +2927,25 @@ def submit_solution(lab_id):
         (lab_id,)
     ).fetchone()
 
-    if not lab:
+    if lab is None:
         conn.close()
-        return "Лабораторная работа не найдена", 404
+        flash("Лабораторная работа не найдена.")
+        return redirect(url_for("index"))
+
+    file = request.files.get("solution")
+
+    if not file or file.filename.strip() == "":
+        conn.close()
+        flash("Файл не выбран.")
+        return redirect(url_for("lab_detail", lab_id=lab_id))
+
+    if not is_allowed_solution_file(file.filename, lab):
+        allowed_extensions = ", ".join(get_allowed_extensions_for_lab(lab))
+        conn.close()
+        flash(f"Для этой лабораторной можно загружать только файлы: {allowed_extensions}")
+        return redirect(url_for("lab_detail", lab_id=lab_id))
+
+    filename = secure_filename(file.filename)
 
     attempts_count = conn.execute(
         """
@@ -2403,12 +2974,11 @@ def submit_solution(lab_id):
         (lab_id, session["username"])
     ).fetchone()
 
-    if previous_submission and previous_submission["file_deleted"] == 0:
-        delete_uploaded_file(previous_submission["filename"])
+    if previous_submission:
         conn.execute(
             """
             UPDATE submissions
-            SET file_deleted = 1
+            SET file_hidden_for_student = 1
             WHERE id = ?
             """,
             (previous_submission["id"],)
@@ -2416,16 +2986,37 @@ def submit_solution(lab_id):
 
     attempt_number = attempts_count + 1
 
-    saved_filename = f"{session['username']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
+    student = conn.execute(
+        """
+        SELECT *
+        FROM users
+        WHERE username = ?
+        """,
+        (session["username"],)
+    ).fetchone()
+
+    saved_filename = build_submission_filename(
+        lab=lab,
+        student=student,
+        attempt_number=attempt_number,
+        original_filename=file.filename
+    )
+
     saved_path = os.path.join(UPLOAD_DIR, saved_filename)
     file.save(saved_path)
 
-    status, output, score, passed_tests, total_tests = run_hdl_check(saved_path, lab["testbench"])
+    check_result = run_solution_check(saved_path, lab)
+
+    status = check_result["status"]
+    output = check_result["output"]
+    score = check_result["score"]
+    passed_tests = check_result["passed_tests"]
+    total_tests = check_result["total_tests"]
 
     with open(saved_path, "r", encoding="utf-8", errors="replace") as code_file:
         student_code = code_file.read()
 
-    diagnostics = classify_hdl_error(
+    diagnostics = classify_solution_error(
         status=status,
         output=output,
         lab=lab,
@@ -2433,39 +3024,319 @@ def submit_solution(lab_id):
     )
 
     conn.execute(
-    """
-    INSERT INTO submissions
-    (lab_id, username, filename, status, score, passed_tests, total_tests,
-     error_type, error_title, error_details, recommendation, error_confidence,
-     output, created_at, attempt_number, file_deleted)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """,
-    (
-        lab_id,
-        session["username"],
-        saved_filename,
-        status,
-        score,
-        passed_tests,
-        total_tests,
-        diagnostics["error_type"],
-        diagnostics["error_title"],
-        diagnostics["error_details"],
-        diagnostics["recommendation"],
-        diagnostics["error_confidence"],
-        output,
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        attempt_number,
-        0
+        """
+        INSERT INTO submissions
+        (lab_id, username, filename, status, score, passed_tests, total_tests,
+        error_type, error_title, error_details, recommendation, error_confidence,
+        output, created_at, attempt_number, file_deleted, file_hidden_for_student)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            lab_id,
+            session["username"],
+            saved_filename,
+            status,
+            score,
+            passed_tests,
+            total_tests,
+            diagnostics["error_type"],
+            diagnostics["error_title"],
+            diagnostics["error_details"],
+            diagnostics["recommendation"],
+            diagnostics["error_confidence"],
+            output,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            attempt_number,
+            0,
+            0
+        )
     )
-)
 
     conn.commit()
     conn.close()
 
+    flash("Решение отправлено и проверено.")
     return redirect(url_for("lab_detail", lab_id=lab_id))
 
 
+
+
+def transliterate_ru_to_en(text):
+    """
+    Переводит русские буквы в латиницу для безопасных имен файлов.
+    """
+
+    symbols = {
+        "а": "a", "б": "b", "в": "v", "г": "g", "д": "d",
+        "е": "e", "ё": "e", "ж": "zh", "з": "z", "и": "i",
+        "й": "y", "к": "k", "л": "l", "м": "m", "н": "n",
+        "о": "o", "п": "p", "р": "r", "с": "s", "т": "t",
+        "у": "u", "ф": "f", "х": "h", "ц": "c", "ч": "ch",
+        "ш": "sh", "щ": "sch", "ъ": "", "ы": "y", "ь": "",
+        "э": "e", "ю": "yu", "я": "ya"
+    }
+
+    result = []
+
+    for char in str(text):
+        lower_char = char.lower()
+
+        if lower_char in symbols:
+            value = symbols[lower_char]
+
+            if char.isupper():
+                value = value.capitalize()
+
+            result.append(value)
+        else:
+            result.append(char)
+
+    return "".join(result)
+
+
+def make_safe_filename_part(text, default="item", max_length=30):
+    """
+    Делает часть имени файла безопасной:
+    - переводит кириллицу в латиницу;
+    - убирает пробелы и спецсимволы;
+    - ограничивает длину.
+    """
+
+    text = transliterate_ru_to_en(text)
+    text = re.sub(r"[^A-Za-z0-9_-]+", "-", text)
+    text = re.sub(r"-+", "-", text)
+    text = text.strip("-_")
+
+    if not text:
+        text = default
+
+    return text[:max_length]
+
+
+def build_student_short_name(student):
+    """
+    Формирует короткое имя студента для файла.
+    Например:
+    Максеева Александра Александровна -> MakeevaAA
+    """
+
+    if not student:
+        return "student"
+
+    full_name = student["full_name"] if "full_name" in student.keys() else ""
+    username = student["username"] if "username" in student.keys() else "student"
+
+    full_name = str(full_name or "").strip()
+
+    if not full_name:
+        return make_safe_filename_part(username, "student", 24)
+
+    parts = full_name.split()
+
+    if len(parts) >= 2:
+        surname = parts[0]
+        initials = ""
+
+        for part in parts[1:]:
+            if part:
+                initials += part[0]
+
+        return make_safe_filename_part(surname + initials, username, 24)
+
+    return make_safe_filename_part(full_name, username, 24)
+
+
+def get_checker_prefix_for_filename(lab):
+    """
+    Формирует короткий префикс по типу лабораторной.
+    """
+
+    checker_type = lab["checker_type"] or "hdl_testbench"
+    programming_language = lab["programming_language"] or ""
+
+    checker_type = checker_type.lower()
+    programming_language = programming_language.lower()
+
+    if checker_type == "python_unit_tests" or programming_language == "python":
+        return "PY"
+
+    if checker_type == "hdl_testbench" or programming_language == "verilog":
+        return "FPGA"
+
+    if checker_type == "sql_query" or programming_language == "sql":
+        return "SQL"
+
+    if checker_type == "cpp_tests" or programming_language == "c++":
+        return "CPP"
+
+    return "LAB"
+
+
+def get_lab_topic_for_filename(lab):
+    """
+    Берет короткую тему лабораторной для имени файла.
+    Лучше использовать поле topic из паспорта.
+    """
+
+    topic = ""
+
+    if "topic" in lab.keys():
+        topic = lab["topic"] or ""
+
+    if not topic:
+        topic = f"lab{lab['id']}"
+
+    return make_safe_filename_part(topic, f"lab{lab['id']}", 24)
+
+
+def build_submission_filename(lab, student, attempt_number, original_filename):
+    """
+    Формирует понятное имя файла попытки.
+
+    Пример:
+    PY_L12_functions_MakeevaAA_IP3-5-01_A03_20260609_181225.py
+    """
+
+    prefix = get_checker_prefix_for_filename(lab)
+    lab_id_part = f"L{lab['id']}"
+    topic_part = get_lab_topic_for_filename(lab)
+
+    student_part = build_student_short_name(student)
+
+    if student and "student_group" in student.keys():
+        group_raw = student["student_group"] or "group"
+    else:
+        group_raw = "group"
+
+    group_part = make_safe_filename_part(group_raw, "group", 20)
+
+    try:
+        attempt_part = f"A{int(attempt_number):02d}"
+    except ValueError:
+        attempt_part = "A01"
+
+    datetime_part = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    extension = os.path.splitext(original_filename)[1].lower()
+
+    if not extension:
+        extension = get_allowed_extensions_for_lab(lab)[0]
+
+    return (
+        f"{prefix}_"
+        f"{lab_id_part}_"
+        f"{topic_part}_"
+        f"{student_part}_"
+        f"{group_part}_"
+        f"{attempt_part}_"
+        f"{datetime_part}"
+        f"{extension}"
+    )
+
+
+
+
+def get_allowed_extensions_for_lab(lab):
+    """
+    Возвращает список допустимых расширений файла
+    в зависимости от типа проверки лабораторной работы.
+    """
+
+    checker_type = lab["checker_type"] or "hdl_testbench"
+
+    if checker_type == "hdl_testbench":
+        return [".v"]
+
+    if checker_type == "python_unit_tests":
+        return [".py"]
+
+    if checker_type == "sql_query":
+        return [".sql"]
+
+    if checker_type == "cpp_tests":
+        return [".cpp", ".cc", ".cxx"]
+
+    return [".txt"]
+
+
+def is_allowed_solution_file(filename, lab):
+    extension = os.path.splitext(filename)[1].lower()
+    allowed_extensions = get_allowed_extensions_for_lab(lab)
+
+    return extension in allowed_extensions
+
+
+def run_solution_check(solution_path, lab):
+    """
+    Универсальный диспетчер проверки решений.
+    """
+
+    checker_type = lab["checker_type"] or "hdl_testbench"
+
+    if checker_type == "hdl_testbench":
+        status, output, score, passed_tests, total_tests = run_hdl_check(
+            solution_path,
+            lab["testbench"]
+        )
+
+        return {
+            "status": status,
+            "output": output,
+            "score": score,
+            "passed_tests": passed_tests,
+            "total_tests": total_tests
+        }
+
+    if checker_type == "python_unit_tests":
+        return run_python_unit_tests_check(solution_path, lab)
+
+    if checker_type == "sql_query":
+        return {
+            "status": "SYSTEM_ERROR",
+            "output": "Проверка SQL-заданий пока не реализована.",
+            "score": 0,
+            "passed_tests": 0,
+            "total_tests": 0
+        }
+
+    if checker_type == "cpp_tests":
+        return {
+            "status": "SYSTEM_ERROR",
+            "output": "Проверка C++-заданий пока не реализована.",
+            "score": 0,
+            "passed_tests": 0,
+            "total_tests": 0
+        }
+
+    return {
+        "status": "SYSTEM_ERROR",
+        "output": f"Неизвестный тип проверки: {checker_type}",
+        "score": 0,
+        "passed_tests": 0,
+        "total_tests": 0
+    }
+
+
+
+
+def run_sql_query_check(solution_path, lab):
+    return {
+        "status": "SYSTEM_ERROR",
+        "output": "Проверка SQL-заданий пока не реализована.",
+        "score": 0,
+        "passed_tests": 0,
+        "total_tests": 0
+    }
+
+
+def run_cpp_tests_check(solution_path, lab):
+    return {
+        "status": "SYSTEM_ERROR",
+        "output": "Проверка C++-заданий пока не реализована.",
+        "score": 0,
+        "passed_tests": 0,
+        "total_tests": 0
+    }
 
 @app.route("/retry/<int:submission_id>", methods=["POST"])
 @login_required
@@ -2498,9 +3369,7 @@ def retry_submission(submission_id):
         flash("Лимит попыток по этой лабораторной работе исчерпан.")
         return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
 
-    mark_submission_file_deleted(submission_id)
-
-    flash("Предыдущий HDL-файл удалён. Теперь можно отправить новую попытку.")
+    flash("Загрузите новый файл решения в форме отправки выше.")
     return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
 
 
@@ -2521,17 +3390,37 @@ def download_submission(submission_id):
         abort(404)
 
     if submission["file_deleted"]:
-        flash("Файл этой попытки был удалён после повторной отправки.")
+        flash("Файл этой попытки недоступен.")
         return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
 
-    if session.get("role") != "teacher" and submission["username"] != session["username"]:
+    file_path = os.path.join(UPLOAD_DIR, submission["filename"])
+
+    if not os.path.exists(file_path):
+        flash("Файл отсутствует в папке загрузок.")
+        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
+
+    if session.get("role") == "teacher":
+        return send_from_directory(
+            UPLOAD_DIR,
+            submission["filename"],
+            as_attachment=True
+        )
+
+    if submission["username"] != session["username"]:
         abort(403)
+
+    if submission["file_hidden_for_student"]:
+        flash("Файл этой попытки скрыт после повторной отправки.")
+        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
 
     return send_from_directory(
         UPLOAD_DIR,
         submission["filename"],
         as_attachment=True
     )
+
+
+
 
 @app.route("/ai-help/<int:submission_id>")
 @login_required
@@ -2699,11 +3588,6 @@ def improve_score(submission_id):
 def teacher_panel():
     conn = get_db()
 
-    labs = conn.execute(
-        "SELECT * FROM labs ORDER BY id DESC"
-    ).fetchall()
-
-
     stats = conn.execute("""
         SELECT
             (SELECT COUNT(*) FROM users WHERE role = 'student') AS total_students,
@@ -2721,45 +3605,6 @@ def teacher_panel():
         FROM submissions
     """).fetchone()
 
-    student_lab_summary = conn.execute("""
-        SELECT
-            submissions.username,
-            COALESCE(users.full_name, submissions.username) AS full_name,
-            COALESCE(users.student_group, '') AS student_group,
-            labs.title AS lab_title,
-            COUNT(submissions.id) AS attempts_count,
-            MAX(submissions.score) AS best_score,
-            (
-                SELECT s2.status
-                FROM submissions s2
-                WHERE s2.username = submissions.username
-                  AND s2.lab_id = submissions.lab_id
-                ORDER BY s2.id DESC
-                LIMIT 1
-            ) AS last_status,
-            (
-                SELECT s2.created_at
-                FROM submissions s2
-                WHERE s2.username = submissions.username
-                  AND s2.lab_id = submissions.lab_id
-                ORDER BY s2.id DESC
-                LIMIT 1
-            ) AS last_attempt_at,
-            (
-                SELECT s2.filename
-                FROM submissions s2
-                WHERE s2.username = submissions.username
-                  AND s2.lab_id = submissions.lab_id
-                ORDER BY s2.id DESC
-                LIMIT 1
-            ) AS last_filename
-        FROM submissions
-        JOIN labs ON submissions.lab_id = labs.id
-        LEFT JOIN users ON submissions.username = users.username
-        GROUP BY submissions.username, submissions.lab_id
-        ORDER BY last_attempt_at DESC
-    """).fetchall()
-
     error_summary = conn.execute("""
         SELECT
             error_type,
@@ -2767,8 +3612,8 @@ def teacher_panel():
             COUNT(*) AS count
         FROM submissions
         WHERE error_type IS NOT NULL
-        AND error_type != ''
-        AND error_type != 'NO_ERROR'
+          AND error_type != ''
+          AND error_type != 'NO_ERROR'
         GROUP BY error_type, error_title
         ORDER BY count DESC
     """).fetchall()
@@ -2777,11 +3622,154 @@ def teacher_panel():
 
     return render_template(
         "teacher.html",
-        labs=labs,
         stats=stats,
-        student_lab_summary=student_lab_summary,
         error_summary=error_summary
     )
+
+
+@app.route("/teacher/journal")
+@teacher_required
+def teacher_journal():
+    conn = get_db()
+
+    selected_group = request.args.get("group", "").strip()
+
+    groups = conn.execute(
+        """
+        SELECT DISTINCT student_group
+        FROM users
+        WHERE role = 'student'
+          AND student_group != ''
+        ORDER BY student_group
+        """
+    ).fetchall()
+
+    labs = conn.execute(
+        """
+        SELECT *
+        FROM labs
+        ORDER BY id ASC
+        """
+    ).fetchall()
+
+    students_sql = """
+        SELECT *
+        FROM users
+        WHERE role = 'student'
+    """
+
+    params = []
+
+    if selected_group:
+        students_sql += " AND student_group = ?"
+        params.append(selected_group)
+
+    students_sql += " ORDER BY student_group ASC, full_name ASC"
+
+    students = conn.execute(students_sql, params).fetchall()
+
+    journal_rows = []
+
+    for student in students:
+        cells = []
+        total_score = 0
+        completed_count = 0
+
+        for lab in labs:
+            result = conn.execute(
+                """
+                SELECT
+                    COUNT(id) AS attempts_count,
+                    MAX(score) AS best_score,
+                    (
+                        SELECT status
+                        FROM submissions s2
+                        WHERE s2.username = ?
+                          AND s2.lab_id = ?
+                        ORDER BY s2.id DESC
+                        LIMIT 1
+                    ) AS last_status,
+                    (
+                        SELECT created_at
+                        FROM submissions s2
+                        WHERE s2.username = ?
+                          AND s2.lab_id = ?
+                        ORDER BY s2.id DESC
+                        LIMIT 1
+                    ) AS last_created_at
+                FROM submissions
+                WHERE username = ?
+                  AND lab_id = ?
+                """,
+                (
+                    student["username"],
+                    lab["id"],
+                    student["username"],
+                    lab["id"],
+                    student["username"],
+                    lab["id"]
+                )
+            ).fetchone()
+
+            best_score = result["best_score"] if result and result["best_score"] is not None else None
+
+            if best_score is not None:
+                total_score += int(best_score)
+                completed_count += 1
+
+            cells.append({
+                "lab_id": lab["id"],
+                "best_score": best_score,
+                "attempts_count": result["attempts_count"] if result else 0,
+                "last_status": result["last_status"] if result else "",
+                "last_created_at": result["last_created_at"] if result else ""
+            })
+
+        average_score = round(total_score / completed_count, 1) if completed_count > 0 else None
+
+        journal_rows.append({
+            "student": student,
+            "cells": cells,
+            "average_score": average_score,
+            "completed_count": completed_count
+        })
+
+    conn.close()
+
+    return render_template(
+        "teacher_journal.html",
+        groups=groups,
+        labs=labs,
+        journal_rows=journal_rows,
+        selected_group=selected_group
+    )
+
+@app.route("/teacher/labs")
+@teacher_required
+def teacher_labs():
+    conn = get_db()
+
+    labs = conn.execute(
+        """
+        SELECT
+            labs.*,
+            COUNT(submissions.id) AS submissions_count,
+            ROUND(AVG(submissions.score), 1) AS average_score,
+            SUM(CASE WHEN submissions.status = 'PASSED' THEN 1 ELSE 0 END) AS passed_count
+        FROM labs
+        LEFT JOIN submissions ON submissions.lab_id = labs.id
+        GROUP BY labs.id
+        ORDER BY labs.id DESC
+        """
+    ).fetchall()
+
+    conn.close()
+
+    return render_template(
+        "teacher_labs.html",
+        labs=labs
+    )
+
 
 
 @app.route("/teacher/submissions-history")
@@ -2796,42 +3784,19 @@ def teacher_submissions_history():
     selected_error_type = request.args.get("error_type", "").strip()
     date_from = request.args.get("date_from", "").strip()
     date_to = request.args.get("date_to", "").strip()
-    
 
     sort = request.args.get("sort", "submitted_at")
     direction = request.args.get("direction", "desc")
-
-    allowed_sort_columns = {
-        "student": "users.full_name",
-        "group": "users.student_group",
-        "lab": "labs.title",
-        "lab_created": "labs.created_at",
-        "submitted_at": "submissions.created_at",
-        "score": "submissions.score",
-        "best_score": "best_score",
-        "status": "submissions.status",
-        "attempt": "submissions.attempt_number"
-    }
-
-    if sort not in allowed_sort_columns:
-        sort = "submitted_at"
-
-    if direction not in ["asc", "desc"]:
-        direction = "desc"
 
     sql = """
         SELECT
             submissions.*,
             labs.title AS lab_title,
             labs.created_at AS lab_created_at,
+            labs.programming_language AS programming_language,
+            labs.checker_type AS checker_type,
             users.full_name,
-            users.student_group,
-            (
-                SELECT MAX(s2.score)
-                FROM submissions s2
-                WHERE s2.username = submissions.username
-                  AND s2.lab_id = submissions.lab_id
-            ) AS best_score
+            users.student_group
         FROM submissions
         JOIN labs ON submissions.lab_id = labs.id
         LEFT JOIN users ON submissions.username = users.username
@@ -2876,11 +3841,14 @@ def teacher_submissions_history():
         sql += " AND submissions.created_at <= ?"
         params.append(date_to + " 23:59:59")
 
-    sql += f"""
-        ORDER BY {allowed_sort_columns[sort]} {direction.upper()}
+    sql += """
+        ORDER BY submissions.username ASC,
+                 submissions.lab_id ASC,
+                 submissions.attempt_number DESC,
+                 submissions.id DESC
     """
 
-    submissions = conn.execute(sql, params).fetchall()
+    attempt_rows = conn.execute(sql, params).fetchall()
 
     labs = conn.execute(
         """
@@ -2901,9 +3869,112 @@ def teacher_submissions_history():
 
     conn.close()
 
+    grouped = {}
+
+    for row in attempt_rows:
+        attempt = dict(row)
+        key = (attempt["username"], attempt["lab_id"])
+
+        if key not in grouped:
+            grouped[key] = {
+                "username": attempt["username"],
+                "full_name": attempt["full_name"] or attempt["username"],
+                "student_group": attempt["student_group"] or "—",
+                "lab_id": attempt["lab_id"],
+                "lab_title": attempt["lab_title"],
+                "lab_created_at": attempt["lab_created_at"],
+                "programming_language": attempt["programming_language"] or "—",
+                "checker_type": attempt["checker_type"] or "—",
+                "attempts": []
+            }
+
+        grouped[key]["attempts"].append(attempt)
+
+    submission_groups = []
+
+    for group in grouped.values():
+        attempts = group["attempts"]
+
+        attempts.sort(
+            key=lambda item: int(item["attempt_number"] or 1),
+            reverse=True
+        )
+
+        best_score = max(int(item["score"] or 0) for item in attempts)
+
+        successful_attempts = [
+            item for item in attempts
+            if item["status"] == "PASSED"
+        ]
+
+        if successful_attempts:
+            display_attempt = sorted(
+                successful_attempts,
+                key=lambda item: (
+                    int(item["score"] or 0),
+                    int(item["attempt_number"] or 1),
+                    int(item["id"])
+                ),
+                reverse=True
+            )[0]
+
+            display_label = "Успешная попытка"
+        else:
+            display_attempt = sorted(
+                attempts,
+                key=lambda item: (
+                    int(item["score"] or 0),
+                    int(item["attempt_number"] or 1),
+                    int(item["id"])
+                ),
+                reverse=True
+            )[0]
+
+            display_label = "Лучшая попытка"
+
+        group["attempts_count"] = len(attempts)
+        group["best_score"] = best_score
+        group["display_attempt"] = display_attempt
+        group["display_label"] = display_label
+
+        submission_groups.append(group)
+
+    def sort_value(group):
+        display_attempt = group["display_attempt"]
+
+        if sort == "student":
+            return group["full_name"].lower()
+
+        if sort == "group":
+            return group["student_group"].lower()
+
+        if sort == "lab":
+            return group["lab_title"].lower()
+
+        if sort == "lab_created":
+            return group["lab_created_at"] or ""
+
+        if sort == "score" or sort == "best_score":
+            return int(group["best_score"] or 0)
+
+        if sort == "status":
+            return display_attempt["status"] or ""
+
+        if sort == "attempt":
+            return int(display_attempt["attempt_number"] or 1)
+
+        return display_attempt["created_at"] or ""
+
+    reverse_sort = direction == "desc"
+
+    submission_groups.sort(
+        key=sort_value,
+        reverse=reverse_sort
+    )
+
     return render_template(
         "teacher_submissions_history.html",
-        submissions=submissions,
+        submission_groups=submission_groups,
         labs=labs,
         groups=groups,
         search_query=search_query,
@@ -3221,17 +4292,32 @@ def delete_group_students():
     flash(f"Группа {student_group} удалена вместе со студентами, попытками и файлами.")
     return redirect(url_for("manage_students"))
 
-@app.route("/teacher/add-lab", methods=["POST"])
+
+@app.route("/teacher/labs/new", methods=["GET", "POST"])
 @teacher_required
 def add_lab():
-    title = request.form.get("title")
-    description = request.form.get("description")
-    testbench = request.form.get("testbench")
+
+    if request.method == "GET":
+        return render_template("add_lab.html")
+
+    title = request.form.get("title", "").strip()
+    description = request.form.get("description", "").strip()
+    testbench = request.form.get("testbench", "").strip()
+
+    discipline = request.form.get("discipline", "FPGA-проектирование").strip()
+    programming_language = request.form.get("programming_language", "Verilog").strip()
+    checker_type = request.form.get("checker_type", "hdl_testbench").strip()
+    topic = request.form.get("topic", "").strip()
+    difficulty = request.form.get("difficulty", "basic").strip()
+    concepts = request.form.get("concepts", "").strip()
+    grading_policy = request.form.get("grading_policy", "").strip()
+    starter_code = request.form.get("starter_code", "").strip()
+
     max_attempts = request.form.get("max_attempts", "3")
     allow_extra_questions = 1 if request.form.get("allow_extra_questions") == "on" else 0
 
     if not title or not description or not testbench:
-        flash("Нужно заполнить название, описание и testbench.")
+        flash("Нужно заполнить название, описание и проверочный сценарий.")
         return redirect(url_for("teacher_panel"))
 
     try:
@@ -3243,26 +4329,51 @@ def add_lab():
         max_attempts = 1
 
     conn = get_db()
+
     conn.execute(
         """
-        INSERT INTO labs
-        (title, description, testbench, max_attempts, allow_extra_questions, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO labs (
+            title,
+            description,
+            testbench,
+            discipline,
+            programming_language,
+            checker_type,
+            topic,
+            difficulty,
+            concepts,
+            grading_policy,
+            starter_code,
+            max_attempts,
+            allow_extra_questions,
+            created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             title,
             description,
             testbench,
+            discipline,
+            programming_language,
+            checker_type,
+            topic,
+            difficulty,
+            concepts,
+            grading_policy,
+            starter_code,
             max_attempts,
             allow_extra_questions,
             datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
     )
+
     conn.commit()
     conn.close()
 
-    return redirect(url_for("teacher_panel"))
+    flash("Лабораторная работа успешно добавлена.")
 
+    return redirect(url_for("teacher_panel"))
 
 
 @app.route("/teacher/edit-lab/<int:lab_id>", methods=["GET", "POST"])
@@ -3275,38 +4386,74 @@ def edit_lab(lab_id):
         (lab_id,)
     ).fetchone()
 
-    if not lab:
+    if lab is None:
         conn.close()
-        return "Лабораторная работа не найдена", 404
+        flash("Лабораторная работа не найдена.")
+        return redirect(url_for("teacher_panel"))
 
     if request.method == "POST":
-        title = request.form.get("title")
-        description = request.form.get("description")
-        testbench = request.form.get("testbench")
-        max_attempts = request.form.get("max_attempts", "3")
-        allow_extra_questions = 1 if request.form.get("allow_extra_questions") == "on" else 0
+        title = request.form.get("title", "").strip()
+        description = request.form.get("description", "").strip()
+        testbench = request.form.get("testbench", "").strip()
 
-        if not title or not description or not testbench:
-            conn.close()
-            flash("Нужно заполнить все поля.")
-            return redirect(url_for("edit_lab", lab_id=lab_id))
+        discipline = request.form.get("discipline", "FPGA-проектирование").strip()
+        programming_language = request.form.get("programming_language", "Verilog").strip()
+        checker_type = request.form.get("checker_type", "hdl_testbench").strip()
+        topic = request.form.get("topic", "").strip()
+        difficulty = request.form.get("difficulty", "basic").strip()
+        concepts = request.form.get("concepts", "").strip()
+        grading_policy = request.form.get("grading_policy", "").strip()
+        starter_code = request.form.get("starter_code", "").strip()
 
         try:
-            max_attempts = int(max_attempts)
+            max_attempts = int(request.form.get("max_attempts", 3))
         except ValueError:
             max_attempts = 3
 
         if max_attempts < 1:
             max_attempts = 1
 
+        allow_extra_questions = 1 if request.form.get("allow_extra_questions") == "on" else 0
+
+        if not title or not description or not testbench:
+            conn.close()
+            flash("Название, описание и проверочный сценарий обязательны для заполнения.")
+            return redirect(url_for("edit_lab", lab_id=lab_id))
+
         conn.execute(
             """
             UPDATE labs
-            SET title = ?, description = ?, testbench = ?,
-                max_attempts = ?, allow_extra_questions = ?
+            SET title = ?,
+                description = ?,
+                testbench = ?,
+                discipline = ?,
+                programming_language = ?,
+                checker_type = ?,
+                topic = ?,
+                difficulty = ?,
+                concepts = ?,
+                grading_policy = ?,
+                starter_code = ?,
+                max_attempts = ?,
+                allow_extra_questions = ?
             WHERE id = ?
             """,
-            (title, description, testbench, max_attempts, allow_extra_questions, lab_id)
+            (
+                title,
+                description,
+                testbench,
+                discipline,
+                programming_language,
+                checker_type,
+                topic,
+                difficulty,
+                concepts,
+                grading_policy,
+                starter_code,
+                max_attempts,
+                allow_extra_questions,
+                lab_id
+            )
         )
 
         conn.commit()
@@ -3317,9 +4464,10 @@ def edit_lab(lab_id):
 
     conn.close()
 
-    return render_template("edit_lab.html", lab=lab)
-
-
+    return render_template(
+        "edit_lab.html",
+        lab=lab
+    )
 
 
 
