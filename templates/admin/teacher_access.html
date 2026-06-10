@@ -1,0 +1,123 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+
+<a href="{{ url_for('admin_panel') }}" class="btn btn-outline-secondary btn-sm mb-3">
+    ← Назад в панель администратора
+</a>
+
+<h1 class="mb-4">Доступ преподавателей</h1>
+
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body p-4">
+        <h3 class="mb-3">Назначить преподавателя на предмет и группу</h3>
+
+        <form method="post" action="{{ url_for('admin_teacher_access') }}">
+            <div class="row g-3">
+
+                <div class="col-md-4">
+                    <label class="form-label">Преподаватель</label>
+                    <select name="teacher_username" class="form-select" required>
+                        <option value="">Выберите преподавателя</option>
+
+                        {% for teacher in teachers %}
+                            <option value="{{ teacher['username'] }}">
+                                {{ teacher["full_name"] }} — {{ teacher["username"] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Предмет</label>
+                    <select name="discipline" class="form-select" required>
+                        <option value="">Выберите предмет</option>
+
+                        {% for item in disciplines %}
+                            <option value="{{ item['discipline'] }}">
+                                {{ item["discipline"] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">
+                        Предметы берутся из паспортов лабораторных работ.
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Группа</label>
+                    <select name="student_group" class="form-select" required>
+                        <option value="">Выберите группу</option>
+
+                        {% for group in groups %}
+                            <option value="{{ group['student_group'] }}">
+                                {{ group["student_group"] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-12">
+                    <button class="btn btn-primary" type="submit">
+                        Добавить доступ
+                    </button>
+                </div>
+
+            </div>
+        </form>
+    </div>
+</div>
+
+<h3 class="mb-3">Текущие назначения</h3>
+
+{% if access_rows and access_rows|length > 0 %}
+
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Преподаватель</th>
+                        <th>Предмет</th>
+                        <th>Группа</th>
+                        <th>Дата назначения</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for row in access_rows %}
+                        <tr>
+                            <td>
+                                <b>{{ row["teacher_full_name"] or row["teacher_username"] }}</b>
+                                <div class="text-muted small">
+                                    {{ row["teacher_username"] }}
+                                </div>
+                            </td>
+
+                            <td>
+                                {{ row["discipline"] }}
+                            </td>
+
+                            <td>
+                                {{ row["student_group"] }}
+                            </td>
+
+                            <td>
+                                {{ row["created_at"] }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+{% else %}
+
+    <div class="alert alert-info rounded-4">
+        Назначения преподавателей пока не добавлены.
+    </div>
+
+{% endif %}
+
+{% endblock %}

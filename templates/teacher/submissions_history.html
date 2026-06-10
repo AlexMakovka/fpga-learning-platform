@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "layouts/base.html" %}
 
 {% block content %}
 
@@ -10,7 +10,7 @@
     <div>
         <h1 class="mb-1">История попыток студентов</h1>
         <p class="text-muted mb-0">
-            Здесь отображаются все отправки решений. Основной список сгруппирован по студенту и лабораторной работе.
+            Попытки сгруппированы по студенту и лабораторной работе. Полная история раскрывается внутри карточки.
         </p>
     </div>
 </div>
@@ -18,22 +18,29 @@
 <div class="card shadow-sm border-0 rounded-4 mb-4">
     <div class="card-body p-4">
 
-        <h3 class="mb-3">Фильтры и сортировка</h3>
+        <h3 class="mb-3">Фильтры</h3>
 
         <form method="get" action="{{ url_for('teacher_submissions_history') }}">
 
             <div class="row g-3">
 
-                <div class="col-md-4">
-                    <label class="form-label">Поиск</label>
-                    <input type="text"
-                           name="q"
-                           class="form-control"
-                           value="{{ search_query }}"
-                           placeholder="ФИО, логин, лабораторная или файл">
+                <div class="col-md-3">
+                    <label class="form-label">Предмет</label>
+                    <select name="discipline" class="form-select">
+                        <option value="">Все предметы</option>
+
+                        {% for item in disciplines %}
+                            <option value="{{ item['discipline'] }}"
+                                {% if selected_discipline == item['discipline'] %}
+                                    selected
+                                {% endif %}>
+                                {{ item["discipline"] }}
+                            </option>
+                        {% endfor %}
+                    </select>
                 </div>
 
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Лабораторная работа</label>
                     <select name="lab_id" class="form-select">
                         <option value="">Все лабораторные</option>
@@ -49,7 +56,7 @@
                     </select>
                 </div>
 
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Группа</label>
                     <select name="group" class="form-select">
                         <option value="">Все группы</option>
@@ -66,93 +73,100 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">Статус</label>
-                    <select name="status" class="form-select">
-                        <option value="">Все статусы</option>
-                        <option value="PASSED" {% if selected_status == "PASSED" %}selected{% endif %}>PASSED</option>
-                        <option value="PARTIAL" {% if selected_status == "PARTIAL" %}selected{% endif %}>PARTIAL</option>
-                        <option value="FAILED" {% if selected_status == "FAILED" %}selected{% endif %}>FAILED</option>
-                        <option value="COMPILE_ERROR" {% if selected_status == "COMPILE_ERROR" %}selected{% endif %}>COMPILE ERROR</option>
-                        <option value="SYSTEM_ERROR" {% if selected_status == "SYSTEM_ERROR" %}selected{% endif %}>SYSTEM ERROR</option>
-                        <option value="TIMEOUT" {% if selected_status == "TIMEOUT" %}selected{% endif %}>TIMEOUT</option>
-                        <option value="SECURITY_BLOCK" {% if selected_status == "SECURITY_BLOCK" %}selected{% endif %}>SECURITY BLOCK</option>
-                    </select>
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">Тип ошибки</label>
-                    <select name="error_type" class="form-select">
-                        <option value="">Все типы ошибок</option>
-
-                        <option value="COMPILE_ERROR" {% if selected_error_type == "COMPILE_ERROR" %}selected{% endif %}>Ошибка компиляции</option>
-                        <option value="MODULE_NAME_MISMATCH" {% if selected_error_type == "MODULE_NAME_MISMATCH" %}selected{% endif %}>Несовпадение имени модуля</option>
-                        <option value="PORT_MISMATCH" {% if selected_error_type == "PORT_MISMATCH" %}selected{% endif %}>Несовпадение портов</option>
-                        <option value="WRONG_COMBINATIONAL_LOGIC" {% if selected_error_type == "WRONG_COMBINATIONAL_LOGIC" %}selected{% endif %}>Неверная комбинационная логика</option>
-                        <option value="INCOMPLETE_CONDITION" {% if selected_error_type == "INCOMPLETE_CONDITION" %}selected{% endif %}>Неполное описание условий</option>
-                        <option value="CONTROL_SIGNAL_ERROR" {% if selected_error_type == "CONTROL_SIGNAL_ERROR" %}selected{% endif %}>Ошибка управляющего сигнала</option>
-                        <option value="RESET_CLOCK_ERROR" {% if selected_error_type == "RESET_CLOCK_ERROR" %}selected{% endif %}>Ошибка reset/clock</option>
-                        <option value="BOUNDARY_TEST_FAILED" {% if selected_error_type == "BOUNDARY_TEST_FAILED" %}selected{% endif %}>Граничные тесты</option>
-                        <option value="FUNCTIONAL_ERROR" {% if selected_error_type == "FUNCTIONAL_ERROR" %}selected{% endif %}>Функциональная ошибка</option>
-
-                        <option value="PYTHON_SYNTAX_ERROR" {% if selected_error_type == "PYTHON_SYNTAX_ERROR" %}selected{% endif %}>Python: синтаксическая ошибка</option>
-                        <option value="PYTHON_INDENTATION_ERROR" {% if selected_error_type == "PYTHON_INDENTATION_ERROR" %}selected{% endif %}>Python: ошибка отступов</option>
-                        <option value="PYTHON_NAME_ERROR" {% if selected_error_type == "PYTHON_NAME_ERROR" %}selected{% endif %}>Python: ошибка имени</option>
-                        <option value="PYTHON_TYPE_ERROR" {% if selected_error_type == "PYTHON_TYPE_ERROR" %}selected{% endif %}>Python: ошибка типа данных</option>
-                        <option value="PYTHON_LOGIC_ERROR" {% if selected_error_type == "PYTHON_LOGIC_ERROR" %}selected{% endif %}>Python: логическая ошибка</option>
-                        <option value="PYTHON_TIMEOUT" {% if selected_error_type == "PYTHON_TIMEOUT" %}selected{% endif %}>Python: превышено время</option>
-                        <option value="PYTHON_SECURITY_BLOCK" {% if selected_error_type == "PYTHON_SECURITY_BLOCK" %}selected{% endif %}>Python: запрещённая конструкция</option>
-                        <option value="PYTHON_RUNTIME_ERROR" {% if selected_error_type == "PYTHON_RUNTIME_ERROR" %}selected{% endif %}>Python: ошибка выполнения</option>
-                    </select>
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">Дата выполнения от</label>
-                    <input type="date"
-                           name="date_from"
+                    <label class="form-label">Поиск</label>
+                    <input type="text"
+                           name="q"
                            class="form-control"
-                           value="{{ date_from }}">
+                           value="{{ search_query }}"
+                           placeholder="ФИО, логин или файл">
                 </div>
 
-                <div class="col-md-3">
-                    <label class="form-label">Дата выполнения до</label>
-                    <input type="date"
-                           name="date_to"
-                           class="form-control"
-                           value="{{ date_to }}">
+            </div>
+
+            <details class="mt-3">
+                <summary class="text-primary" style="cursor: pointer;">
+                    Дополнительные фильтры
+                </summary>
+
+                <div class="row g-3 mt-2">
+
+                    <div class="col-md-3">
+                        <label class="form-label">Статус</label>
+                        <select name="status" class="form-select">
+                            <option value="">Все статусы</option>
+                            <option value="PASSED" {% if selected_status == "PASSED" %}selected{% endif %}>PASSED</option>
+                            <option value="PARTIAL" {% if selected_status == "PARTIAL" %}selected{% endif %}>PARTIAL</option>
+                            <option value="FAILED" {% if selected_status == "FAILED" %}selected{% endif %}>FAILED</option>
+                            <option value="COMPILE_ERROR" {% if selected_status == "COMPILE_ERROR" %}selected{% endif %}>COMPILE ERROR</option>
+                            <option value="SYSTEM_ERROR" {% if selected_status == "SYSTEM_ERROR" %}selected{% endif %}>SYSTEM ERROR</option>
+                            <option value="TIMEOUT" {% if selected_status == "TIMEOUT" %}selected{% endif %}>TIMEOUT</option>
+                            <option value="SECURITY_BLOCK" {% if selected_status == "SECURITY_BLOCK" %}selected{% endif %}>SECURITY BLOCK</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Тип ошибки</label>
+                        <select name="error_type" class="form-select">
+                            <option value="">Все типы ошибок</option>
+                            <option value="CONTROL_SIGNAL_ERROR" {% if selected_error_type == "CONTROL_SIGNAL_ERROR" %}selected{% endif %}>Ошибка управляющего сигнала</option>
+                            <option value="WRONG_COMBINATIONAL_LOGIC" {% if selected_error_type == "WRONG_COMBINATIONAL_LOGIC" %}selected{% endif %}>Неверная логика</option>
+                            <option value="COMPILE_ERROR" {% if selected_error_type == "COMPILE_ERROR" %}selected{% endif %}>Ошибка компиляции</option>
+                            <option value="FUNCTIONAL_ERROR" {% if selected_error_type == "FUNCTIONAL_ERROR" %}selected{% endif %}>Функциональная ошибка</option>
+                            <option value="PYTHON_RUNTIME_ERROR" {% if selected_error_type == "PYTHON_RUNTIME_ERROR" %}selected{% endif %}>Python: ошибка выполнения</option>
+                            <option value="PYTHON_LOGIC_ERROR" {% if selected_error_type == "PYTHON_LOGIC_ERROR" %}selected{% endif %}>Python: логическая ошибка</option>
+                            <option value="PYTHON_SYNTAX_ERROR" {% if selected_error_type == "PYTHON_SYNTAX_ERROR" %}selected{% endif %}>Python: синтаксис</option>
+                            <option value="PYTHON_NAME_ERROR" {% if selected_error_type == "PYTHON_NAME_ERROR" %}selected{% endif %}>Python: имя</option>
+                            <option value="PYTHON_TYPE_ERROR" {% if selected_error_type == "PYTHON_TYPE_ERROR" %}selected{% endif %}>Python: тип данных</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Дата от</label>
+                        <input type="date"
+                               name="date_from"
+                               class="form-control"
+                               value="{{ date_from }}">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Дата до</label>
+                        <input type="date"
+                               name="date_to"
+                               class="form-control"
+                               value="{{ date_to }}">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Сортировать по</label>
+                        <select name="sort" class="form-select">
+                            <option value="submitted_at" {% if sort == "submitted_at" %}selected{% endif %}>дате выполнения</option>
+                            <option value="student" {% if sort == "student" %}selected{% endif %}>студенту</option>
+                            <option value="group" {% if sort == "group" %}selected{% endif %}>группе</option>
+                            <option value="lab" {% if sort == "lab" %}selected{% endif %}>лабораторной</option>
+                            <option value="best_score" {% if sort == "best_score" %}selected{% endif %}>лучшей оценке</option>
+                            <option value="status" {% if sort == "status" %}selected{% endif %}>статусу</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Порядок</label>
+                        <select name="direction" class="form-select">
+                            <option value="desc" {% if direction == "desc" %}selected{% endif %}>по убыванию</option>
+                            <option value="asc" {% if direction == "asc" %}selected{% endif %}>по возрастанию</option>
+                        </select>
+                    </div>
+
                 </div>
+            </details>
 
-                <div class="col-md-3">
-                    <label class="form-label">Сортировать по</label>
-                    <select name="sort" class="form-select">
-                        <option value="submitted_at" {% if sort == "submitted_at" %}selected{% endif %}>дате выполнения</option>
-                        <option value="lab_created" {% if sort == "lab_created" %}selected{% endif %}>дате добавления лабораторной</option>
-                        <option value="student" {% if sort == "student" %}selected{% endif %}>студенту</option>
-                        <option value="group" {% if sort == "group" %}selected{% endif %}>группе</option>
-                        <option value="lab" {% if sort == "lab" %}selected{% endif %}>лабораторной</option>
-                        <option value="best_score" {% if sort == "best_score" %}selected{% endif %}>лучшей оценке</option>
-                        <option value="status" {% if sort == "status" %}selected{% endif %}>статусу</option>
-                        <option value="attempt" {% if sort == "attempt" %}selected{% endif %}>номеру попытки</option>
-                    </select>
-                </div>
+            <div class="mt-3 d-flex gap-2">
+                <button class="btn btn-dark" type="submit">
+                    Применить
+                </button>
 
-                <div class="col-md-3">
-                    <label class="form-label">Порядок</label>
-                    <select name="direction" class="form-select">
-                        <option value="desc" {% if direction == "desc" %}selected{% endif %}>по убыванию</option>
-                        <option value="asc" {% if direction == "asc" %}selected{% endif %}>по возрастанию</option>
-                    </select>
-                </div>
-
-                <div class="col-md-9 d-flex align-items-end gap-2">
-                    <button class="btn btn-dark" type="submit">
-                        Применить
-                    </button>
-
-                    <a href="{{ url_for('teacher_submissions_history') }}" class="btn btn-outline-secondary">
-                        Сбросить
-                    </a>
-                </div>
-
+                <a href="{{ url_for('teacher_submissions_history') }}" class="btn btn-outline-secondary">
+                    Сбросить
+                </a>
             </div>
 
         </form>
@@ -185,7 +199,7 @@
                         </div>
 
                         <div class="text-muted small">
-                            {{ group["programming_language"] }} · {{ group["checker_type"] }}
+                            {{ group["discipline"] }} · {{ group["programming_language"] }} · {{ group["checker_type"] }}
                         </div>
                     </div>
 
@@ -291,6 +305,7 @@
                                             <span class="badge bg-warning text-dark">
                                                 {{ sub["error_title"] }}
                                             </span>
+
                                             <div class="text-muted small mt-1">
                                                 {{ sub["error_type"] }}
                                             </div>
@@ -318,7 +333,7 @@
                                             </span>
                                         {% else %}
                                             <a href="{{ url_for('download_submission', submission_id=sub['id']) }}"
-                                            class="btn btn-outline-primary btn-sm">
+                                               class="btn btn-outline-primary btn-sm">
                                                 Скачать
                                             </a>
 
@@ -327,7 +342,7 @@
                                             </div>
 
                                             {% if sub["file_hidden_for_student"] %}
-                                                <div class="text-muted small mt-1">
+                                                <div class="text-muted small">
                                                     скрыт от студента
                                                 </div>
                                             {% endif %}

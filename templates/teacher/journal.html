@@ -1,0 +1,223 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+
+<a href="{{ url_for('teacher_panel') }}" class="btn btn-outline-secondary btn-sm mb-3">
+    ← Назад в панель преподавателя
+</a>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="mb-1">Журнал оценок</h1>
+        <p class="text-muted mb-0">
+            Автоматическая сводка лучших результатов студентов по лабораторным работам.
+        </p>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body">
+        <form method="get" action="{{ url_for('teacher_journal') }}">
+            <div class="row g-3">
+
+                <div class="col-md-3">
+                    <label class="form-label">Предмет</label>
+                    <select name="discipline" class="form-select">
+                        <option value="">Все предметы</option>
+
+                        {% for item in disciplines %}
+                            <option value="{{ item['discipline'] }}"
+                                {% if selected_discipline == item['discipline'] %}
+                                    selected
+                                {% endif %}>
+                                {{ item["discipline"] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Лабораторная</label>
+                    <select name="lab_id" class="form-select">
+                        <option value="">Все лабораторные</option>
+
+                        {% for lab in labs_for_filter %}
+                            <option value="{{ lab['id'] }}"
+                                {% if selected_lab_id|string == lab['id']|string %}
+                                    selected
+                                {% endif %}>
+                                {{ lab["title"] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Группа</label>
+                    <select name="group" class="form-select">
+                        <option value="">Все группы</option>
+
+                        {% for group in groups %}
+                            <option value="{{ group['student_group'] }}"
+                                {% if selected_group == group['student_group'] %}
+                                    selected
+                                {% endif %}>
+                                {{ group["student_group"] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-dark">
+                        Показать
+                    </button>
+
+                    <a href="{{ url_for('teacher_journal') }}" class="btn btn-outline-secondary">
+                        Сбросить
+                    </a>
+                </div>
+
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if journal_by_groups and journal_by_groups|length > 0 %}
+
+    {% for group_name, rows in journal_by_groups.items() %}
+
+        <div class="card shadow-sm border-0 rounded-4 mb-4">
+            <div class="card-body p-0">
+
+                <div class="p-3 border-bottom bg-light rounded-top-4">
+                    <h3 class="mb-1">Группа {{ group_name }}</h3>
+                    <div class="text-muted small">
+                        Студентов в журнале: {{ rows|length }}
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle mb-0 excel-journal-table">
+                        <thead>
+                            <tr>
+                                <th class="student-column">
+                                    Студент
+                                </th>
+
+                                {% for lab in labs %}
+                                    <th class="lab-column">
+                                        {% if lab["created_at"] %}
+                                            {{ lab["created_at"][:10] }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+
+                                        <div class="small fw-normal mt-1">
+                                            ЛР {{ lab["id"] }}
+                                        </div>
+
+                                        <div class="small fw-normal">
+                                            {{ lab["discipline"] or "—" }}
+                                        </div>
+
+                                        <div class="small fw-normal text-muted">
+                                            {{ lab["programming_language"] or "—" }}
+                                        </div>
+                                    </th>
+                                {% endfor %}
+
+                                <th class="summary-column">
+                                    Средний балл
+                                </th>
+
+                                <th class="summary-column">
+                                    Сдано
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for row in rows %}
+                                <tr>
+                                    <td class="student-column">
+                                        <b>{{ row["student"]["full_name"] }}</b>
+                                        <div class="text-muted small">
+                                            {{ row["student"]["username"] }}
+                                        </div>
+                                    </td>
+
+                                    {% for cell in row["cells"] %}
+                                        <td class="text-center">
+                                            {% if cell["best_score"] is not none %}
+
+                                                {% if cell["best_score"] >= 80 %}
+                                                    <span class="journal-grade journal-grade-good">
+                                                        {{ cell["best_score"] }}
+                                                    </span>
+                                                {% elif cell["best_score"] >= 50 %}
+                                                    <span class="journal-grade journal-grade-mid">
+                                                        {{ cell["best_score"] }}
+                                                    </span>
+                                                {% else %}
+                                                    <span class="journal-grade journal-grade-bad">
+                                                        {{ cell["best_score"] }}
+                                                    </span>
+                                                {% endif %}
+
+                                                <div class="text-muted small mt-1">
+                                                    {{ cell["last_status"] }}
+                                                </div>
+
+                                                <div class="text-muted small">
+                                                    п.: {{ cell["attempts_count"] }}
+                                                </div>
+
+                                                <a class="small"
+                                                   href="{{ url_for('teacher_submissions_history',
+                                                                    q=row['student']['username'],
+                                                                    lab_id=cell['lab_id']) }}">
+                                                    история
+                                                </a>
+
+                                            {% else %}
+                                                <span class="journal-absent">
+                                                    Н
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                    {% endfor %}
+
+                                    <td class="text-center">
+                                        {% if row["average_score"] is not none %}
+                                            <span class="badge bg-dark">
+                                                {{ row["average_score"] }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <td class="text-center">
+                                        {{ row["completed_count"] }} / {{ labs|length }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+    {% endfor %}
+
+{% else %}
+
+    <div class="alert alert-info rounded-4">
+        По выбранным фильтрам журнал пуст.
+    </div>
+
+{% endif %}
+
+{% endblock %}

@@ -125,3 +125,77 @@ details.card[open] summary::after {
     background: #212529;
     z-index: 3;
 }
+
+
+.excel-journal-table {
+    font-size: 14px;
+    background: #ffffff;
+}
+
+.excel-journal-table th {
+    background: #212529;
+    color: #ffffff;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.excel-journal-table td {
+    vertical-align: middle;
+    min-width: 90px;
+}
+
+.excel-journal-table .student-column {
+    min-width: 240px;
+    max-width: 280px;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: #ffffff;
+}
+
+.excel-journal-table thead .student-column {
+    background: #212529;
+    z-index: 3;
+}
+
+.excel-journal-table .lab-column {
+    min-width: 110px;
+}
+
+.excel-journal-table .summary-column {
+    min-width: 110px;
+}
+
+.journal-grade {
+    display: inline-block;
+    min-width: 42px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-weight: 700;
+}
+
+.journal-grade-good {
+    background: #198754;
+    color: #ffffff;
+}
+
+.journal-grade-mid {
+    background: #0dcaf0;
+    color: #000000;
+}
+
+.journal-grade-bad {
+    background: #dc3545;
+    color: #ffffff;
+}
+
+.journal-absent {
+    display: inline-block;
+    min-width: 36px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: #f8d7da;
+    color: #842029;
+    font-weight: 700;
+}

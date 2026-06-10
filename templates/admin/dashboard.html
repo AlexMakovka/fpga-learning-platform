@@ -1,0 +1,126 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+
+<h1 class="mb-4">Панель администратора</h1>
+
+<div class="mb-4 d-flex flex-wrap gap-2">
+    <a href="{{ url_for('admin_users') }}" class="btn btn-outline-primary">
+        Пользователи
+    </a>
+
+    <a href="{{ url_for('admin_teacher_access') }}" class="btn btn-outline-dark">
+        Доступ преподавателей
+    </a>
+</div>
+
+<div class="row mb-4">
+
+    <div class="col-md-3 mb-3">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-body">
+                <div class="text-muted">Ожидают подтверждения</div>
+                <div class="display-6 fw-bold">{{ stats["pending_users"] or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-body">
+                <div class="text-muted">Студентов</div>
+                <div class="display-6 fw-bold">{{ stats["students"] or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-body">
+                <div class="text-muted">Преподавателей</div>
+                <div class="display-6 fw-bold">{{ stats["teachers"] or 0 }}</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<h3 class="mb-3">Заявки на регистрацию</h3>
+
+{% if pending_users and pending_users|length > 0 %}
+
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Пользователь</th>
+                        <th>Роль</th>
+                        <th>Группа</th>
+                        <th>Email</th>
+                        <th>Дата заявки</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for user in pending_users %}
+                        <tr>
+                            <td>
+                                <b>{{ user["full_name"] }}</b>
+                                <div class="text-muted small">
+                                    {{ user["username"] }}
+                                </div>
+                            </td>
+
+                            <td>
+                                <span class="badge bg-secondary">
+                                    {{ user["role"] }}
+                                </span>
+                            </td>
+
+                            <td>
+                                {{ user["student_group"] or "—" }}
+                            </td>
+
+                            <td>
+                                {{ user["email"] or "—" }}
+                            </td>
+
+                            <td>
+                                {{ user["created_at"] or "—" }}
+                            </td>
+
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <form method="post"
+                                          action="{{ url_for('admin_approve_user', user_id=user['id']) }}">
+                                        <button class="btn btn-success btn-sm" type="submit">
+                                            Подтвердить
+                                        </button>
+                                    </form>
+
+                                    <form method="post"
+                                          action="{{ url_for('admin_block_user', user_id=user['id']) }}">
+                                        <button class="btn btn-outline-danger btn-sm" type="submit">
+                                            Отклонить
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+{% else %}
+
+    <div class="alert alert-info rounded-4">
+        Новых заявок на регистрацию нет.
+    </div>
+
+{% endif %}
+
+{% endblock %}

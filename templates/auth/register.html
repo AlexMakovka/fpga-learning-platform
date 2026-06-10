@@ -1,0 +1,89 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-md-7">
+
+        <div class="card shadow-sm border-0 rounded-4 mt-4">
+            <div class="card-body p-4">
+
+                <h1 class="mb-3">Регистрация</h1>
+
+                <p class="text-muted">
+                    После регистрации учетная запись должна быть подтверждена администратором.
+                </p>
+
+                <form method="post" action="{{ url_for('register') }}">
+
+                    <div class="mb-3">
+                        <label class="form-label">Роль</label>
+                        <select name="role" class="form-select" required>
+                            <option value="student">Студент</option>
+                            <option value="teacher">Преподаватель</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">ФИО</label>
+                        <input type="text"
+                               name="full_name"
+                               class="form-control"
+                               placeholder="Например: Иванов Иван Иванович"
+                               required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Группа</label>
+                        <input type="text"
+                               name="student_group"
+                               class="form-control"
+                               placeholder="Например: ИП3-5.01">
+                        <div class="form-text">
+                            Для студентов обязательно. Для преподавателей можно оставить пустым.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email"
+                               name="email"
+                               class="form-control"
+                               placeholder="example@mail.ru">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Логин</label>
+                        <input type="text"
+                               name="username"
+                               class="form-control"
+                               required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Пароль</label>
+                        <input type="password"
+                               name="password"
+                               class="form-control"
+                               required>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" type="submit">
+                            Отправить заявку
+                        </button>
+
+                        <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">
+                            Уже есть аккаунт
+                        </a>
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
