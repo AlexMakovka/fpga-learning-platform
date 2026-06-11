@@ -82,6 +82,10 @@ PYTHON_CHECK_TIMEOUT_SECONDS = 15
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
+# =========================
+# 1. Робота з базою даних
+# =========================
+
 # Функція для отримання з'єднання з базою даних SQLite.
 def get_db():
     conn = sqlite3.connect(DB_PATH)
@@ -409,6 +413,10 @@ def init_db():
     conn.close()
 
 
+# =========================
+# 2. Декоратори доступу
+# =========================
+
 # Декоратор для захисту маршрутів, які вимагають авторизації. 
 # Якщо користувач не увійшов, його перенаправляє на сторінку входу.
 def login_required(func):
@@ -444,6 +452,416 @@ def admin_required(func):
             return redirect(url_for("index"))
         return func(*args, **kwargs)
     return wrapper
+
+
+# =========================
+# 3. Допоміжні функції для файлів та завантажень
+# =========================
+
+# Функція для транслітерації російських букв у латиницю, щоб формувати безпечні імена файлів, 
+# які не містять кирилиці та спеціальних символів, що може викликати проблеми при збереженні файлів на сервері.
+def transliterate_ru_to_en(text):
+
+    symbols = {
+        "а": "a", "б": "b", "в": "v", "г": "g", "д": "d",
+        "е": "e", "ё": "e", "ж": "zh", "з": "z", "и": "i",
+        "й": "y", "к": "k", "л": "l", "м": "m", "н": "n",
+        "о": "o", "п": "p", "р": "r", "с": "s", "т": "t",
+        "у": "u", "ф": "f", "х": "h", "ц": "c", "ч": "ch",
+        "ш": "sh", "щ": "sch", "ъ": "", "ы": "y", "ь": "",
+        "э": "e", "ю": "yu", "я": "ya"
+    }
+
+    result = []
+
+    for char in str(text):
+        lower_char = char.lower()
+
+        if lower_char in symbols:
+            value = symbols[lower_char]
+
+            if char.isupper():
+                value = value.capitalize()
+
+            result.append(value)
+        else:
+            result.append(char)
+
+    return "".join(result)
+
+
+# Функція для формування безпечної частини імені файлу, яка містить лише латинські літери, цифри, дефіси та підкреслення, 
+# щоб уникнути проблем з збереженням файлів на сервері та забезпечити зрозумілі імена файлів для вчителів при перегляді відправок студентів.
+def make_safe_filename_part(text, default="item", max_length=30):
+
+    text = transliterate_ru_to_en(text)
+    text = re.sub(r"[^A-Za-z0-9_-]+", "-", text)
+    text = re.sub(r"-+", "-", text)
+    text = text.strip("-_")
+
+    if not text:
+        text = default
+
+    return text[:max_length]
+
+
+# Функція для формування короткого імені студента для файлу, яка використовує прізвище та ініціали студента, або ім'я користувача, 
+# якщо повне ім'я не доступне, щоб створювати зрозумілі імена файлів для вчителів при перегляді відправок студентів.
+def build_student_short_name(student):
+
+    if not student:
+        return "student"
+
+    full_name = student["full_name"] if "full_name" in student.keys() else ""
+    username = student["username"] if "username" in student.keys() else "student"
+
+    full_name = str(full_name or "").strip()
+
+    if not full_name:
+        return make_safe_filename_part(username, "student", 24)
+
+    parts = full_name.split()
+
+    if len(parts) >= 2:
+        surname = parts[0]
+        initials = ""
+
+        for part in parts[1:]:
+            if part:
+                initials += part[0]
+
+        return make_safe_filename_part(surname + initials, username, 24)
+
+    return make_safe_filename_part(full_name, username, 24)
+
+
+# Функція для формування короткого префікса для імені файлу на основі типу лабораторної роботи та мови програмування, 
+# щоб створювати зрозумілі імена файлів для вчителів при перегляді відправок студентів 
+# та швидко визначати тип лабораторної роботи за ім'ям файлу.
+def get_checker_prefix_for_filename(lab):
+
+    checker_type = lab["checker_type"] or "hdl_testbench"
+    programming_language = lab["programming_language"] or ""
+
+    checker_type = checker_type.lower()
+    programming_language = programming_language.lower()
+
+    if checker_type == "python_unit_tests" or programming_language == "python":
+        return "PY"
+
+    if checker_type == "hdl_testbench" or programming_language == "verilog":
+        return "FPGA"
+
+    if checker_type == "sql_query" or programming_language == "sql":
+        return "SQL"
+
+    if checker_type == "cpp_tests" or programming_language == "c++":
+        return "CPP"
+
+    return "LAB"
+
+
+# Функція для формування короткої теми лабораторної роботи для імені файлу на основі поля topic з паспорта лабораторної роботи 
+# або за замовчуванням, щоб створювати зрозумілі імена файлів для вчителів при перегляді відправок студентів 
+# та швидко визначати тему лабораторної роботи за ім'ям файлу.
+def get_lab_topic_for_filename(lab):
+
+    topic = ""
+
+    if "topic" in lab.keys():
+        topic = lab["topic"] or ""
+
+    if not topic:
+        topic = f"lab{lab['id']}"
+
+    return make_safe_filename_part(topic, f"lab{lab['id']}", 24)
+
+
+# Функція для отримання списку дозволених розширень файлів для конкретної лабораторної роботи на основі типу перевірки, 
+# щоб забезпечити, що студенти завантажують файли з правильними розширеннями для кожної лабораторної роботи 
+# та уникнути проблем з перевіркою рішень через неправильні формати файлів.
+def get_allowed_extensions_for_lab(lab):
+
+    checker_type = lab["checker_type"] or "hdl_testbench"
+
+    if checker_type == "hdl_testbench":
+        return [".v"]
+
+    if checker_type == "python_unit_tests":
+        return [".py"]
+
+    if checker_type == "sql_query":
+        return [".sql"]
+
+    if checker_type == "cpp_tests":
+        return [".cpp", ".cc", ".cxx"]
+
+    return [".txt"]
+
+
+# Функція для перевірки, чи є завантажений файл рішення студента дозволеним для конкретної лабораторної роботи на основі його розширення,
+# щоб забезпечити, що студенти завантажують файли з правильними розширеннями для кожної лабораторної роботи 
+# та уникнути проблем з перевіркою рішень через неправильні формати файлів.   
+def is_allowed_solution_file(filename, lab):
+    extension = os.path.splitext(filename)[1].lower()
+    allowed_extensions = get_allowed_extensions_for_lab(lab)
+
+    return extension in allowed_extensions
+
+
+
+
+# Функція для формування імені файлу відправки рішення студента, яка включає тип лабораторної роботи, тему, 
+# коротке ім'я студента, групу, номер спроби та дату відправки, щоб створювати зрозумілі імена файлів для вчителів 
+# при перегляді відправок студентів та швидко визначати інформацію про відправку за ім'ям файлу.
+def build_submission_filename(lab, student, attempt_number, original_filename):
+
+    prefix = get_checker_prefix_for_filename(lab)
+    lab_id_part = f"L{lab['id']}"
+    topic_part = get_lab_topic_for_filename(lab)
+
+    student_part = build_student_short_name(student)
+
+    if student and "student_group" in student.keys():
+        group_raw = student["student_group"] or "group"
+    else:
+        group_raw = "group"
+
+    group_part = make_safe_filename_part(group_raw, "group", 20)
+
+    try:
+        attempt_part = f"A{int(attempt_number):02d}"
+    except ValueError:
+        attempt_part = "A01"
+
+    datetime_part = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    extension = os.path.splitext(original_filename)[1].lower()
+
+    if not extension:
+        extension = get_allowed_extensions_for_lab(lab)[0]
+
+    return (
+        f"{prefix}_"
+        f"{lab_id_part}_"
+        f"{topic_part}_"
+        f"{student_part}_"
+        f"{group_part}_"
+        f"{attempt_part}_"
+        f"{datetime_part}"
+        f"{extension}"
+    )
+
+
+# Функція для читання HDL-коду з файлу, завантаженого студентом, з обробкою можливих помилок кодування та відсутності файлу.
+def read_submission_code(filename):
+
+    file_path = os.path.join(UPLOAD_DIR, filename)
+
+    if not os.path.exists(file_path):
+        return ""
+
+    with open(file_path, "r", encoding="utf-8", errors="replace") as file:
+        return file.read()
+
+
+# Функція для видалення фізичного файлу, завантаженого студентом, з сервера. 
+# Використовується при видаленні спроби або приховуванні файлу від студента.
+def delete_uploaded_file(filename):
+    if not filename:
+        return
+
+    file_path = os.path.join(UPLOAD_DIR, filename)
+
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+
+# Функція для позначення файлу спроби як видаленого. Файл фізично видаляється з сервера, 
+# а в базі даних встановлюється прапорець file_deleted, щоб викладач знав, що файл більше недоступний.
+def mark_submission_file_deleted(submission_id):
+    conn = get_db()
+
+    submission = conn.execute(
+        "SELECT * FROM submissions WHERE id = ?",
+        (submission_id,)
+    ).fetchone()
+
+    if not submission:
+        conn.close()
+        return
+
+    delete_uploaded_file(submission["filename"])
+
+    conn.execute(
+        """
+        UPDATE submissions
+        SET file_deleted = 1
+        WHERE id = ?
+        """,
+        (submission_id,)
+    )
+
+    conn.commit()
+    conn.close()
+
+
+# Функція для приховування файлу спроби від студента. Файл фізично не видаляється з сервера, 
+# але в базі даних встановлюється прапорець file_hidden_for_student, щоб студент не міг його бачити або завантажувати. 
+# Викладач при цьому зможе скачати файл для перевірки.
+def hide_submission_file_from_student(submission_id):
+
+    conn = get_db()
+
+    conn.execute(
+        """
+        UPDATE submissions
+        SET file_hidden_for_student = 1
+        WHERE id = ?
+        """,
+        (submission_id,)
+    )
+
+    conn.commit()
+    conn.close()
+    
+
+# ============================================================
+# 4. Допоміжні функції для спроб та відправок
+# ============================================================
+
+# Функція для отримання спроби студента разом з інформацією про лабораторну роботу. Студент може бачити тільки свої спроби, а викладач може бачити всі спроби.
+def get_submission_for_current_user(submission_id):
+
+    conn = get_db()
+
+# Виконуємо SQL-запит для отримання інформації про спробу та пов'язану лабораторну роботу.
+    submission = conn.execute(
+        """
+        SELECT 
+            submissions.*,
+
+            labs.title AS lab_title,
+            labs.description AS lab_description,
+            labs.testbench AS lab_testbench,
+
+            labs.discipline AS lab_discipline,
+            labs.programming_language AS lab_programming_language,
+            labs.checker_type AS lab_checker_type,
+            labs.topic AS lab_topic,
+            labs.difficulty AS lab_difficulty,
+            labs.concepts AS concepts,
+            labs.grading_policy AS lab_grading_policy,
+            labs.starter_code AS lab_starter_code,
+
+            labs.allow_extra_questions,
+            labs.max_attempts
+
+        FROM submissions
+        JOIN labs ON submissions.lab_id = labs.id
+        WHERE submissions.id = ?
+        """,
+        (submission_id,)
+    ).fetchone()
+
+    conn.close()
+
+    if not submission:
+        abort(404)
+
+    if session.get("role") != "teacher" and submission["username"] != session["username"]:
+        abort(403)
+
+    return submission
+
+
+# Функція для отримання кількості спроб студента по конкретній лабораторній роботі.
+def get_student_attempts_count(username, lab_id):
+
+    conn = get_db()
+
+    result = conn.execute(
+        """
+        SELECT COUNT(*) AS attempts_count
+        FROM submissions
+        WHERE username = ? AND lab_id = ?
+        """,
+        (username, lab_id)
+    ).fetchone()
+
+    conn.close()
+
+    return result["attempts_count"] if result else 0
+
+
+# Функція для визначення номера наступної спроби студента по конкретній лабораторній роботі.
+def get_next_attempt_number(username, lab_id):
+    return get_student_attempts_count(username, lab_id) + 1
+
+
+# Функція для отримання кількості спроб виконання додаткових завдань (extra tasks) по конкретній спробі.
+def get_extra_task_attempt_count(submission_id):
+    conn = get_db()
+
+    result = conn.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM extra_task_attempts
+        WHERE submission_id = ?
+        """,
+        (submission_id,)
+    ).fetchone()
+
+    conn.close()
+
+    return result["count"] if result else 0
+
+
+# Функція для отримання історії помилок студента по конкретній лабораторній роботі.
+def get_student_error_history(username, lab_id):
+    
+    conn = get_db()
+
+    rows = conn.execute(
+        """
+        SELECT error_type, error_title, COUNT(*) AS count
+        FROM submissions
+        WHERE username = ?
+          AND lab_id = ?
+          AND error_type IS NOT NULL
+          AND error_type != ''
+          AND error_type != 'NO_ERROR'
+        GROUP BY error_type, error_title
+        ORDER BY count DESC
+        """,
+        (username, lab_id)
+    ).fetchall()
+
+    conn.close()
+
+    return rows
+
+
+# Формує SQL-умову, яка перевіряє доступ викладача до лабораторної роботи 
+def get_teacher_access_condition():
+
+    return """
+        (
+            labs.created_by = ?
+            OR EXISTS (
+                SELECT 1
+                FROM teacher_subject_groups tsg
+                WHERE tsg.teacher_username = ?
+                  AND tsg.discipline = labs.discipline
+                  AND tsg.student_group = users.student_group
+            )
+        )
+    """
+
+
+# =========================
+# 5. Перевірка HDL / Verilog-рішень
+# =========================
 
 # Функція для форматування сирого виводу з перевірки HDL-коду у зрозумілий звіт для студента.
 def format_hdl_report(raw_output):
@@ -646,7 +1064,12 @@ def run_hdl_check(user_code_path, testbench_text):
             0,
             0
         )
-    
+
+
+# =========================
+# 6. Перевірка Python-рішень
+# =========================
+
 # Функція для перевірки доступності Docker на комп'ютері. 
 # Вона намагається виконати команду "docker --version" і перевіряє, чи вона виконується успішно, 
 # щоб визначити, чи встановлений та доступний Docker для запуску перевірки Python-коду в контейнері.
@@ -687,7 +1110,7 @@ def is_python_checker_image_available():
 
     except Exception:
         return False
-    
+
 
 # Функція для первинної перевірки потенційно небезпечних конструкцій у Python-коді студента.
 def contains_dangerous_python_code(code):
@@ -747,6 +1170,7 @@ def contains_dangerous_python_code(code):
                 return True, "while True"
 
     return False, ""
+
 
 # Функція для парсингу результатів виконання pytest та визначення кількості пройдених тестів та загальної кількості тестів.
 def parse_pytest_result(output):
@@ -998,7 +1422,88 @@ def run_python_unit_tests_check(solution_path, lab):
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-    
+
+# Функція для запуску перевірки рішення студента для завдань з Python, яка виконує юніт-тести та повертає результат у стандартному форматі, 
+# щоб забезпечити єдиний формат результатів перевірки для всіх типів лабораторних робіт 
+# та полегшити формування адаптивного навчального плану на основі результатів перевірки.
+def run_sql_query_check(solution_path, lab):
+    return {
+        "status": "SYSTEM_ERROR",
+        "output": "Проверка SQL-заданий пока не реализована.",
+        "score": 0,
+        "passed_tests": 0,
+        "total_tests": 0
+    }
+
+
+# Функція для запуску перевірки рішення студента для завдань з C++, яка компілює та виконує код та повертає результат у стандартному форматі,
+# щоб забезпечити єдиний формат результатів перевірки для всіх типів лабораторних робіт 
+# та полегшити формування адаптивного навчального плану на основі результатів перевірки.
+def run_cpp_tests_check(solution_path, lab):
+    return {
+        "status": "SYSTEM_ERROR",
+        "output": "Проверка C++-заданий пока не реализована.",
+        "score": 0,
+        "passed_tests": 0,
+        "total_tests": 0
+    }
+
+
+# Функція для запуску перевірки рішення студента на основі типу перевірки, визначеного в лабораторній роботі, 
+# та повернення результату перевірки у стандартному форматі, щоб забезпечити єдиний формат результатів перевірки 
+# для всіх типів лабораторних робіт та полегшити формування адаптивного навчального плану на основі результатів перевірки.
+def run_solution_check(solution_path, lab):
+
+    checker_type = lab["checker_type"] or "hdl_testbench"
+
+    if checker_type == "hdl_testbench":
+        status, output, score, passed_tests, total_tests = run_hdl_check(
+            solution_path,
+            lab["testbench"]
+        )
+
+        return {
+            "status": status,
+            "output": output,
+            "score": score,
+            "passed_tests": passed_tests,
+            "total_tests": total_tests
+        }
+
+    if checker_type == "python_unit_tests":
+        return run_python_unit_tests_check(solution_path, lab)
+
+    if checker_type == "sql_query":
+        return {
+            "status": "SYSTEM_ERROR",
+            "output": "Проверка SQL-заданий пока не реализована.",
+            "score": 0,
+            "passed_tests": 0,
+            "total_tests": 0
+        }
+
+    if checker_type == "cpp_tests":
+        return {
+            "status": "SYSTEM_ERROR",
+            "output": "Проверка C++-заданий пока не реализована.",
+            "score": 0,
+            "passed_tests": 0,
+            "total_tests": 0
+        }
+
+    return {
+        "status": "SYSTEM_ERROR",
+        "output": f"Неизвестный тип проверки: {checker_type}",
+        "score": 0,
+        "passed_tests": 0,
+        "total_tests": 0
+    }
+
+
+# =========================
+# 7. Діагностика помилок рішень
+# =========================
+
 # Функція для визначення теми лабораторної роботи на основі її назви, опису, тестбенча та коду студента.
 def detect_lab_topic_for_diagnostics(lab, code):
     text = (
@@ -1084,36 +1589,6 @@ def get_failed_test_blocks(output):
     return failed_blocks
 
 
-# Основна функція для класифікації помилок у рішеннях студентів на основі статусу перевірки, виводу та теми лабораторної роботи.
-def classify_solution_error(status, output, lab, code):
-
-    checker_type = lab["checker_type"] or "hdl_testbench"
-
-    if checker_type == "hdl_testbench":
-        return classify_hdl_error(
-            status=status,
-            output=output,
-            lab=lab,
-            code=code
-        )
-
-    if checker_type == "python_unit_tests":
-        return classify_python_error(
-            status=status,
-            output=output,
-            lab=lab,
-            code=code
-        )
-
-    return {
-        "error_type": "FUNCTIONAL_ERROR",
-        "error_title": "Ошибка выполнения задания",
-        "error_details": "Решение не прошло автоматическую проверку.",
-        "recommendation": "Проанализируйте отчет проверки и исправьте решение.",
-        "error_confidence": 60
-    }
-
-
 # Функція для класифікації помилок у HDL-розв'язках студентів на основі статусу перевірки, виводу та теми лабораторної роботи.
 def classify_hdl_error(status, output, lab, code):
 
@@ -1123,7 +1598,7 @@ def classify_hdl_error(status, output, lab, code):
     failed_blocks = get_failed_test_blocks(output)
     failed_text = "\n".join(failed_blocks).lower()
 
-# Якщо всі тести пройдені, повертаємо статус без помилок та рекомендації для студента.
+    # Якщо всі тести пройдені, повертаємо статус без помилок та рекомендації для студента.
     if status == "PASSED":
         return {
             "error_type": "NO_ERROR",
@@ -1338,163 +1813,39 @@ def classify_python_error(status, output, lab, code):
     }
 
 
-# Функція для читання HDL-коду з файлу, завантаженого студентом, з обробкою можливих помилок кодування та відсутності файлу.
-def read_submission_code(filename):
+# Основна функція для класифікації помилок у рішеннях студентів на основі статусу перевірки, виводу та теми лабораторної роботи.
+def classify_solution_error(status, output, lab, code):
 
-    file_path = os.path.join(UPLOAD_DIR, filename)
+    checker_type = lab["checker_type"] or "hdl_testbench"
 
-    if not os.path.exists(file_path):
-        return ""
+    if checker_type == "hdl_testbench":
+        return classify_hdl_error(
+            status=status,
+            output=output,
+            lab=lab,
+            code=code
+        )
 
-    with open(file_path, "r", encoding="utf-8", errors="replace") as file:
-        return file.read()
+    if checker_type == "python_unit_tests":
+        return classify_python_error(
+            status=status,
+            output=output,
+            lab=lab,
+            code=code
+        )
 
+    return {
+        "error_type": "FUNCTIONAL_ERROR",
+        "error_title": "Ошибка выполнения задания",
+        "error_details": "Решение не прошло автоматическую проверку.",
+        "recommendation": "Проанализируйте отчет проверки и исправьте решение.",
+        "error_confidence": 60
+    }
 
-# Функція для отримання спроби студента разом з інформацією про лабораторну роботу. Студент може бачити тільки свої спроби, а викладач може бачити всі спроби.
-def get_submission_for_current_user(submission_id):
-
-    conn = get_db()
-
-# Виконуємо SQL-запит для отримання інформації про спробу та пов'язану лабораторну роботу.
-    submission = conn.execute(
-        """
-        SELECT 
-            submissions.*,
-
-            labs.title AS lab_title,
-            labs.description AS lab_description,
-            labs.testbench AS lab_testbench,
-
-            labs.discipline AS lab_discipline,
-            labs.programming_language AS lab_programming_language,
-            labs.checker_type AS lab_checker_type,
-            labs.topic AS lab_topic,
-            labs.difficulty AS lab_difficulty,
-            labs.concepts AS concepts,
-            labs.grading_policy AS lab_grading_policy,
-            labs.starter_code AS lab_starter_code,
-
-            labs.allow_extra_questions,
-            labs.max_attempts
-
-        FROM submissions
-        JOIN labs ON submissions.lab_id = labs.id
-        WHERE submissions.id = ?
-        """,
-        (submission_id,)
-    ).fetchone()
-
-    conn.close()
-
-    if not submission:
-        abort(404)
-
-    if session.get("role") != "teacher" and submission["username"] != session["username"]:
-        abort(403)
-
-    return submission
-
-# Функція для отримання кількості спроб студента по конкретній лабораторній роботі. 
-# Використовується для нумерації спроб та обмеження їх кількості.
-def get_student_attempts_count(username, lab_id):
-    conn = get_db()
-
-    result = conn.execute(
-        """
-        SELECT COUNT(*) AS count
-        FROM submissions
-        WHERE username = ? AND lab_id = ?
-        """,
-        (username, lab_id)
-    ).fetchone()
-
-    conn.close()
-
-    return result["count"] if result else 0
-
-
-# Функція для визначення номера наступної спроби студента по конкретній лабораторній роботі.
-def get_next_attempt_number(username, lab_id):
-    return get_student_attempts_count(username, lab_id) + 1
-
-
-# Функція для видалення фізичного файлу, завантаженого студентом, з сервера. 
-# Використовується при видаленні спроби або приховуванні файлу від студента.
-def delete_uploaded_file(filename):
-    if not filename:
-        return
-
-    file_path = os.path.join(UPLOAD_DIR, filename)
-
-    if os.path.exists(file_path):
-        os.remove(file_path)
-
-# Функція для позначення файлу спроби як видаленого. Файл фізично видаляється з сервера, 
-# а в базі даних встановлюється прапорець file_deleted, щоб викладач знав, що файл більше недоступний.
-def mark_submission_file_deleted(submission_id):
-    conn = get_db()
-
-    submission = conn.execute(
-        "SELECT * FROM submissions WHERE id = ?",
-        (submission_id,)
-    ).fetchone()
-
-    if not submission:
-        conn.close()
-        return
-
-    delete_uploaded_file(submission["filename"])
-
-    conn.execute(
-        """
-        UPDATE submissions
-        SET file_deleted = 1
-        WHERE id = ?
-        """,
-        (submission_id,)
-    )
-
-    conn.commit()
-    conn.close()
-
-
-# Функція для приховування файлу спроби від студента. Файл фізично не видаляється з сервера, 
-# але в базі даних встановлюється прапорець file_hidden_for_student, щоб студент не міг його бачити або завантажувати. 
-# Викладач при цьому зможе скачати файл для перевірки.
-def hide_submission_file_from_student(submission_id):
-
-    conn = get_db()
-
-    conn.execute(
-        """
-        UPDATE submissions
-        SET file_hidden_for_student = 1
-        WHERE id = ?
-        """,
-        (submission_id,)
-    )
-
-    conn.commit()
-    conn.close()
-
-
-# Функція для отримання кількості спроб виконання додаткових завдань (extra tasks) по конкретній спробі.
-def get_extra_task_attempt_count(submission_id):
-    conn = get_db()
-
-    result = conn.execute(
-        """
-        SELECT COUNT(*) AS count
-        FROM extra_task_attempts
-        WHERE submission_id = ?
-        """,
-        (submission_id,)
-    ).fetchone()
-
-    conn.close()
-
-    return result["count"] if result else 0
-
+    
+# =========================
+# 8. Адаптивний ІІ-модуль та підказки
+# =========================
 
 # Функція для визначення номера наступної спроби виконання додаткового завдання (extra task) по конкретній спробі.
 def extract_failed_tests(output):
@@ -1549,31 +1900,6 @@ def extract_failed_tests_for_adaptive_module(output):
             failed_tests.append(test_block)
 
     return failed_tests
-
-
-# Функція для отримання історії помилок студента по конкретній лабораторній роботі.
-def get_student_error_history(username, lab_id):
-    
-    conn = get_db()
-
-    rows = conn.execute(
-        """
-        SELECT error_type, error_title, COUNT(*) AS count
-        FROM submissions
-        WHERE username = ?
-          AND lab_id = ?
-          AND error_type IS NOT NULL
-          AND error_type != ''
-          AND error_type != 'NO_ERROR'
-        GROUP BY error_type, error_title
-        ORDER BY count DESC
-        """,
-        (username, lab_id)
-    ).fetchall()
-
-    conn.close()
-
-    return rows
 
 
 # Функція для визначення теми лабораторної роботи на основі її назви, опису, тестбенча та коду студента. 
@@ -1682,6 +2008,18 @@ def build_recommendations_to_repeat(topic, error_type):
         recommendations.append("счетчики и изменение значения по такту")
 
     return list(dict.fromkeys(recommendations))
+
+
+# Функція для формування одного додаткового завдання з заданими параметрами, які визначають його зміст та вимоги до відповіді.
+def build_task(field, title, text, required_groups, min_length=25):
+
+    return {
+        "field": field,
+        "title": title,
+        "text": text,
+        "required_groups": required_groups,
+        "min_length": min_length
+    }
 
 
 # Функція для формування адаптивної підказки з урахуванням теми лабораторної роботи, типу помилки, помилкових тестів та рівня підказки.
@@ -2147,25 +2485,6 @@ def generate_ai_hint(submission, code, level):
     )
 
 
-# Функція для отримання кількості спроб студента по конкретній лабораторній роботі.
-def get_student_attempts_count(username, lab_id):
-
-    conn = get_db()
-
-    result = conn.execute(
-        """
-        SELECT COUNT(*) AS attempts_count
-        FROM submissions
-        WHERE username = ? AND lab_id = ?
-        """,
-        (username, lab_id)
-    ).fetchone()
-
-    conn.close()
-
-    return result["attempts_count"] if result else 0
-
-
 # Функція для визначення теми лабораторної роботи на основі назви, опису та коду студента. 
 # Це допомагає адаптивно формувати підказки та питання, які більш точно відповідають конкретній темі лабораторної роботи.
 def detect_lab_topic(submission, code):
@@ -2259,18 +2578,6 @@ def detect_error_focus(submission, code, topic):
         return "fsm_general"
 
     return "general_logic"
-
-
-# Функція для формування одного додаткового завдання з заданими параметрами, які визначають його зміст та вимоги до відповіді.
-def build_task(field, title, text, required_groups, min_length=25):
-
-    return {
-        "field": field,
-        "title": title,
-        "text": text,
-        "required_groups": required_groups,
-        "min_length": min_length
-    }
 
 
 # Функція для генерації набору додаткових завдань на основі теми лабораторної роботи, типу помилки, помилкових тестів та кількості спроб студента, щоб допомогти йому краще зрозуміти помилку та виправити її.
@@ -2568,6 +2875,7 @@ def compact_text(text):
     text = normalize_text(text)
     return text.replace(" ", "")
 
+
 # Функція для визначення, чи є відповідь студента занадто короткою або явно безглуздою, щоб відсікти такі відповіді та не враховувати їх при оцінюванні додаткових завдань.
 def is_bad_answer(text):
 
@@ -2778,6 +3086,10 @@ def build_adaptive_learning_plan(submission, code):
     }
 
 
+# =========================
+# 9. Auth routes - вхід, реєстрація, вихід
+# =========================
+
 # Роути для аутентифікації, відображення головної сторінки зі списком лабораторних робіт та сторінки з деталями конкретної лабораторної роботи, 
 # включаючи історію відправок студента та результати інших студентів для вчителів.
 @app.route("/login", methods=["GET", "POST"])
@@ -2892,6 +3204,10 @@ def logout():
     return redirect(url_for("login"))
 
 
+# =========================
+# 10. Common routes - спільні сторінки
+# =========================
+
 # Роут для головної сторінки, який відображає список лабораторних робіт та останні відправки студента. 
 # Доступ до цієї сторінки мають лише аутентифіковані користувачі.
 @app.route("/")
@@ -2967,7 +3283,7 @@ def lab_detail(lab_id):
         if not access:
             conn.close()
             flash("У вас нет доступа к этой лабораторной работе.")
-        return redirect(url_for("teacher_panel"))
+            return redirect(url_for("teacher_panel"))
 
 # Для вчителів відображаємо всі відправки студентів та їх результати, а для студентів - лише їх останню відправку та кількість спроб.
     if session.get("role") == "teacher":
@@ -3082,6 +3398,60 @@ def lab_detail(lab_id):
         attempts_count=attempts_count
     )
 
+
+# Роут для завантаження файлу рішення студента, який дозволяє студенту 
+# або вчителю завантажити файл з рішенням для конкретної відправки, перевіряє права доступу та наявність файлу, 
+# а також враховує, чи прихований файл для студента після повторної відправки, щоб забезпечити безпечний доступ до файлів рішень 
+# та уникнути проблем з відображенням історії відправок студентів.
+@app.route("/download/<int:submission_id>")
+@login_required
+def download_submission(submission_id):
+    conn = get_db()
+
+    submission = conn.execute(
+        "SELECT * FROM submissions WHERE id = ?",
+        (submission_id,)
+    ).fetchone()
+
+    conn.close()
+
+    if not submission:
+        abort(404)
+
+    if submission["file_deleted"]:
+        flash("Файл этой попытки недоступен.")
+        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
+
+    file_path = os.path.join(UPLOAD_DIR, submission["filename"])
+
+    if not os.path.exists(file_path):
+        flash("Файл отсутствует в папке загрузок.")
+        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
+
+    if session.get("role") == "teacher":
+        return send_from_directory(
+            UPLOAD_DIR,
+            submission["filename"],
+            as_attachment=True
+        )
+
+    if submission["username"] != session["username"]:
+        abort(403)
+
+    if submission["file_hidden_for_student"]:
+        flash("Файл этой попытки скрыт после повторной отправки.")
+        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
+
+    return send_from_directory(
+        UPLOAD_DIR,
+        submission["filename"],
+        as_attachment=True
+    )
+
+
+# =========================
+# 11. Student routes - студент
+# =========================
 
 # Роут для сторінки з історією відправок студента по конкретній лабораторній роботі, який відображає всі відправки студента та їх результати.
 @app.route("/lab/<int:lab_id>/history")
@@ -3275,6 +3645,217 @@ def submit_solution(lab_id):
 
     flash("Решение отправлено и проверено.")
     return redirect(url_for("lab_detail", lab_id=lab_id))
+
+
+# Роут для повторної відправки рішення студентом по конкретній лабораторній роботі, 
+# який дозволяє студенту завантажити новий файл з рішенням після того, 
+# як його попередня відправка не пройшла перевірку, та формує адаптивний навчальний план на основі результату перевірки. 
+# Доступ до цього роуту мають лише студенти, і він також перевіряє ліміт спроб по цій лабораторній роботі, 
+# щоб не дозволяти студенту перевищувати кількість спроб.
+@app.route("/retry/<int:submission_id>", methods=["POST"])
+@login_required
+def retry_submission(submission_id):
+    submission = get_submission_for_current_user(submission_id)
+
+    if session.get("role") != "student":
+        flash("Повторная отправка доступна только студенту.")
+        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
+
+    conn = get_db()
+
+    lab = conn.execute(
+        "SELECT * FROM labs WHERE id = ?",
+        (submission["lab_id"],)
+    ).fetchone()
+
+    attempts_count = conn.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM submissions
+        WHERE lab_id = ? AND username = ?
+        """,
+        (submission["lab_id"], session["username"])
+    ).fetchone()["count"]
+
+    conn.close()
+
+    if attempts_count >= (lab["max_attempts"] or 3):
+        flash("Лимит попыток по этой лабораторной работе исчерпан.")
+        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
+
+    flash("Загрузите новый файл решения в форме отправки выше.")
+    return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
+
+
+# Роут для отримання підказки від ІІ-помічника на основі результату перевірки рішення студента, 
+# який формує адаптивний навчальний план та надає студенту конкретні рекомендації щодо виправлення помилки.
+@app.route("/ai-help/<int:submission_id>")
+@login_required
+def ai_help(submission_id):
+    submission = get_submission_for_current_user(submission_id)
+
+    if submission["status"] == "PASSED":
+        flash("Решение уже прошло все тесты. Подсказка ИИ не требуется.")
+        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
+
+    code = read_submission_code(submission["filename"])
+    adaptive_plan = build_adaptive_learning_plan(submission, code)
+
+    return render_template(
+        "student/ai_help.html",
+        submission=submission,
+        hint=adaptive_plan["hint_text"],
+        level=adaptive_plan["hint_level"],
+        code=code,
+        adaptive_plan=adaptive_plan
+    )
+
+
+# Роут для покращення оцінки рішення студента через додаткові завдання від ІІ-помічника, 
+# який формує адаптивний навчальний план з додатковими питаннями.
+@app.route("/improve-score/<int:submission_id>", methods=["GET", "POST"])
+@login_required
+def improve_score(submission_id):
+    submission = get_submission_for_current_user(submission_id)
+
+    if submission["status"] == "PASSED":
+        flash("Решение уже имеет максимальный результат.")
+        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
+
+    conn = get_db()
+
+    lab = conn.execute(
+        "SELECT * FROM labs WHERE id = ?",
+        (submission["lab_id"],)
+    ).fetchone()
+
+    used_extra_attempts = conn.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM extra_task_attempts
+        WHERE submission_id = ?
+        """,
+        (submission_id,)
+    ).fetchone()["count"]
+
+    conn.close()
+
+    if not lab:
+        flash("Лабораторная работа не найдена.")
+        return redirect(url_for("index"))
+
+    if not lab["allow_extra_questions"]:
+        flash("Для этой лабораторной работы улучшение оценки через дополнительные вопросы отключено.")
+        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
+
+    if used_extra_attempts > 0:
+        flash("Вы уже использовали возможность улучшить оценку для этой попытки.")
+        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
+
+    code = read_submission_code(submission["filename"])
+    adaptive_plan = build_adaptive_learning_plan(submission, code)
+    tasks = adaptive_plan["questions"]
+
+    check_result = None
+
+    student_answers = {
+        "answer_1": "",
+        "answer_2": "",
+        "answer_3": ""
+    }
+
+    if request.method == "POST":
+        student_answers = {
+            "answer_1": request.form.get("answer_1", ""),
+            "answer_2": request.form.get("answer_2", ""),
+            "answer_3": request.form.get("answer_3", "")
+        }
+
+        correct_count, bonus, feedback = evaluate_extra_task_answers(
+            submission,
+            student_answers
+        )
+
+        score_before = int(submission["score"] or 0)
+
+        if correct_count >= 2:
+            score_after = min(adaptive_plan["bonus_cap"], score_before + bonus)
+        else:
+            score_after = score_before
+
+        conn = get_db()
+
+        conn.execute(
+            """
+            INSERT INTO extra_task_attempts
+            (submission_id, username, answer_1, answer_2, answer_3,
+             correct_count, total_count, bonus, score_before, score_after,
+             feedback, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                submission_id,
+                session["username"],
+                student_answers["answer_1"],
+                student_answers["answer_2"],
+                student_answers["answer_3"],
+                correct_count,
+                3,
+                bonus,
+                score_before,
+                score_after,
+                feedback,
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
+        )
+
+        if score_after > score_before:
+            updated_output = (
+                submission["output"]
+                + "\n\n---\n"
+                + "Дополнительные задания ИИ-помощника выполнены.\n"
+                + f"Правильных ответов: {correct_count} из 3.\n"
+                + f"Бонус: +{score_after - score_before} баллов.\n"
+                + f"Итоговый учебный балл: {score_after} / 100.\n"
+            )
+
+            conn.execute(
+                """
+                UPDATE submissions
+                SET score = ?, output = ?
+                WHERE id = ?
+                """,
+                (score_after, updated_output, submission_id)
+            )
+
+            flash("Ответы приняты. Учебный балл был повышен.")
+        else:
+            flash("Ответы не прошли проверку. Оценка не изменена.")
+
+        conn.commit()
+        conn.close()
+
+        check_result = {
+            "correct_count": correct_count,
+            "bonus": bonus,
+            "score_before": score_before,
+            "score_after": score_after,
+            "feedback": feedback
+        }
+
+    return render_template(
+        "student/improve_score.html",
+        submission=submission,
+        tasks=tasks,
+        check_result=check_result,
+        student_answers=student_answers,
+        adaptive_plan=adaptive_plan
+    )
+
+
+# =========================
+# 12. Admin routes - адміністратор
+# =========================
 
 # Роут для адміністративної панелі, який відображає статистику по користувачах та список користувачів зі статусом "pending" для підтвердження або блокування. Доступ до цієї сторінки мають лише адміністратори.
 @app.route("/admin")
@@ -3501,546 +4082,9 @@ def admin_teacher_access():
     )
 
 
-# Функція для транслітерації російських букв у латиницю, щоб формувати безпечні імена файлів, 
-# які не містять кирилиці та спеціальних символів, що може викликати проблеми при збереженні файлів на сервері.
-def transliterate_ru_to_en(text):
-
-    symbols = {
-        "а": "a", "б": "b", "в": "v", "г": "g", "д": "d",
-        "е": "e", "ё": "e", "ж": "zh", "з": "z", "и": "i",
-        "й": "y", "к": "k", "л": "l", "м": "m", "н": "n",
-        "о": "o", "п": "p", "р": "r", "с": "s", "т": "t",
-        "у": "u", "ф": "f", "х": "h", "ц": "c", "ч": "ch",
-        "ш": "sh", "щ": "sch", "ъ": "", "ы": "y", "ь": "",
-        "э": "e", "ю": "yu", "я": "ya"
-    }
-
-    result = []
-
-    for char in str(text):
-        lower_char = char.lower()
-
-        if lower_char in symbols:
-            value = symbols[lower_char]
-
-            if char.isupper():
-                value = value.capitalize()
-
-            result.append(value)
-        else:
-            result.append(char)
-
-    return "".join(result)
-
-
-# Функція для формування безпечної частини імені файлу, яка містить лише латинські літери, цифри, дефіси та підкреслення, 
-# щоб уникнути проблем з збереженням файлів на сервері та забезпечити зрозумілі імена файлів для вчителів при перегляді відправок студентів.
-def make_safe_filename_part(text, default="item", max_length=30):
-
-    text = transliterate_ru_to_en(text)
-    text = re.sub(r"[^A-Za-z0-9_-]+", "-", text)
-    text = re.sub(r"-+", "-", text)
-    text = text.strip("-_")
-
-    if not text:
-        text = default
-
-    return text[:max_length]
-
-
-# Функція для формування короткого імені студента для файлу, яка використовує прізвище та ініціали студента, або ім'я користувача, 
-# якщо повне ім'я не доступне, щоб створювати зрозумілі імена файлів для вчителів при перегляді відправок студентів.
-def build_student_short_name(student):
-
-    if not student:
-        return "student"
-
-    full_name = student["full_name"] if "full_name" in student.keys() else ""
-    username = student["username"] if "username" in student.keys() else "student"
-
-    full_name = str(full_name or "").strip()
-
-    if not full_name:
-        return make_safe_filename_part(username, "student", 24)
-
-    parts = full_name.split()
-
-    if len(parts) >= 2:
-        surname = parts[0]
-        initials = ""
-
-        for part in parts[1:]:
-            if part:
-                initials += part[0]
-
-        return make_safe_filename_part(surname + initials, username, 24)
-
-    return make_safe_filename_part(full_name, username, 24)
-
-
-# Функція для формування короткого префікса для імені файлу на основі типу лабораторної роботи та мови програмування, 
-# щоб створювати зрозумілі імена файлів для вчителів при перегляді відправок студентів 
-# та швидко визначати тип лабораторної роботи за ім'ям файлу.
-def get_checker_prefix_for_filename(lab):
-
-    checker_type = lab["checker_type"] or "hdl_testbench"
-    programming_language = lab["programming_language"] or ""
-
-    checker_type = checker_type.lower()
-    programming_language = programming_language.lower()
-
-    if checker_type == "python_unit_tests" or programming_language == "python":
-        return "PY"
-
-    if checker_type == "hdl_testbench" or programming_language == "verilog":
-        return "FPGA"
-
-    if checker_type == "sql_query" or programming_language == "sql":
-        return "SQL"
-
-    if checker_type == "cpp_tests" or programming_language == "c++":
-        return "CPP"
-
-    return "LAB"
-
-
-# Функція для формування короткої теми лабораторної роботи для імені файлу на основі поля topic з паспорта лабораторної роботи 
-# або за замовчуванням, щоб створювати зрозумілі імена файлів для вчителів при перегляді відправок студентів 
-# та швидко визначати тему лабораторної роботи за ім'ям файлу.
-def get_lab_topic_for_filename(lab):
-
-    topic = ""
-
-    if "topic" in lab.keys():
-        topic = lab["topic"] or ""
-
-    if not topic:
-        topic = f"lab{lab['id']}"
-
-    return make_safe_filename_part(topic, f"lab{lab['id']}", 24)
-
-
-# Функція для формування імені файлу відправки рішення студента, яка включає тип лабораторної роботи, тему, 
-# коротке ім'я студента, групу, номер спроби та дату відправки, щоб створювати зрозумілі імена файлів для вчителів 
-# при перегляді відправок студентів та швидко визначати інформацію про відправку за ім'ям файлу.
-def build_submission_filename(lab, student, attempt_number, original_filename):
-
-    prefix = get_checker_prefix_for_filename(lab)
-    lab_id_part = f"L{lab['id']}"
-    topic_part = get_lab_topic_for_filename(lab)
-
-    student_part = build_student_short_name(student)
-
-    if student and "student_group" in student.keys():
-        group_raw = student["student_group"] or "group"
-    else:
-        group_raw = "group"
-
-    group_part = make_safe_filename_part(group_raw, "group", 20)
-
-    try:
-        attempt_part = f"A{int(attempt_number):02d}"
-    except ValueError:
-        attempt_part = "A01"
-
-    datetime_part = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    extension = os.path.splitext(original_filename)[1].lower()
-
-    if not extension:
-        extension = get_allowed_extensions_for_lab(lab)[0]
-
-    return (
-        f"{prefix}_"
-        f"{lab_id_part}_"
-        f"{topic_part}_"
-        f"{student_part}_"
-        f"{group_part}_"
-        f"{attempt_part}_"
-        f"{datetime_part}"
-        f"{extension}"
-    )
-
-
-# Функція для отримання списку дозволених розширень файлів для конкретної лабораторної роботи на основі типу перевірки, 
-# щоб забезпечити, що студенти завантажують файли з правильними розширеннями для кожної лабораторної роботи 
-# та уникнути проблем з перевіркою рішень через неправильні формати файлів.
-def get_allowed_extensions_for_lab(lab):
-
-    checker_type = lab["checker_type"] or "hdl_testbench"
-
-    if checker_type == "hdl_testbench":
-        return [".v"]
-
-    if checker_type == "python_unit_tests":
-        return [".py"]
-
-    if checker_type == "sql_query":
-        return [".sql"]
-
-    if checker_type == "cpp_tests":
-        return [".cpp", ".cc", ".cxx"]
-
-    return [".txt"]
-
-
-# Функція для перевірки, чи є завантажений файл рішення студента дозволеним для конкретної лабораторної роботи на основі його розширення,
-# щоб забезпечити, що студенти завантажують файли з правильними розширеннями для кожної лабораторної роботи 
-# та уникнути проблем з перевіркою рішень через неправильні формати файлів.   
-def is_allowed_solution_file(filename, lab):
-    extension = os.path.splitext(filename)[1].lower()
-    allowed_extensions = get_allowed_extensions_for_lab(lab)
-
-    return extension in allowed_extensions
-
-def get_teacher_access_condition():
-
-    return """
-        (
-            labs.created_by = ?
-            OR EXISTS (
-                SELECT 1
-                FROM teacher_subject_groups tsg
-                WHERE tsg.teacher_username = ?
-                  AND tsg.discipline = labs.discipline
-                  AND tsg.student_group = users.student_group
-            )
-        )
-    """
-
-# Функція для запуску перевірки рішення студента на основі типу перевірки, визначеного в лабораторній роботі, 
-# та повернення результату перевірки у стандартному форматі, щоб забезпечити єдиний формат результатів перевірки 
-# для всіх типів лабораторних робіт та полегшити формування адаптивного навчального плану на основі результатів перевірки.
-def run_solution_check(solution_path, lab):
-
-    checker_type = lab["checker_type"] or "hdl_testbench"
-
-    if checker_type == "hdl_testbench":
-        status, output, score, passed_tests, total_tests = run_hdl_check(
-            solution_path,
-            lab["testbench"]
-        )
-
-        return {
-            "status": status,
-            "output": output,
-            "score": score,
-            "passed_tests": passed_tests,
-            "total_tests": total_tests
-        }
-
-    if checker_type == "python_unit_tests":
-        return run_python_unit_tests_check(solution_path, lab)
-
-    if checker_type == "sql_query":
-        return {
-            "status": "SYSTEM_ERROR",
-            "output": "Проверка SQL-заданий пока не реализована.",
-            "score": 0,
-            "passed_tests": 0,
-            "total_tests": 0
-        }
-
-    if checker_type == "cpp_tests":
-        return {
-            "status": "SYSTEM_ERROR",
-            "output": "Проверка C++-заданий пока не реализована.",
-            "score": 0,
-            "passed_tests": 0,
-            "total_tests": 0
-        }
-
-    return {
-        "status": "SYSTEM_ERROR",
-        "output": f"Неизвестный тип проверки: {checker_type}",
-        "score": 0,
-        "passed_tests": 0,
-        "total_tests": 0
-    }
-
-
-
-# Функція для запуску перевірки рішення студента для завдань з Python, яка виконує юніт-тести та повертає результат у стандартному форматі, 
-# щоб забезпечити єдиний формат результатів перевірки для всіх типів лабораторних робіт 
-# та полегшити формування адаптивного навчального плану на основі результатів перевірки.
-def run_sql_query_check(solution_path, lab):
-    return {
-        "status": "SYSTEM_ERROR",
-        "output": "Проверка SQL-заданий пока не реализована.",
-        "score": 0,
-        "passed_tests": 0,
-        "total_tests": 0
-    }
-
-
-# Функція для запуску перевірки рішення студента для завдань з C++, яка компілює та виконує код та повертає результат у стандартному форматі,
-# щоб забезпечити єдиний формат результатів перевірки для всіх типів лабораторних робіт 
-# та полегшити формування адаптивного навчального плану на основі результатів перевірки.
-def run_cpp_tests_check(solution_path, lab):
-    return {
-        "status": "SYSTEM_ERROR",
-        "output": "Проверка C++-заданий пока не реализована.",
-        "score": 0,
-        "passed_tests": 0,
-        "total_tests": 0
-    }
-
-
-# Роут для повторної відправки рішення студентом по конкретній лабораторній роботі, 
-# який дозволяє студенту завантажити новий файл з рішенням після того, 
-# як його попередня відправка не пройшла перевірку, та формує адаптивний навчальний план на основі результату перевірки. 
-# Доступ до цього роуту мають лише студенти, і він також перевіряє ліміт спроб по цій лабораторній роботі, 
-# щоб не дозволяти студенту перевищувати кількість спроб.
-@app.route("/retry/<int:submission_id>", methods=["POST"])
-@login_required
-def retry_submission(submission_id):
-    submission = get_submission_for_current_user(submission_id)
-
-    if session.get("role") != "student":
-        flash("Повторная отправка доступна только студенту.")
-        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
-
-    conn = get_db()
-
-    lab = conn.execute(
-        "SELECT * FROM labs WHERE id = ?",
-        (submission["lab_id"],)
-    ).fetchone()
-
-    attempts_count = conn.execute(
-        """
-        SELECT COUNT(*) AS count
-        FROM submissions
-        WHERE lab_id = ? AND username = ?
-        """,
-        (submission["lab_id"], session["username"])
-    ).fetchone()["count"]
-
-    conn.close()
-
-    if attempts_count >= (lab["max_attempts"] or 3):
-        flash("Лимит попыток по этой лабораторной работе исчерпан.")
-        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
-
-    flash("Загрузите новый файл решения в форме отправки выше.")
-    return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
-
-
-# Роут для завантаження файлу рішення студента, який дозволяє студенту 
-# або вчителю завантажити файл з рішенням для конкретної відправки, перевіряє права доступу та наявність файлу, 
-# а також враховує, чи прихований файл для студента після повторної відправки, щоб забезпечити безпечний доступ до файлів рішень 
-# та уникнути проблем з відображенням історії відправок студентів.
-@app.route("/download/<int:submission_id>")
-@login_required
-def download_submission(submission_id):
-    conn = get_db()
-
-    submission = conn.execute(
-        "SELECT * FROM submissions WHERE id = ?",
-        (submission_id,)
-    ).fetchone()
-
-    conn.close()
-
-    if not submission:
-        abort(404)
-
-    if submission["file_deleted"]:
-        flash("Файл этой попытки недоступен.")
-        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
-
-    file_path = os.path.join(UPLOAD_DIR, submission["filename"])
-
-    if not os.path.exists(file_path):
-        flash("Файл отсутствует в папке загрузок.")
-        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
-
-    if session.get("role") == "teacher":
-        return send_from_directory(
-            UPLOAD_DIR,
-            submission["filename"],
-            as_attachment=True
-        )
-
-    if submission["username"] != session["username"]:
-        abort(403)
-
-    if submission["file_hidden_for_student"]:
-        flash("Файл этой попытки скрыт после повторной отправки.")
-        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
-
-    return send_from_directory(
-        UPLOAD_DIR,
-        submission["filename"],
-        as_attachment=True
-    )
-
-
-# Роут для отримання підказки від ІІ-помічника на основі результату перевірки рішення студента, 
-# який формує адаптивний навчальний план та надає студенту конкретні рекомендації щодо виправлення помилки.
-@app.route("/ai-help/<int:submission_id>")
-@login_required
-def ai_help(submission_id):
-    submission = get_submission_for_current_user(submission_id)
-
-    if submission["status"] == "PASSED":
-        flash("Решение уже прошло все тесты. Подсказка ИИ не требуется.")
-        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
-
-    code = read_submission_code(submission["filename"])
-    adaptive_plan = build_adaptive_learning_plan(submission, code)
-
-    return render_template(
-        "student/ai_help.html",
-        submission=submission,
-        hint=adaptive_plan["hint_text"],
-        level=adaptive_plan["hint_level"],
-        code=code,
-        adaptive_plan=adaptive_plan
-    )
-
-
-# Роут для покращення оцінки рішення студента через додаткові завдання від ІІ-помічника, 
-# який формує адаптивний навчальний план з додатковими питаннями.
-@app.route("/improve-score/<int:submission_id>", methods=["GET", "POST"])
-@login_required
-def improve_score(submission_id):
-    submission = get_submission_for_current_user(submission_id)
-
-    if submission["status"] == "PASSED":
-        flash("Решение уже имеет максимальный результат.")
-        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
-
-    conn = get_db()
-
-    lab = conn.execute(
-        "SELECT * FROM labs WHERE id = ?",
-        (submission["lab_id"],)
-    ).fetchone()
-
-    used_extra_attempts = conn.execute(
-        """
-        SELECT COUNT(*) AS count
-        FROM extra_task_attempts
-        WHERE submission_id = ?
-        """,
-        (submission_id,)
-    ).fetchone()["count"]
-
-    conn.close()
-
-    if not lab:
-        flash("Лабораторная работа не найдена.")
-        return redirect(url_for("index"))
-
-    if not lab["allow_extra_questions"]:
-        flash("Для этой лабораторной работы улучшение оценки через дополнительные вопросы отключено.")
-        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
-
-    if used_extra_attempts > 0:
-        flash("Вы уже использовали возможность улучшить оценку для этой попытки.")
-        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
-
-    code = read_submission_code(submission["filename"])
-    adaptive_plan = build_adaptive_learning_plan(submission, code)
-    tasks = adaptive_plan["questions"]
-
-    check_result = None
-
-    student_answers = {
-        "answer_1": "",
-        "answer_2": "",
-        "answer_3": ""
-    }
-
-    if request.method == "POST":
-        student_answers = {
-            "answer_1": request.form.get("answer_1", ""),
-            "answer_2": request.form.get("answer_2", ""),
-            "answer_3": request.form.get("answer_3", "")
-        }
-
-        correct_count, bonus, feedback = evaluate_extra_task_answers(
-            submission,
-            student_answers
-        )
-
-        score_before = int(submission["score"] or 0)
-
-        if correct_count >= 2:
-            score_after = min(adaptive_plan["bonus_cap"], score_before + bonus)
-        else:
-            score_after = score_before
-
-        conn = get_db()
-
-        conn.execute(
-            """
-            INSERT INTO extra_task_attempts
-            (submission_id, username, answer_1, answer_2, answer_3,
-             correct_count, total_count, bonus, score_before, score_after,
-             feedback, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                submission_id,
-                session["username"],
-                student_answers["answer_1"],
-                student_answers["answer_2"],
-                student_answers["answer_3"],
-                correct_count,
-                3,
-                bonus,
-                score_before,
-                score_after,
-                feedback,
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            )
-        )
-
-        if score_after > score_before:
-            updated_output = (
-                submission["output"]
-                + "\n\n---\n"
-                + "Дополнительные задания ИИ-помощника выполнены.\n"
-                + f"Правильных ответов: {correct_count} из 3.\n"
-                + f"Бонус: +{score_after - score_before} баллов.\n"
-                + f"Итоговый учебный балл: {score_after} / 100.\n"
-            )
-
-            conn.execute(
-                """
-                UPDATE submissions
-                SET score = ?, output = ?
-                WHERE id = ?
-                """,
-                (score_after, updated_output, submission_id)
-            )
-
-            flash("Ответы приняты. Учебный балл был повышен.")
-        else:
-            flash("Ответы не прошли проверку. Оценка не изменена.")
-
-        conn.commit()
-        conn.close()
-
-        check_result = {
-            "correct_count": correct_count,
-            "bonus": bonus,
-            "score_before": score_before,
-            "score_after": score_after,
-            "feedback": feedback
-        }
-
-    return render_template(
-        "student/improve_score.html",
-        submission=submission,
-        tasks=tasks,
-        check_result=check_result,
-        student_answers=student_answers,
-        adaptive_plan=adaptive_plan
-    )
-
+# =========================
+# 13. Teacher routes - викладач
+# =========================
 
 # Роут для вчителя, який відображає загальну статистику по всім лабораторним роботам та відправкам студентів,
 # а також зведення по типах помилок, щоб вчитель міг швидко оцінити загальний рівень успішності студентів, виявити найпоширеніші проблеми та помилки,
@@ -4087,8 +4131,6 @@ def teacher_panel():
         stats=stats,
         error_summary=error_summary
     )
-
-
 
 
 # Роут для вчителя, який відображає журнал успішності студентів по лабораторним роботам з можливістю фільтрації за групами, 
@@ -4318,6 +4360,7 @@ def teacher_journal():
         selected_lab_id=selected_lab_id,
         selected_group=selected_group
     )
+
 
 # Роут для вчителя, який відображає список лабораторних робіт з інформацією про кількість відправок, середній бал та кількість успішних рішень,
 @app.route("/teacher/labs")
@@ -4650,6 +4693,7 @@ def teacher_submissions_history():
         sort=sort,
         direction=direction
     )
+
 
 # Роут для вчителя, який дозволяє керувати студентами: додавати нових студентів, редагувати дані існуючих студентів та видаляти студентів з системи,
 @app.route("/teacher/students", methods=["GET", "POST"])
@@ -5163,21 +5207,9 @@ def delete_lab(lab_id):
     return redirect(url_for("teacher_panel"))
 
 
-# Декоратор для захисту маршрутів, доступних лише адміністраторам
-def admin_required(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if "username" not in session:
-            return redirect(url_for("login"))
-
-        if session.get("role") != "admin":
-            flash("Доступ разрешён только администратору.")
-            return redirect(url_for("index"))
-
-        return func(*args, **kwargs)
-
-    return wrapper
-
+# =========================
+# App start
+# =========================
 
 if __name__ == "__main__":
     init_db()
