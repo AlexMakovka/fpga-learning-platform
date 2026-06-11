@@ -1,0 +1,131 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+
+<h1 class="mb-4">Моя зачётка</h1>
+
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body">
+        <h4 class="mb-1">{{ student["full_name"] }}</h4>
+        <div class="text-muted">
+            Группа: {{ student["student_group"] or "—" }}
+        </div>
+    </div>
+</div>
+
+{% if gradebook_rows and gradebook_rows|length > 0 %}
+
+    {% for row in gradebook_rows %}
+
+        <div class="card shadow-sm border-0 rounded-4 mb-4">
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h3 class="mb-1">{{ row["discipline"] }}</h3>
+
+                        <div class="text-muted small">
+                            Преподаватели:
+                            {% if row["teachers"] and row["teachers"]|length > 0 %}
+                                {% for teacher in row["teachers"] %}
+                                    {{ teacher["full_name"] }}{% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="text-end">
+                        <div class="mb-2">
+                            <span class="badge bg-dark">
+                                Средний балл:
+                                {{ row["average_score"] if row["average_score"] is not none else "—" }}
+                            </span>
+                        </div>
+
+                        <div>
+                            <span class="badge bg-secondary">
+                                Сдано: {{ row["completed_count"] }} / {{ row["total_labs"] }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {% if row["final_grade"] %}
+                    <div class="alert alert-success rounded-4">
+                        Итоговая оценка по предмету:
+                        <b>{{ row["final_grade"]["final_score"] }}</b>
+                    </div>
+                {% endif %}
+
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Лабораторная</th>
+                                <th>Оценка</th>
+                                <th>Источник</th>
+                                <th>Попыток</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for item in row["labs"] %}
+                                <tr>
+                                    <td>
+                                        <b>ЛР {{ item["lab"]["id"] }}</b>
+                                        <div class="text-muted small">
+                                            {{ item["lab"]["title"] }}
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        {% if item["display_score"] is not none %}
+                                            <span class="badge bg-dark">
+                                                {{ item["display_score"] }} / 100
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                Н
+                                            </span>
+                                        {% endif %}
+                                    </td>
+
+                                    <td>
+                                        {% if item["source"] == "manual" %}
+                                            <span class="badge bg-primary">
+                                                выставлена преподавателем
+                                            </span>
+                                        {% elif item["source"] == "auto" %}
+                                            <span class="badge bg-secondary">
+                                                автоматическая
+                                            </span>
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+
+                                    <td>
+                                        {{ item["attempts_count"] }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+    {% endfor %}
+
+{% else %}
+
+    <div class="alert alert-info rounded-4">
+        В зачётке пока нет оценок.
+    </div>
+
+{% endif %}
+
+{% endblock %}

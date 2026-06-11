@@ -2,15 +2,21 @@
 
 {% block content %}
 
-<a href="{{ url_for('teacher_panel') }}" class="btn btn-outline-secondary btn-sm mb-3">
-    ← Назад в панель преподавателя
-</a>
+{% if session.get("role") == "admin" %}
+    <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-secondary btn-sm mb-3">
+        ← Назад в панель администратора
+    </a>
+{% else %}
+    <a href="{{ url_for('teacher_panel') }}" class="btn btn-outline-secondary btn-sm mb-3">
+        ← Назад в панель преподавателя
+    </a>
+{% endif %}
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h1 class="mb-1">Журнал оценок</h1>
         <p class="text-muted mb-0">
-            Автоматическая сводка лучших результатов студентов по лабораторным работам.
+            Автоматическая сводка результатов студентов по лабораторным работам.
         </p>
     </div>
 </div>
@@ -149,25 +155,43 @@
 
                                     {% for cell in row["cells"] %}
                                         <td class="text-center">
-                                            {% if cell["best_score"] is not none %}
+                                            {% if cell["display_score"] is not none %}
 
-                                                {% if cell["best_score"] >= 80 %}
+                                                {% if cell["display_score"] >= 80 %}
                                                     <span class="journal-grade journal-grade-good">
-                                                        {{ cell["best_score"] }}
+                                                        {{ cell["display_score"] }}
                                                     </span>
-                                                {% elif cell["best_score"] >= 50 %}
+                                                {% elif cell["display_score"] >= 50 %}
                                                     <span class="journal-grade journal-grade-mid">
-                                                        {{ cell["best_score"] }}
+                                                        {{ cell["display_score"] }}
                                                     </span>
                                                 {% else %}
                                                     <span class="journal-grade journal-grade-bad">
-                                                        {{ cell["best_score"] }}
+                                                        {{ cell["display_score"] }}
                                                     </span>
                                                 {% endif %}
 
-                                                <div class="text-muted small mt-1">
-                                                    {{ cell["last_status"] }}
-                                                </div>
+                                                {% if cell["grade_source"] == "manual" %}
+                                                    <div class="text-muted small mt-1">
+                                                        вручную
+                                                    </div>
+                                                {% else %}
+                                                    <div class="text-muted small mt-1">
+                                                        авто
+                                                    </div>
+                                                {% endif %}
+
+                                                {% if cell["auto_score"] is not none and cell["grade_source"] == "manual" %}
+                                                    <div class="text-muted small">
+                                                        авто: {{ cell["auto_score"] }}
+                                                    </div>
+                                                {% endif %}
+
+                                                {% if cell["last_status"] %}
+                                                    <div class="text-muted small">
+                                                        {{ cell["last_status"] }}
+                                                    </div>
+                                                {% endif %}
 
                                                 <div class="text-muted small">
                                                     п.: {{ cell["attempts_count"] }}
@@ -184,6 +208,37 @@
                                                 <span class="journal-absent">
                                                     Н
                                                 </span>
+
+                                                <div class="text-muted small mt-1">
+                                                    не сдано
+                                                </div>
+                                            {% endif %}
+
+                                            {% if session.get("role") == "teacher" or session.get("role") == "admin" %}
+                                                <form method="post"
+                                                      action="{{ url_for('update_lab_grade',
+                                                                       lab_id=cell['lab_id'],
+                                                                       username=row['student']['username']) }}"
+                                                      class="mt-2">
+
+                                                    <input type="number"
+                                                           name="score"
+                                                           min="0"
+                                                           max="100"
+                                                           class="form-control form-control-sm mb-1"
+                                                           placeholder="0-100"
+                                                           value="{{ cell['manual_score'] if cell['manual_score'] is not none else '' }}">
+
+                                                    <input type="text"
+                                                           name="comment"
+                                                           class="form-control form-control-sm mb-1"
+                                                           placeholder="Комментарий"
+                                                           value="{{ cell['manual_comment'] or '' }}">
+
+                                                    <button class="btn btn-outline-dark btn-sm w-100" type="submit">
+                                                        Сохранить
+                                                    </button>
+                                                </form>
                                             {% endif %}
                                         </td>
                                     {% endfor %}

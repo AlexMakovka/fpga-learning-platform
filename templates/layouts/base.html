@@ -27,6 +27,12 @@
                     {{ session["username"] }} / {{ session["role"] }}
                 </span>
 
+                {% if session.get("role") == "student" %}
+                    <a href="{{ url_for('student_gradebook') }}" class="btn btn-outline-light btn-sm">
+                        Моя зачётка
+                    </a>
+                {% endif %}
+
                 {% if session.get("role") == "teacher" %}
                     <a href="{{ url_for('teacher_panel') }}" class="btn btn-outline-light btn-sm">
                         Панель преподавателя

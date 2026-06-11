@@ -315,7 +315,89 @@ def init_db():
             FOREIGN KEY (teacher_username) REFERENCES users(username)
         )
     """)
-    
+
+# Таблиця навчальних груп
+# Потрібна для зберігання списку груп студентів
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS study_groups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            description TEXT DEFAULT '',
+            created_at TEXT NOT NULL,
+            created_by TEXT DEFAULT ''
+        )
+    """)
+
+# Таблиця дисциплін
+# Потрібна для зберігання списку навчальних предметів у системі
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS disciplines (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            description TEXT DEFAULT '',
+            created_at TEXT NOT NULL,
+            created_by TEXT DEFAULT ''
+        )
+    """)
+
+# Таблиця ручної зміни оцінки за конкретну лабораторну роботу
+# Дозволяє викладачеві виправити підсумковий бал студента за необхідності
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS grade_overrides (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            lab_id INTEGER NOT NULL,
+            score INTEGER NOT NULL,
+            comment TEXT DEFAULT '',
+            edited_by TEXT NOT NULL,
+            edited_at TEXT NOT NULL,
+            UNIQUE(username, lab_id),
+            FOREIGN KEY (username) REFERENCES users(username),
+            FOREIGN KEY (lab_id) REFERENCES labs(id)
+        )
+    """)
+
+# Таблиця підсумкових оцінок студентів з дисциплін
+# Використовується, якщо викладач вручну виставляє фінальний бал на предмет
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS subject_final_grades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            discipline TEXT NOT NULL,
+            final_score INTEGER NOT NULL,
+            comment TEXT DEFAULT '',
+            edited_by TEXT NOT NULL,
+            edited_at TEXT NOT NULL,
+            UNIQUE(username, discipline),
+            FOREIGN KEY (username) REFERENCES users(username)
+        )
+    """)
+
+# Щоб уже існуючі групи та предмети не загубилися
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    cur.execute(
+        """
+        INSERT OR IGNORE INTO study_groups (name, description, created_at, created_by)
+        SELECT DISTINCT student_group, '', ?, 'system'
+        FROM users
+        WHERE student_group IS NOT NULL
+        AND student_group != ''
+        """,
+        (now,)
+    )
+
+    cur.execute(
+        """
+        INSERT OR IGNORE INTO disciplines (name, description, created_at, created_by)
+        SELECT DISTINCT discipline, '', ?, 'system'
+        FROM labs
+        WHERE discipline IS NOT NULL
+        AND discipline != ''
+        """,
+        (now,)
+    )
+
 # Перевіряємо, чи є користувачі в базі
 # Якщо база порожня, створюємо тестового студента та викладача
     cur.execute("SELECT COUNT(*) AS count FROM users")
@@ -857,6 +939,47 @@ def get_teacher_access_condition():
             )
         )
     """
+
+
+# Перевіряє, чи може користувач редагувати оцінку студента за лабораторною. 
+# Адміністратор може редагувати усі оцінки.
+#    Викладач може редагувати оцінку, якщо:
+#    1. він створив лабораторну;
+#    2. йому призначено предмет лабораторної та групу студента.
+def can_edit_lab_grade(conn, current_username, current_role, student_username, lab_id):
+
+    if current_role == "admin":
+        return True
+
+    if current_role != "teacher":
+        return False
+
+    access = conn.execute(
+        """
+        SELECT 1
+        FROM labs
+        JOIN users AS student ON student.username = ?
+        WHERE labs.id = ?
+          AND (
+              labs.created_by = ?
+              OR EXISTS (
+                  SELECT 1
+                  FROM teacher_subject_groups tsg
+                  WHERE tsg.teacher_username = ?
+                    AND tsg.discipline = labs.discipline
+                    AND tsg.student_group = student.student_group
+              )
+          )
+        """,
+        (
+            student_username,
+            lab_id,
+            current_username,
+            current_username
+        )
+    ).fetchone()
+
+    return access is not None
 
 
 # =========================
@@ -3453,6 +3576,167 @@ def download_submission(submission_id):
 # 11. Student routes - студент
 # =========================
 
+@app.route("/student/gradebook")
+@login_required
+def student_gradebook():
+    if session.get("role") != "student":
+        flash("Зачётка доступна только студенту.")
+        return redirect(url_for("index"))
+
+    username = session["username"]
+
+    conn = get_db()
+
+    student = conn.execute(
+        """
+        SELECT *
+        FROM users
+        WHERE username = ?
+        """,
+        (username,)
+    ).fetchone()
+
+    disciplines = conn.execute(
+        """
+        SELECT DISTINCT labs.discipline
+        FROM labs
+        JOIN submissions ON submissions.lab_id = labs.id
+        WHERE submissions.username = ?
+
+        UNION
+
+        SELECT DISTINCT labs.discipline
+        FROM labs
+        JOIN grade_overrides ON grade_overrides.lab_id = labs.id
+        WHERE grade_overrides.username = ?
+
+        ORDER BY discipline ASC
+        """,
+        (
+            username,
+            username
+        )
+    ).fetchall()
+
+    gradebook_rows = []
+
+    for item in disciplines:
+        discipline = item["discipline"]
+
+        teachers = conn.execute(
+            """
+            SELECT DISTINCT users.full_name
+            FROM teacher_subject_groups tsg
+            JOIN users ON users.username = tsg.teacher_username
+            WHERE tsg.discipline = ?
+              AND tsg.student_group = ?
+            ORDER BY users.full_name ASC
+            """,
+            (
+                discipline,
+                student["student_group"]
+            )
+        ).fetchall()
+
+        labs = conn.execute(
+            """
+            SELECT *
+            FROM labs
+            WHERE discipline = ?
+            ORDER BY created_at ASC, id ASC
+            """,
+            (discipline,)
+        ).fetchall()
+
+        lab_results = []
+        total_score = 0
+        completed_count = 0
+
+        for lab in labs:
+            auto_result = conn.execute(
+                """
+                SELECT
+                    MAX(score) AS best_score,
+                    COUNT(id) AS attempts_count
+                FROM submissions
+                WHERE username = ?
+                  AND lab_id = ?
+                """,
+                (
+                    username,
+                    lab["id"]
+                )
+            ).fetchone()
+
+            override = conn.execute(
+                """
+                SELECT *
+                FROM grade_overrides
+                WHERE username = ?
+                  AND lab_id = ?
+                """,
+                (
+                    username,
+                    lab["id"]
+                )
+            ).fetchone()
+
+            auto_score = auto_result["best_score"] if auto_result and auto_result["best_score"] is not None else None
+            attempts_count = auto_result["attempts_count"] if auto_result else 0
+
+            if override:
+                display_score = override["score"]
+                source = "manual"
+            else:
+                display_score = auto_score
+                source = "auto"
+
+            if display_score is not None:
+                total_score += int(display_score)
+                completed_count += 1
+
+            lab_results.append({
+                "lab": lab,
+                "display_score": display_score,
+                "auto_score": auto_score,
+                "source": source,
+                "attempts_count": attempts_count
+            })
+
+        average_score = round(total_score / completed_count, 1) if completed_count > 0 else None
+
+        final_grade = conn.execute(
+            """
+            SELECT *
+            FROM subject_final_grades
+            WHERE username = ?
+              AND discipline = ?
+            """,
+            (
+                username,
+                discipline
+            )
+        ).fetchone()
+
+        gradebook_rows.append({
+            "discipline": discipline,
+            "teachers": teachers,
+            "labs": lab_results,
+            "average_score": average_score,
+            "completed_count": completed_count,
+            "total_labs": len(labs),
+            "final_grade": final_grade
+        })
+
+    conn.close()
+
+    return render_template(
+        "student/gradebook.html",
+        student=student,
+        gradebook_rows=gradebook_rows
+    )
+
+
 # Роут для сторінки з історією відправок студента по конкретній лабораторній роботі, який відображає всі відправки студента та їх результати.
 @app.route("/lab/<int:lab_id>/history")
 @login_required
@@ -3854,7 +4138,121 @@ def improve_score(submission_id):
 
 
 # =========================
-# 12. Admin routes - адміністратор
+# 12. Grade routes - оцінки
+# =========================
+
+@app.route("/grades/lab/<int:lab_id>/<username>/update", methods=["POST"])
+@login_required
+def update_lab_grade(lab_id, username):
+    current_role = session.get("role")
+    current_username = session.get("username")
+
+    if current_role not in ["admin", "teacher"]:
+        flash("Редактировать оценки может только преподаватель или администратор.")
+        return redirect(url_for("index"))
+
+    score_raw = request.form.get("score", "").strip()
+    comment = request.form.get("comment", "").strip()
+
+    conn = get_db()
+
+    if not can_edit_lab_grade(conn, current_username, current_role, username, lab_id):
+        conn.close()
+        flash("У вас нет прав на редактирование этой оценки.")
+        return redirect(request.referrer or url_for("index"))
+
+    if score_raw == "":
+        conn.execute(
+            """
+            DELETE FROM grade_overrides
+            WHERE username = ?
+              AND lab_id = ?
+            """,
+            (username, lab_id)
+        )
+
+        conn.commit()
+        conn.close()
+
+        flash("Ручная оценка удалена. В журнале снова будет отображаться автоматический результат.")
+        return redirect(request.referrer or url_for("teacher_journal"))
+
+    try:
+        score = int(score_raw)
+    except ValueError:
+        conn.close()
+        flash("Оценка должна быть числом от 0 до 100.")
+        return redirect(request.referrer or url_for("teacher_journal"))
+
+    if score < 0 or score > 100:
+        conn.close()
+        flash("Оценка должна быть в диапазоне от 0 до 100.")
+        return redirect(request.referrer or url_for("teacher_journal"))
+
+    existing = conn.execute(
+        """
+        SELECT id
+        FROM grade_overrides
+        WHERE username = ?
+          AND lab_id = ?
+        """,
+        (username, lab_id)
+    ).fetchone()
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if existing:
+        conn.execute(
+            """
+            UPDATE grade_overrides
+            SET score = ?,
+                comment = ?,
+                edited_by = ?,
+                edited_at = ?
+            WHERE username = ?
+              AND lab_id = ?
+            """,
+            (
+                score,
+                comment,
+                current_username,
+                now,
+                username,
+                lab_id
+            )
+        )
+    else:
+        conn.execute(
+            """
+            INSERT INTO grade_overrides (
+                username,
+                lab_id,
+                score,
+                comment,
+                edited_by,
+                edited_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                lab_id,
+                score,
+                comment,
+                current_username,
+                now
+            )
+        )
+
+    conn.commit()
+    conn.close()
+
+    flash("Оценка обновлена.")
+    return redirect(request.referrer or url_for("teacher_journal"))
+
+
+# =========================
+# 13. Admin routes - адміністратор
 # =========================
 
 # Роут для адміністративної панелі, який відображає статистику по користувачах та список користувачів зі статусом "pending" для підтвердження або блокування. Доступ до цієї сторінки мають лише адміністратори.
@@ -3919,6 +4317,108 @@ def admin_users():
     return render_template(
         "admin/users.html",
         users=users
+    )
+
+
+@app.route("/admin/groups", methods=["GET", "POST"])
+@admin_required
+def admin_groups():
+    conn = get_db()
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        description = request.form.get("description", "").strip()
+
+        if not name:
+            conn.close()
+            flash("Название группы не может быть пустым.")
+            return redirect(url_for("admin_groups"))
+
+        try:
+            conn.execute(
+                """
+                INSERT INTO study_groups (name, description, created_at, created_by)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    name,
+                    description,
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    session["username"]
+                )
+            )
+            conn.commit()
+            flash("Группа добавлена.")
+        except sqlite3.IntegrityError:
+            flash("Такая группа уже существует.")
+
+        conn.close()
+        return redirect(url_for("admin_groups"))
+
+    groups = conn.execute(
+        """
+        SELECT *
+        FROM study_groups
+        ORDER BY name ASC
+        """
+    ).fetchall()
+
+    conn.close()
+
+    return render_template(
+        "admin/groups.html",
+        groups=groups
+    )
+
+
+@app.route("/admin/disciplines", methods=["GET", "POST"])
+@admin_required
+def admin_disciplines():
+    conn = get_db()
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        description = request.form.get("description", "").strip()
+
+        if not name:
+            conn.close()
+            flash("Название предмета не может быть пустым.")
+            return redirect(url_for("admin_disciplines"))
+
+        try:
+            conn.execute(
+                """
+                INSERT INTO disciplines (name, description, created_at, created_by)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    name,
+                    description,
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    session["username"]
+                )
+            )
+            conn.commit()
+            flash("Предмет добавлен.")
+        except sqlite3.IntegrityError:
+            flash("Такой предмет уже существует.")
+
+        conn.close()
+        return redirect(url_for("admin_disciplines"))
+
+    disciplines = conn.execute(
+        """
+        SELECT *
+        FROM disciplines
+        ORDER BY name ASC
+        """
+    ).fetchall()
+
+    conn.close()
+
+    return render_template(
+        "admin/disciplines.html",
+        disciplines=disciplines
     )
 
 
@@ -4039,21 +4539,17 @@ def admin_teacher_access():
 
     disciplines = conn.execute(
         """
-        SELECT DISTINCT discipline
-        FROM labs
-        WHERE discipline IS NOT NULL
-          AND discipline != ''
-        ORDER BY discipline ASC
+        SELECT name AS discipline
+        FROM disciplines
+        ORDER BY name ASC
         """
     ).fetchall()
 
     groups = conn.execute(
         """
-        SELECT DISTINCT student_group
-        FROM users
-        WHERE role = 'student'
-          AND student_group != ''
-        ORDER BY student_group ASC
+        SELECT name AS student_group
+        FROM study_groups
+        ORDER BY name ASC
         """
     ).fetchall()
 
@@ -4083,7 +4579,7 @@ def admin_teacher_access():
 
 
 # =========================
-# 13. Teacher routes - викладач
+# 14. Teacher routes - викладач
 # =========================
 
 # Роут для вчителя, який відображає загальну статистику по всім лабораторним роботам та відправкам студентів,
@@ -4133,50 +4629,104 @@ def teacher_panel():
     )
 
 
-# Роут для вчителя, який відображає журнал успішності студентів по лабораторним роботам з можливістю фільтрації за групами, 
-# дисциплінами та конкретними лабораторними роботами.
+# Роут для преподавателя и администратора.
+# Отображает журнал успеваемости студентов по лабораторным работам.
+# Администратор видит весь журнал.
+# Преподаватель видит только свои лабораторные и назначенные ему группы/предметы.
 @app.route("/teacher/journal")
-@teacher_required
+@login_required
 def teacher_journal():
+    current_role = session.get("role")
+    current_username = session.get("username")
+
+    if current_role not in ["teacher", "admin"]:
+        flash("Журнал оценок доступен только преподавателю или администратору.")
+        return redirect(url_for("index"))
+
+    is_admin = current_role == "admin"
+
     conn = get_db()
 
     selected_discipline = request.args.get("discipline", "").strip()
     selected_lab_id = request.args.get("lab_id", "").strip()
     selected_group = request.args.get("group", "").strip()
 
-    disciplines = conn.execute(
+    # -----------------------------
+    # 1. Список предметов для фильтра
+    # -----------------------------
+
+    if is_admin:
+        disciplines = conn.execute(
+            """
+            SELECT DISTINCT name AS discipline
+            FROM disciplines
+            WHERE name IS NOT NULL
+              AND name != ''
+            ORDER BY name ASC
+            """
+        ).fetchall()
+
+        # Если справочник предметов пока пустой,
+        # берем предметы напрямую из лабораторных работ.
+        if not disciplines:
+            disciplines = conn.execute(
+                """
+                SELECT DISTINCT discipline
+                FROM labs
+                WHERE discipline IS NOT NULL
+                  AND discipline != ''
+                ORDER BY discipline ASC
+                """
+            ).fetchall()
+
+    else:
+        disciplines = conn.execute(
+            """
+            SELECT DISTINCT labs.discipline
+            FROM labs
+            LEFT JOIN teacher_subject_groups tsg
+                ON tsg.discipline = labs.discipline
+               AND tsg.teacher_username = ?
+            WHERE labs.created_by = ?
+               OR tsg.teacher_username = ?
+            ORDER BY labs.discipline ASC
+            """,
+            (
+                current_username,
+                current_username,
+                current_username
+            )
+        ).fetchall()
+
+    # -----------------------------
+    # 2. Лабораторные для построения журнала
+    # -----------------------------
+
+    if is_admin:
+        labs_sql = """
+            SELECT DISTINCT labs.*
+            FROM labs
+            WHERE 1 = 1
         """
-        SELECT DISTINCT labs.discipline
-        FROM labs
-        LEFT JOIN teacher_subject_groups tsg
-            ON tsg.discipline = labs.discipline
-           AND tsg.teacher_username = ?
-        WHERE labs.created_by = ?
-           OR tsg.teacher_username = ?
-        ORDER BY labs.discipline ASC
-        """,
-        (
-            session["username"],
-            session["username"],
-            session["username"]
-        )
-    ).fetchall()
 
-    labs_sql = """
-        SELECT DISTINCT labs.*
-        FROM labs
-        LEFT JOIN teacher_subject_groups tsg
-            ON tsg.discipline = labs.discipline
-           AND tsg.teacher_username = ?
-        WHERE labs.created_by = ?
-           OR tsg.teacher_username = ?
-    """
+        labs_params = []
 
-    labs_params = [
-        session["username"],
-        session["username"],
-        session["username"]
-    ]
+    else:
+        labs_sql = """
+            SELECT DISTINCT labs.*
+            FROM labs
+            LEFT JOIN teacher_subject_groups tsg
+                ON tsg.discipline = labs.discipline
+               AND tsg.teacher_username = ?
+            WHERE labs.created_by = ?
+               OR tsg.teacher_username = ?
+        """
+
+        labs_params = [
+            current_username,
+            current_username,
+            current_username
+        ]
 
     if selected_discipline:
         labs_sql += " AND labs.discipline = ?"
@@ -4192,76 +4742,133 @@ def teacher_journal():
 
     labs = conn.execute(labs_sql, labs_params).fetchall()
 
-    labs_for_filter = conn.execute(
+    # -----------------------------
+    # 3. Лабораторные для выпадающего фильтра
+    # -----------------------------
+
+    if is_admin:
+        labs_for_filter = conn.execute(
+            """
+            SELECT DISTINCT labs.id, labs.title, labs.discipline
+            FROM labs
+            ORDER BY labs.discipline ASC, labs.title ASC
+            """
+        ).fetchall()
+
+    else:
+        labs_for_filter = conn.execute(
+            """
+            SELECT DISTINCT labs.id, labs.title, labs.discipline
+            FROM labs
+            LEFT JOIN teacher_subject_groups tsg
+                ON tsg.discipline = labs.discipline
+               AND tsg.teacher_username = ?
+            WHERE labs.created_by = ?
+               OR tsg.teacher_username = ?
+            ORDER BY labs.discipline ASC, labs.title ASC
+            """,
+            (
+                current_username,
+                current_username,
+                current_username
+            )
+        ).fetchall()
+
+    # -----------------------------
+    # 4. Список групп для фильтра
+    # -----------------------------
+
+    if is_admin:
+        groups = conn.execute(
+            """
+            SELECT DISTINCT name AS student_group
+            FROM study_groups
+            WHERE name IS NOT NULL
+              AND name != ''
+            ORDER BY name ASC
+            """
+        ).fetchall()
+
+        # Если справочник групп пока пустой,
+        # берем группы напрямую из пользователей.
+        if not groups:
+            groups = conn.execute(
+                """
+                SELECT DISTINCT student_group
+                FROM users
+                WHERE role = 'student'
+                  AND student_group != ''
+                ORDER BY student_group ASC
+                """
+            ).fetchall()
+
+    else:
+        groups = conn.execute(
+            """
+            SELECT DISTINCT users.student_group
+            FROM users
+            WHERE users.role = 'student'
+              AND users.student_group != ''
+              AND (
+                  users.student_group IN (
+                      SELECT student_group
+                      FROM teacher_subject_groups
+                      WHERE teacher_username = ?
+                  )
+                  OR EXISTS (
+                      SELECT 1
+                      FROM submissions
+                      JOIN labs ON submissions.lab_id = labs.id
+                      WHERE submissions.username = users.username
+                        AND labs.created_by = ?
+                  )
+              )
+            ORDER BY users.student_group ASC
+            """,
+            (
+                current_username,
+                current_username
+            )
+        ).fetchall()
+
+    # -----------------------------
+    # 5. Список студентов
+    # -----------------------------
+
+    if is_admin:
+        students_sql = """
+            SELECT *
+            FROM users
+            WHERE role = 'student'
         """
-        SELECT DISTINCT labs.id, labs.title, labs.discipline
-        FROM labs
-        LEFT JOIN teacher_subject_groups tsg
-            ON tsg.discipline = labs.discipline
-           AND tsg.teacher_username = ?
-        WHERE labs.created_by = ?
-           OR tsg.teacher_username = ?
-        ORDER BY labs.discipline ASC, labs.title ASC
-        """,
-        (
-            session["username"],
-            session["username"],
-            session["username"]
-        )
-    ).fetchall()
 
-    groups = conn.execute(
+        students_params = []
+
+    else:
+        students_sql = """
+            SELECT *
+            FROM users
+            WHERE role = 'student'
+              AND (
+                  student_group IN (
+                      SELECT student_group
+                      FROM teacher_subject_groups
+                      WHERE teacher_username = ?
+                  )
+                  OR EXISTS (
+                      SELECT 1
+                      FROM submissions
+                      JOIN labs ON submissions.lab_id = labs.id
+                      WHERE submissions.username = users.username
+                        AND labs.created_by = ?
+                  )
+              )
         """
-        SELECT DISTINCT users.student_group
-        FROM users
-        WHERE users.role = 'student'
-          AND users.student_group != ''
-          AND (
-              users.student_group IN (
-                  SELECT student_group
-                  FROM teacher_subject_groups
-                  WHERE teacher_username = ?
-              )
-              OR EXISTS (
-                  SELECT 1
-                  FROM submissions
-                  JOIN labs ON submissions.lab_id = labs.id
-                  WHERE submissions.username = users.username
-                    AND labs.created_by = ?
-              )
-          )
-        ORDER BY users.student_group ASC
-        """,
-        (
-            session["username"],
-            session["username"]
-        )
-    ).fetchall()
 
-    students_sql = """
-        SELECT *
-        FROM users
-        WHERE role = 'student'
-          AND (
-              student_group IN (
-                  SELECT student_group
-                  FROM teacher_subject_groups
-                  WHERE teacher_username = ?
-              )
-              OR EXISTS (
-                  SELECT 1
-                  FROM submissions
-                  JOIN labs ON submissions.lab_id = labs.id
-                  WHERE submissions.username = users.username
-                    AND labs.created_by = ?
-              )
-          )
-    """
-
-    students_params = [
-        session["username"],
-        session["username"]
-    ]
+        students_params = [
+            current_username,
+            current_username
+        ]
 
     if selected_group:
         students_sql += " AND student_group = ?"
@@ -4272,6 +4879,10 @@ def teacher_journal():
     """
 
     students = conn.execute(students_sql, students_params).fetchall()
+
+    # -----------------------------
+    # 6. Формирование журнала по группам
+    # -----------------------------
 
     journal_by_groups = {}
 
@@ -4289,8 +4900,8 @@ def teacher_journal():
             result = conn.execute(
                 """
                 SELECT
-                    COUNT(id) AS attempts_count,
-                    MAX(score) AS best_score,
+                    COUNT(submissions.id) AS attempts_count,
+                    MAX(submissions.score) AS best_score,
                     (
                         SELECT status
                         FROM submissions s2
@@ -4308,8 +4919,8 @@ def teacher_journal():
                         LIMIT 1
                     ) AS last_created_at
                 FROM submissions
-                WHERE username = ?
-                  AND lab_id = ?
+                WHERE submissions.username = ?
+                  AND submissions.lab_id = ?
                 """,
                 (
                     student["username"],
@@ -4321,18 +4932,49 @@ def teacher_journal():
                 )
             ).fetchone()
 
+            override = conn.execute(
+                """
+                SELECT *
+                FROM grade_overrides
+                WHERE username = ?
+                  AND lab_id = ?
+                """,
+                (
+                    student["username"],
+                    lab["id"]
+                )
+            ).fetchone()
+
             attempts_count = result["attempts_count"] if result else 0
-            best_score = result["best_score"] if result and result["best_score"] is not None else None
+            auto_score = result["best_score"] if result and result["best_score"] is not None else None
             last_status = result["last_status"] if result else ""
             last_created_at = result["last_created_at"] if result else ""
 
-            if best_score is not None:
-                total_score += int(best_score)
+            manual_score = override["score"] if override else None
+            manual_comment = override["comment"] if override else ""
+            edited_by = override["edited_by"] if override else ""
+            edited_at = override["edited_at"] if override else ""
+
+            if manual_score is not None:
+                display_score = manual_score
+                grade_source = "manual"
+            else:
+                display_score = auto_score
+                grade_source = "auto"
+
+            if display_score is not None:
+                total_score += int(display_score)
                 completed_count += 1
 
             cells.append({
                 "lab_id": lab["id"],
-                "best_score": best_score,
+                "display_score": display_score,
+                "auto_score": auto_score,
+                "manual_score": manual_score,
+                "grade_source": grade_source,
+                "manual_comment": manual_comment,
+                "edited_by": edited_by,
+                "edited_at": edited_at,
                 "attempts_count": attempts_count,
                 "last_status": last_status,
                 "last_created_at": last_created_at
@@ -5208,7 +5850,7 @@ def delete_lab(lab_id):
 
 
 # =========================
-# App start
+# 15. App start
 # =========================
 
 if __name__ == "__main__":

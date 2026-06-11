@@ -1,0 +1,63 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+
+<a href="{{ url_for('admin_panel') }}" class="btn btn-outline-secondary btn-sm mb-3">
+    ← Назад в панель администратора
+</a>
+
+<h1 class="mb-4">Учебные группы</h1>
+
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body p-4">
+        <h3 class="mb-3">Добавить группу</h3>
+
+        <form method="post" action="{{ url_for('admin_groups') }}">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Название группы</label>
+                    <input type="text" name="name" class="form-control" placeholder="Например: ИП3-5.01" required>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Описание</label>
+                    <input type="text" name="description" class="form-control" placeholder="Например: 3 курс, очная форма">
+                </div>
+
+                <div class="col-md-2 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" type="submit">
+                        Добавить
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Группа</th>
+                    <th>Описание</th>
+                    <th>Создал</th>
+                    <th>Дата создания</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for group in groups %}
+                    <tr>
+                        <td><b>{{ group["name"] }}</b></td>
+                        <td>{{ group["description"] or "—" }}</td>
+                        <td>{{ group["created_by"] or "—" }}</td>
+                        <td>{{ group["created_at"] }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

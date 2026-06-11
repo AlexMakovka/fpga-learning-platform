@@ -9,8 +9,20 @@
         Пользователи
     </a>
 
+    <a href="{{ url_for('admin_groups') }}" class="btn btn-outline-primary">
+        Группы
+    </a>
+
+    <a href="{{ url_for('admin_disciplines') }}" class="btn btn-outline-primary">
+        Предметы
+    </a>
+
     <a href="{{ url_for('admin_teacher_access') }}" class="btn btn-outline-dark">
         Доступ преподавателей
+    </a>
+
+    <a href="{{ url_for('teacher_journal') }}" class="btn btn-outline-success">
+        Журнал оценок
     </a>
 </div>
 
