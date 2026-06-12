@@ -1,0 +1,69 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-md-7">
+
+        <div class="card shadow-sm border-0 rounded-4 mt-4">
+            <div class="card-body p-4">
+
+                <h1 class="mb-3">Завершение регистрации через Google</h1>
+
+                <p class="text-muted">
+                    Google подтвердил ваш аккаунт. Теперь нужно указать роль и учебные данные.
+                    После этого администратор должен подтвердить учетную запись.
+                </p>
+
+                <div class="alert alert-light border">
+                    <b>Email:</b> {{ google_data["email"] }}<br>
+                    <b>Имя Google:</b> {{ google_data["full_name"] or "—" }}
+                </div>
+
+                <form method="post" action="{{ url_for('complete_google_registration') }}">
+
+                    <div class="mb-3">
+                        <label class="form-label">ФИО</label>
+                        <input type="text"
+                               name="full_name"
+                               class="form-control"
+                               value="{{ google_data['full_name'] or '' }}"
+                               required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Роль</label>
+                        <select name="role" class="form-select" required>
+                            <option value="student">Студент</option>
+                            <option value="teacher">Преподаватель</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Группа</label>
+                        <input type="text"
+                               name="student_group"
+                               class="form-control"
+                               placeholder="Например: ИП3-5.01">
+                        <div class="form-text">
+                            Для студента обязательно. Для преподавателя можно оставить пустым.
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" type="submit">
+                        Отправить заявку
+                    </button>
+
+                    <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">
+                        Отмена
+                    </a>
+
+                </form>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

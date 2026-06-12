@@ -199,3 +199,114 @@ details.card[open] summary::after {
     color: #842029;
     font-weight: 700;
 }
+
+.excel-journal-table th,
+.excel-journal-table td {
+    vertical-align: middle;
+    text-align: center;
+}
+
+.excel-journal-table th {
+    background: #212529;
+    color: #ffffff;
+}
+
+.student-column {
+    min-width: 240px;
+    text-align: left !important;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: #ffffff;
+}
+
+.excel-journal-table thead .student-column {
+    background: #212529;
+    color: #ffffff;
+    z-index: 3;
+}
+
+.lab-column {
+    min-width: 90px;
+}
+
+.summary-column {
+    min-width: 90px;
+}
+
+.journal-lab-date {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.journal-lab-link {
+    display: inline-block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: #ffffff;
+    text-decoration: underline;
+}
+
+.journal-lab-link:hover {
+    color: #dbeafe;
+}
+
+.journal-grade-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 5px 10px;
+    min-width: 42px;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.journal-grade-good {
+    background: #198754;
+    color: #ffffff;
+}
+
+.journal-grade-mid {
+    background: #0dcaf0;
+    color: #111111;
+}
+
+.journal-grade-bad {
+    background: #dc3545;
+    color: #ffffff;
+}
+
+.journal-absent-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 5px 10px;
+    min-width: 42px;
+    background: #e9ecef;
+    color: #6c757d;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.journal-history-link {
+    font-size: 11px;
+    color: #6c757d;
+    text-decoration: none;
+}
+
+.journal-history-link:hover {
+    color: #212529;
+    text-decoration: underline;
+}
+
+.journal-cell {
+    min-width: 95px;
+}
+
+.journal-cell-edit input {
+    font-size: 12px;
+    padding: 4px 6px;
+}

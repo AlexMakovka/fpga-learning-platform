@@ -37,6 +37,14 @@ from datetime import datetime
 # Він допомагає зберегти ім'я та опис вихідної функції
 from functools import wraps
 
+# Завантажує змінні оточення з файлу .env
+# Наприклад, секретні ключі та налаштування, які не варто зберігати прямо в коді
+from dotenv import load_dotenv
+
+# Включає OAuth-авторизацію у Flask
+# Потрібна для входу через зовнішні сервіси, наприклад Google
+from authlib.integrations.flask_client import OAuth
+
 
 # Імпортуємо основні інструменти Flask
 
@@ -59,6 +67,21 @@ from werkzeug.utils import secure_filename
 
 # Створюємо екземпляр Flask-додатки
 app = Flask(__name__)
+# Реєструємо Google як зовнішній сервіс для авторизації
+oauth = OAuth(app)
+
+# ID і секрет клієнта беруться з файлу .env
+google = oauth.register(
+    name="google",
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+# Адреса з налаштуваннями Google OAuth/OpenID Connect
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+# Запитуємо у Google базові дані користувача: email та профіль
+    client_kwargs={
+        "scope": "openid email profile"
+    }
+)
 # Секретний ключ необхідний роботи сесій.
 # У реальному проекті його краще зберігати в змінних оточення, а не прямо в коді.
 app.secret_key = "change_this_secret_key"
@@ -70,6 +93,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "database.db")
 # Папка для зберігання завантажених користувачами файлів
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+# Завантажує налаштування з файлу .env, який знаходиться в папці проекту
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 
 # Назва Docker-образу, в якому запускатиметься перевірка Python-коду
@@ -117,6 +142,14 @@ def init_db():
 # Це потрібно, щоб безпечно додавати нові поля до старої бази даних
     user_columns = cur.execute("PRAGMA table_info(users)").fetchall()
     user_column_names = [column["name"] for column in user_columns]
+
+# google_id зберігає унікальний ідентифікатор користувача з Google
+    if "google_id" not in user_column_names:
+        cur.execute("ALTER TABLE users ADD COLUMN google_id TEXT DEFAULT ''")
+
+# auth_provider показує, як користувач зареєструвався: через звичайний логін або через Google
+    if "auth_provider" not in user_column_names:
+        cur.execute("ALTER TABLE users ADD COLUMN auth_provider TEXT DEFAULT 'local'")
 
 # Додаємо поля, що бракують, якщо база була створена раніше і в ній їх ще немає
     if "email" not in user_column_names:
@@ -537,7 +570,39 @@ def admin_required(func):
 
 
 # =========================
-# 3. Допоміжні функції для файлів та завантажень
+# 3. Допоміжні функції для користувачів
+# =========================
+
+def build_unique_username(conn, base_username):
+    base_username = str(base_username or "user").strip().lower()
+    base_username = re.sub(r"[^a-zA-Z0-9_]+", "_", base_username)
+    base_username = base_username.strip("_")
+
+    if not base_username:
+        base_username = "user"
+
+    username = base_username
+    counter = 1
+
+    while True:
+        existing = conn.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE username = ?
+            """,
+            (username,)
+        ).fetchone()
+
+        if not existing:
+            return username
+
+        counter += 1
+        username = f"{base_username}_{counter}"
+
+
+# =========================
+# 4. Допоміжні функції для файлів та завантажень
 # =========================
 
 # Функція для транслітерації російських букв у латиницю, щоб формувати безпечні імена файлів, 
@@ -809,7 +874,7 @@ def hide_submission_file_from_student(submission_id):
     
 
 # ============================================================
-# 4. Допоміжні функції для спроб та відправок
+# 5. Допоміжні функції для спроб та відправок
 # ============================================================
 
 # Функція для отримання спроби студента разом з інформацією про лабораторну роботу. Студент може бачити тільки свої спроби, а викладач може бачити всі спроби.
@@ -983,7 +1048,7 @@ def can_edit_lab_grade(conn, current_username, current_role, student_username, l
 
 
 # =========================
-# 5. Перевірка HDL / Verilog-рішень
+# 6. Перевірка HDL / Verilog-рішень
 # =========================
 
 # Функція для форматування сирого виводу з перевірки HDL-коду у зрозумілий звіт для студента.
@@ -1190,7 +1255,7 @@ def run_hdl_check(user_code_path, testbench_text):
 
 
 # =========================
-# 6. Перевірка Python-рішень
+# 7. Перевірка Python-рішень
 # =========================
 
 # Функція для перевірки доступності Docker на комп'ютері. 
@@ -1624,7 +1689,7 @@ def run_solution_check(solution_path, lab):
 
 
 # =========================
-# 7. Діагностика помилок рішень
+# 8. Діагностика помилок рішень
 # =========================
 
 # Функція для визначення теми лабораторної роботи на основі її назви, опису, тестбенча та коду студента.
@@ -1967,7 +2032,7 @@ def classify_solution_error(status, output, lab, code):
 
     
 # =========================
-# 8. Адаптивний ІІ-модуль та підказки
+# 9. Адаптивний ІІ-модуль та підказки
 # =========================
 
 # Функція для визначення номера наступної спроби виконання додаткового завдання (extra task) по конкретній спробі.
@@ -3210,7 +3275,7 @@ def build_adaptive_learning_plan(submission, code):
 
 
 # =========================
-# 9. Auth routes - вхід, реєстрація, вихід
+# 10. Auth routes - вхід, реєстрація, вихід
 # =========================
 
 # Роути для аутентифікації, відображення головної сторінки зі списком лабораторних робіт та сторінки з деталями конкретної лабораторної роботи, 
@@ -3320,6 +3385,209 @@ def register():
     return render_template("auth/register.html")
 
 
+@app.route("/auth/google")
+def google_login():
+    redirect_uri = url_for("google_callback", _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+
+@app.route("/auth/google/callback")
+def google_callback():
+    try:
+        token = google.authorize_access_token()
+        google_user = token.get("userinfo")
+
+        if not google_user:
+            google_user = google.parse_id_token(token)
+
+    except Exception:
+        flash("Не удалось выполнить вход через Google.")
+        return redirect(url_for("login"))
+
+    google_id = google_user.get("sub", "")
+    email = google_user.get("email", "")
+    full_name = google_user.get("name", "")
+
+    if not google_id or not email:
+        flash("Google не передал необходимые данные пользователя.")
+        return redirect(url_for("login"))
+
+    conn = get_db()
+
+    user = conn.execute(
+        """
+        SELECT *
+        FROM users
+        WHERE google_id = ?
+        """,
+        (google_id,)
+    ).fetchone()
+
+    if not user:
+        user = conn.execute(
+            """
+            SELECT *
+            FROM users
+            WHERE email = ?
+            """,
+            (email,)
+        ).fetchone()
+
+        if user:
+            conn.execute(
+                """
+                UPDATE users
+                SET google_id = ?,
+                    auth_provider = 'google'
+                WHERE id = ?
+                """,
+                (
+                    google_id,
+                    user["id"]
+                )
+            )
+
+            conn.commit()
+
+            user = conn.execute(
+                """
+                SELECT *
+                FROM users
+                WHERE id = ?
+                """,
+                (user["id"],)
+            ).fetchone()
+
+    if user:
+        if user["status"] != "active":
+            conn.close()
+
+            if user["status"] == "pending":
+                flash("Ваша учетная запись ожидает подтверждения администратором.")
+            elif user["status"] == "blocked":
+                flash("Ваша учетная запись заблокирована.")
+            else:
+                flash("Вход временно недоступен.")
+
+            return redirect(url_for("login"))
+
+        session["username"] = user["username"]
+        session["role"] = user["role"]
+
+        conn.close()
+
+        if user["role"] == "admin":
+            return redirect(url_for("admin_panel"))
+
+        return redirect(url_for("index"))
+
+    session["google_registration"] = {
+        "google_id": google_id,
+        "email": email,
+        "full_name": full_name
+    }
+
+    conn.close()
+
+    return redirect(url_for("complete_google_registration"))
+
+
+@app.route("/auth/google/complete", methods=["GET", "POST"])
+def complete_google_registration():
+    google_data = session.get("google_registration")
+
+    if not google_data:
+        flash("Данные Google-регистрации не найдены.")
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        role = request.form.get("role", "").strip()
+        student_group = request.form.get("student_group", "").strip()
+        full_name = request.form.get("full_name", "").strip()
+
+        if role not in ["student", "teacher"]:
+            flash("Можно выбрать только роль студента или преподавателя.")
+            return redirect(url_for("complete_google_registration"))
+
+        if not full_name:
+            flash("Укажите ФИО.")
+            return redirect(url_for("complete_google_registration"))
+
+        if role == "student" and not student_group:
+            flash("Для студента нужно указать группу.")
+            return redirect(url_for("complete_google_registration"))
+
+        if role == "teacher":
+            student_group = ""
+
+        conn = get_db()
+
+        existing = conn.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE email = ?
+               OR google_id = ?
+            """,
+            (
+                google_data["email"],
+                google_data["google_id"]
+            )
+        ).fetchone()
+
+        if existing:
+            conn.close()
+            session.pop("google_registration", None)
+            flash("Пользователь с таким Google-аккаунтом уже существует.")
+            return redirect(url_for("login"))
+
+        email_prefix = google_data["email"].split("@")[0]
+        username = build_unique_username(conn, email_prefix)
+
+        conn.execute(
+            """
+            INSERT INTO users (
+                username,
+                password,
+                role,
+                full_name,
+                student_group,
+                email,
+                status,
+                created_at,
+                google_id,
+                auth_provider
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                "",
+                role,
+                full_name,
+                student_group,
+                google_data["email"],
+                "pending",
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                google_data["google_id"],
+                "google"
+            )
+        )
+
+        conn.commit()
+        conn.close()
+
+        session.pop("google_registration", None)
+
+        flash("Заявка создана через Google. Дождитесь подтверждения администратора.")
+        return redirect(url_for("login"))
+
+    return render_template(
+        "auth/google_complete.html",
+        google_data=google_data
+    )
+
+
 # Роут для виходу із системи, який очищає сесію та перенаправляє користувача на сторінку входу.
 @app.route("/logout")
 def logout():
@@ -3328,7 +3596,7 @@ def logout():
 
 
 # =========================
-# 10. Common routes - спільні сторінки
+# 11. Common routes - спільні сторінки
 # =========================
 
 # Роут для головної сторінки, який відображає список лабораторних робіт та останні відправки студента. 
@@ -3573,7 +3841,7 @@ def download_submission(submission_id):
 
 
 # =========================
-# 11. Student routes - студент
+# 12. Student routes - студент
 # =========================
 
 @app.route("/student/gradebook")
@@ -4138,7 +4406,7 @@ def improve_score(submission_id):
 
 
 # =========================
-# 12. Grade routes - оцінки
+# 13. Grade routes - оцінки
 # =========================
 
 @app.route("/grades/lab/<int:lab_id>/<username>/update", methods=["POST"])
@@ -4251,8 +4519,113 @@ def update_lab_grade(lab_id, username):
     return redirect(request.referrer or url_for("teacher_journal"))
 
 
+@app.route("/teacher/journal/update-group", methods=["POST"])
+@login_required
+def update_group_journal():
+    if session.get("role") not in ["teacher", "admin"]:
+        flash("Недостаточно прав для редактирования журнала.")
+        return redirect(url_for("index"))
+
+    conn = get_db()
+
+    for key, value in request.form.items():
+        if not key.startswith("score__"):
+            continue
+
+        try:
+            _, username, lab_id = key.split("__", 2)
+        except ValueError:
+            continue
+
+        score_text = value.strip()
+        comment_key = f"comment__{username}__{lab_id}"
+        comment = request.form.get(comment_key, "").strip()
+
+        existing = conn.execute(
+            """
+            SELECT *
+            FROM grade_overrides
+            WHERE username = ?
+              AND lab_id = ?
+            """,
+            (username, lab_id)
+        ).fetchone()
+
+        if score_text == "" and comment == "":
+            if existing:
+                conn.execute(
+                    """
+                    DELETE FROM grade_overrides
+                    WHERE username = ?
+                      AND lab_id = ?
+                    """,
+                    (username, lab_id)
+                )
+
+            continue
+
+        try:
+            score = int(score_text)
+        except ValueError:
+            continue
+
+        if score < 0 or score > 100:
+            continue
+
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        if existing:
+            conn.execute(
+                """
+                UPDATE grade_overrides
+                SET score = ?,
+                    comment = ?,
+                    edited_by = ?,
+                    edited_at = ?
+                WHERE username = ?
+                  AND lab_id = ?
+                """,
+                (
+                    score,
+                    comment,
+                    session["username"],
+                    now,
+                    username,
+                    lab_id
+                )
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO grade_overrides (
+                    username,
+                    lab_id,
+                    score,
+                    comment,
+                    edited_by,
+                    edited_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    username,
+                    lab_id,
+                    score,
+                    comment,
+                    session["username"],
+                    now
+                )
+            )
+
+    conn.commit()
+    conn.close()
+
+    flash("Изменения в журнале сохранены.")
+    return redirect(request.referrer or url_for("teacher_journal"))
+
+
 # =========================
-# 13. Admin routes - адміністратор
+# 14. Admin routes - адміністратор
 # =========================
 
 # Роут для адміністративної панелі, який відображає статистику по користувачах та список користувачів зі статусом "pending" для підтвердження або блокування. Доступ до цієї сторінки мають лише адміністратори.
@@ -4579,7 +4952,7 @@ def admin_teacher_access():
 
 
 # =========================
-# 14. Teacher routes - викладач
+# 15. Teacher routes - викладач
 # =========================
 
 # Роут для вчителя, який відображає загальну статистику по всім лабораторним роботам та відправкам студентів,
@@ -5850,7 +6223,7 @@ def delete_lab(lab_id):
 
 
 # =========================
-# 15. App start
+# 16. App start
 # =========================
 
 if __name__ == "__main__":
