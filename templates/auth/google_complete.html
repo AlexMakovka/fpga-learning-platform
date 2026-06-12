@@ -2,68 +2,73 @@
 
 {% block content %}
 
-<div class="row justify-content-center">
-    <div class="col-md-7">
+<section class="auth-page">
 
-        <div class="card shadow-sm border-0 rounded-4 mt-4">
-            <div class="card-body p-4">
+    <div class="auth-grid-layer"></div>
 
-                <h1 class="mb-3">Завершение регистрации через Google</h1>
+    <div class="auth-bg auth-bg-1"></div>
+    <div class="auth-bg auth-bg-2"></div>
+    <div class="auth-bg auth-bg-3"></div>
+    <div class="auth-bg auth-bg-4"></div>
 
-                <p class="text-muted">
-                    Google подтвердил ваш аккаунт. Теперь нужно указать роль и учебные данные.
-                    После этого администратор должен подтвердить учетную запись.
-                </p>
+    <div class="auth-random-particles" data-particle-count="40"></div>
 
-                <div class="alert alert-light border">
-                    <b>Email:</b> {{ google_data["email"] }}<br>
-                    <b>Имя Google:</b> {{ google_data["full_name"] or "—" }}
-                </div>
+    <div class="auth-card auth-card-wide">
 
-                <form method="post" action="{{ url_for('complete_google_registration') }}">
-
-                    <div class="mb-3">
-                        <label class="form-label">ФИО</label>
-                        <input type="text"
-                               name="full_name"
-                               class="form-control"
-                               value="{{ google_data['full_name'] or '' }}"
-                               required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Роль</label>
-                        <select name="role" class="form-select" required>
-                            <option value="student">Студент</option>
-                            <option value="teacher">Преподаватель</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Группа</label>
-                        <input type="text"
-                               name="student_group"
-                               class="form-control"
-                               placeholder="Например: ИП3-5.01">
-                        <div class="form-text">
-                            Для студента обязательно. Для преподавателя можно оставить пустым.
-                        </div>
-                    </div>
-
-                    <button class="btn btn-primary" type="submit">
-                        Отправить заявку
-                    </button>
-
-                    <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">
-                        Отмена
-                    </a>
-
-                </form>
-
-            </div>
+        <div class="auth-logo-wrap">
+            <div class="auth-logo-box">FPGA</div>
         </div>
 
+        <h1 class="auth-title">Завершение регистрации</h1>
+
+        <p class="auth-subtitle">
+            Google подтвердил аккаунт. Осталось указать учебную роль и данные.
+        </p>
+
+        <div class="auth-google-info">
+            <div><b>Email:</b> {{ google_data["email"] }}</div>
+            <div><b>Имя Google:</b> {{ google_data["full_name"] or "—" }}</div>
+        </div>
+
+        <form method="post" action="{{ url_for('complete_google_registration') }}">
+
+            <div class="mb-3">
+                <label class="form-label auth-label">ФИО</label>
+                <input type="text"
+                       name="full_name"
+                       class="form-control auth-input"
+                       value="{{ google_data['full_name'] or '' }}"
+                       required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label auth-label">Роль</label>
+                <select name="role" class="form-select auth-input" required>
+                    <option value="student">Студент</option>
+                    <option value="teacher">Преподаватель</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label auth-label">Группа</label>
+                <input type="text"
+                       name="student_group"
+                       class="form-control auth-input"
+                       placeholder="Например: ИП3-5.01">
+            </div>
+
+            <button class="btn auth-main-btn w-100" type="submit">
+                Отправить заявку
+            </button>
+
+            <a href="{{ url_for('login') }}" class="btn auth-google-btn w-100 mt-2">
+                Отмена
+            </a>
+
+        </form>
+
     </div>
-</div>
+
+</section>
 
 {% endblock %}

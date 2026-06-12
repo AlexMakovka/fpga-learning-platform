@@ -2,87 +2,210 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FPGA Learning System</title>
 
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css', v='25') }}" rel="stylesheet">
 </head>
 
-<body>
+{% set auth_pages = [
+    "login",
+    "register",
+    "complete_google_registration",
+    "phone_login",
+    "phone_verify",
+    "complete_phone_registration"
+] %}
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container">
+{% set is_auth_page = request.endpoint in auth_pages %}
 
-        <a class="navbar-brand fw-bold" href="{{ url_for('index') }}">
-            FPGA Learning System
-        </a>
+{% set is_landing_page = request.endpoint == "index" and not session.get("username") %}
+{% set is_full_page = is_auth_page or is_landing_page %}
 
-        <div class="d-flex align-items-center gap-3">
+<body class="{% if is_full_page %}auth-body{% endif %}">
 
+<nav class="navbar navbar-dark topbar">
+    <div class="topbar-container">
+
+        <div class="topbar-left">
             {% if session.get("username") %}
+                <div class="topbar-user-pill">
+                    {{ session["username"] }} · {{ session["role"] }}
+                </div>
+            {% endif %}
+        </div>
 
-                <span class="text-light small">
-                    {{ session["username"] }} / {{ session["role"] }}
-                </span>
+        <div class="topbar-center">
+            <a class="topbar-brand" href="{{ url_for('index') }}">
+                <span class="topbar-brand-title">FPGA Learning System</span>
+                <span class="topbar-brand-subtitle">цифровая учебная платформа</span>
+            </a>
+        </div>
 
-                {% if session.get("role") == "student" %}
-                    <a href="{{ url_for('student_gradebook') }}" class="btn btn-outline-light btn-sm">
-                        Моя зачётка
+        <div class="topbar-actions">
+
+            {% if not is_full_page %}
+
+                {% if not session.get("username") %}
+
+                    <a href="{{ url_for('login') }}" class="topbar-btn topbar-btn-light">
+                        Войти
                     </a>
-                {% endif %}
 
-                {% if session.get("role") == "teacher" %}
-                    <a href="{{ url_for('teacher_panel') }}" class="btn btn-outline-light btn-sm">
-                        Панель преподавателя
+                    <a href="{{ url_for('register') }}" class="topbar-btn topbar-btn-outline">
+                        Регистрация
                     </a>
-                {% endif %}
 
-                {% if session.get("role") == "admin" %}
-                    <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-light btn-sm">
-                        Панель администратора
+                {% else %}
+
+                    {% if session.get("role") == "student" %}
+                        <a href="{{ url_for('index') }}" class="topbar-btn topbar-btn-outline">
+                            Лабораторные
+                        </a>
+                    {% endif %}
+
+                    {% if session.get("role") == "teacher" %}
+                        <a href="{{ url_for('teacher_panel') }}" class="topbar-btn topbar-btn-outline">
+                            Панель преподавателя
+                        </a>
+                    {% endif %}
+
+                    {% if session.get("role") == "admin" %}
+                        <a href="{{ url_for('admin_panel') }}" class="topbar-btn topbar-btn-outline">
+                            Панель администратора
+                        </a>
+                    {% endif %}
+
+                    <a href="{{ url_for('logout') }}" class="topbar-btn topbar-btn-danger">
+                        Выйти
                     </a>
+
                 {% endif %}
-
-                <a href="{{ url_for('logout') }}" class="btn btn-light btn-sm">
-                    Выйти
-                </a>
-
-            {% else %}
-
-                <a href="{{ url_for('login') }}" class="btn btn-light btn-sm">
-                    Войти
-                </a>
-
-                <a href="{{ url_for('register') }}" class="btn btn-outline-light btn-sm">
-                    Регистрация
-                </a>
 
             {% endif %}
 
         </div>
-
     </div>
 </nav>
 
-<main class="container py-4">
+{% with messages = get_flashed_messages() %}
+    {% if messages %}
 
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-warning">
-                    {{ message }}
-                </div>
-            {% endfor %}
+        {% if is_full_page %}
+            <div class="auth-flash-wrapper">
+        {% else %}
+            <div class="container mt-3">
         {% endif %}
-    {% endwith %}
+
+                {% for message in messages %}
+                    <div class="alert alert-warning alert-dismissible fade show shadow-sm" role="alert">
+                        {{ message }}
+
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="alert"
+                                aria-label="Закрыть">
+                        </button>
+                    </div>
+                {% endfor %}
+
+            </div>
+
+    {% endif %}
+{% endwith %}
+
+<main class="{% if is_full_page %}auth-main{% else %}container py-4{% endif %}">
 
     {% block content %}{% endblock %}
 
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+        new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.forEach(function (popoverTriggerEl) {
+        new bootstrap.Popover(popoverTriggerEl);
+    });
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const particleLayer = document.querySelector(".auth-random-particles");
+
+    if (!particleLayer) {
+        return;
+    }
+
+    const particleCount = Number(particleLayer.dataset.particleCount || 100);
+
+    const colors = [
+        {
+            color: "rgba(244, 114, 182, 0.38)",
+            glow: "rgba(244, 114, 182, 0.22)"
+        },
+        {
+            color: "rgba(96, 165, 250, 0.38)",
+            glow: "rgba(96, 165, 250, 0.22)"
+        },
+        {
+            color: "rgba(216, 180, 254, 0.34)",
+            glow: "rgba(216, 180, 254, 0.20)"
+        },
+        {
+            color: "rgba(251, 207, 232, 0.48)",
+            glow: "rgba(251, 207, 232, 0.24)"
+        },
+        {
+            color: "rgba(186, 230, 253, 0.42)",
+            glow: "rgba(186, 230, 253, 0.22)"
+        }
+    ];
+
+    function randomBetween(min, max) {
+        return Math.random() * (max - min) + min;
+    }
+
+    for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement("span");
+
+        const palette = colors[Math.floor(Math.random() * colors.length)];
+
+        const size = randomBetween(4, 15);
+        const x = randomBetween(3, 97);
+        const y = randomBetween(6, 94);
+
+        const driftX = randomBetween(-75, 75);
+        const driftY = randomBetween(-48, 48);
+        const duration = randomBetween(12, 28);
+        const delay = randomBetween(-duration, 0);
+        const opacity = randomBetween(0.28, 0.72);
+        const blur = randomBetween(0, 2.2);
+
+        particle.style.setProperty("--particle-size", `${size}px`);
+        particle.style.setProperty("--particle-x", `${x}%`);
+        particle.style.setProperty("--particle-y", `${y}%`);
+        particle.style.setProperty("--particle-drift-x", `${driftX}px`);
+        particle.style.setProperty("--particle-drift-y", `${driftY}px`);
+        particle.style.setProperty("--particle-duration", `${duration}s`);
+        particle.style.setProperty("--particle-delay", `${delay}s`);
+        particle.style.setProperty("--particle-opacity", opacity);
+        particle.style.setProperty("--particle-blur", `${blur}px`);
+        particle.style.setProperty("--particle-color", palette.color);
+        particle.style.setProperty("--particle-glow", palette.glow);
+
+        particleLayer.appendChild(particle);
+    }
+});
+</script>
 
 </body>
 </html>

@@ -3602,21 +3602,34 @@ def logout():
 # Роут для головної сторінки, який відображає список лабораторних робіт та останні відправки студента. 
 # Доступ до цієї сторінки мають лише аутентифіковані користувачі.
 @app.route("/")
-@login_required
 def index():
+    if "username" not in session:
+        return render_template(
+            "common/index.html",
+            is_landing=True,
+            labs=[],
+            my_submissions=[]
+        )
+
     conn = get_db()
 
     labs = conn.execute(
-        "SELECT * FROM labs ORDER BY id DESC"
+        """
+        SELECT *
+        FROM labs
+        ORDER BY id DESC
+        """
     ).fetchall()
 
     my_submissions = conn.execute(
         """
-        SELECT submissions.*, labs.title AS lab_title
+        SELECT
+            submissions.*,
+            labs.title AS lab_title
         FROM submissions
         JOIN labs ON submissions.lab_id = labs.id
         WHERE submissions.username = ?
-        ORDER BY submissions.id DESC
+        ORDER BY submissions.created_at DESC
         LIMIT 5
         """,
         (session["username"],)
@@ -3626,10 +3639,10 @@ def index():
 
     return render_template(
         "common/index.html",
+        is_landing=False,
         labs=labs,
         my_submissions=my_submissions
     )
-
 
 # Роут для сторінки з деталями лабораторної роботи, який відображає інформацію про лабораторну роботу, 
 # історію відправок студента та результати інших студентів для вчителів. 

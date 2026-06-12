@@ -55,3 +55,5 @@ htmlcov/
 *.zip
 *.rar
 *.7z
+
+static/img/university-logo.png

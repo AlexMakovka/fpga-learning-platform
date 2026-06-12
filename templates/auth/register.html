@@ -2,88 +2,139 @@
 
 {% block content %}
 
-<div class="row justify-content-center">
-    <div class="col-md-7">
+<section class="auth-page auth-page-register">
 
-        <div class="card shadow-sm border-0 rounded-4 mt-4">
-            <div class="card-body p-4">
+    <div class="auth-grid-layer"></div>
 
-                <h1 class="mb-3">Регистрация</h1>
+    <div class="auth-bg auth-bg-1"></div>
+    <div class="auth-bg auth-bg-2"></div>
+    <div class="auth-bg auth-bg-3"></div>
+    <div class="auth-bg auth-bg-4"></div>
 
-                <p class="text-muted">
-                    После регистрации учетная запись должна быть подтверждена администратором.
-                </p>
+    <div class="auth-random-particles" data-particle-count="48"></div>
 
-                <form method="post" action="{{ url_for('register') }}">
+    <div class="auth-split-shell">
 
-                    <div class="mb-3">
-                        <label class="form-label">Роль</label>
-                        <select name="role" class="form-select" required>
-                            <option value="student">Студент</option>
-                            <option value="teacher">Преподаватель</option>
-                        </select>
-                    </div>
+        <div class="auth-info-panel">
+            <div class="brand-mark mb-4">
+                <div class="brand-mark-icon">FPGA</div>
+                <div>
+                    <div class="brand-mark-title">FPGA Learning System</div>
+                    <div class="brand-mark-subtitle">учебная цифровая платформа</div>
+                </div>
+            </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">ФИО</label>
-                        <input type="text"
-                               name="full_name"
-                               class="form-control"
-                               placeholder="Например: Иванов Иван Иванович"
-                               required>
-                    </div>
+            <h1 class="auth-info-title">
+                Создайте заявку на доступ
+            </h1>
 
-                    <div class="mb-3">
-                        <label class="form-label">Группа</label>
-                        <input type="text"
-                               name="student_group"
-                               class="form-control"
-                               placeholder="Например: ИП3-5.01">
-                        <div class="form-text">
-                            Для студентов обязательно. Для преподавателей можно оставить пустым.
-                        </div>
-                    </div>
+            <p class="auth-info-text">
+                После регистрации учетная запись отправляется администратору
+                на подтверждение. Это позволяет контролировать доступ студентов
+                и преподавателей к учебным материалам.
+            </p>
 
-                    <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <input type="email"
-                               name="email"
-                               class="form-control"
-                               placeholder="example@mail.ru">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Логин</label>
-                        <input type="text"
-                               name="username"
-                               class="form-control"
-                               required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Пароль</label>
-                        <input type="password"
-                               name="password"
-                               class="form-control"
-                               required>
-                    </div>
-
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-primary" type="submit">
-                            Отправить заявку
-                        </button>
-
-                        <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">
-                            Уже есть аккаунт
-                        </a>
-                    </div>
-
-                </form>
-
+            <div class="auth-info-list">
+                <div>Регистрация студентов и преподавателей</div>
+                <div>Подтверждение учетной записи администратором</div>
+                <div>Вход через Google или логин и пароль</div>
             </div>
         </div>
 
+        <div class="auth-card auth-card-wide">
+
+            <div class="auth-logo-wrap">
+                <div class="auth-logo-box">FPGA</div>
+            </div>
+
+            <h1 class="auth-title">Регистрация</h1>
+
+            <p class="auth-subtitle">
+                Заполните данные или создайте заявку через Google.
+            </p>
+
+            <a href="{{ url_for('google_login') }}" class="btn auth-google-btn w-100 mb-3">
+                <span class="google-icon">
+                    <svg width="18" height="18" viewBox="0 0 48 48">
+                        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
+                        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+                        <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.5-5.3l-6.2-5.2C29.3 35.1 26.8 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+                        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.4-2.3 4.4-4.1 5.5l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/>
+                    </svg>
+                </span>
+                Зарегистрироваться через Google
+            </a>
+
+            <div class="auth-divider">
+                <span>или заполните форму</span>
+            </div>
+
+            <form method="post" action="{{ url_for('register') }}">
+                <div class="mb-3">
+                    <label class="form-label auth-label">Роль</label>
+                    <select name="role" class="form-select auth-input" required>
+                        <option value="student">Студент</option>
+                        <option value="teacher">Преподаватель</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label auth-label">ФИО</label>
+                    <input type="text"
+                           name="full_name"
+                           class="form-control auth-input"
+                           placeholder="Введите ФИО"
+                           required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label auth-label">Группа</label>
+                    <input type="text"
+                           name="student_group"
+                           class="form-control auth-input"
+                           placeholder="Например: ИП3-5.01">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label auth-label">Email</label>
+                    <input type="email"
+                           name="email"
+                           class="form-control auth-input"
+                           placeholder="Введите email">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label auth-label">Логин</label>
+                    <input type="text"
+                           name="username"
+                           class="form-control auth-input"
+                           placeholder="Придумайте логин"
+                           required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label auth-label">Пароль</label>
+                    <input type="password"
+                           name="password"
+                           class="form-control auth-input"
+                           placeholder="Придумайте пароль"
+                           required>
+                </div>
+
+                <button class="btn auth-main-btn w-100" type="submit">
+                    Отправить заявку
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                <span>Уже есть аккаунт?</span>
+                <a href="{{ url_for('login') }}">Войти</a>
+            </div>
+
+        </div>
+
     </div>
-</div>
+
+</section>
 
 {% endblock %}
