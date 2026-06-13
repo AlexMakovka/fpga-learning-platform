@@ -71,9 +71,10 @@
 
             <form method="post" action="{{ url_for('register') }}">
                 <div class="mb-3">
-                    <label class="form-label auth-label">Роль</label>
-                    <select name="role" class="form-select auth-input" required>
-                        <option value="student">Студент</option>
+                    <label for="role" class="form-label auth-label">Роль</label>
+
+                    <select class="form-select auth-input auth-select" id="role" name="role" required>
+                        <option value="student" selected>Студент</option>
                         <option value="teacher">Преподаватель</option>
                     </select>
                 </div>
@@ -87,12 +88,16 @@
                            required>
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label auth-label">Группа</label>
-                    <input type="text"
-                           name="student_group"
-                           class="form-control auth-input"
-                           placeholder="Например: ИП3-5.01">
+                <div class="mb-3" id="studentGroupBlock">
+                    <label for="student_group" class="form-label auth-label">Группа</label>
+
+                    <input
+                        type="text"
+                        class="form-control auth-input"
+                        id="student_group"
+                        name="student_group"
+                        placeholder="Например: ИПЗ-5.01"
+                    >
                 </div>
 
                 <div class="mb-3">
@@ -136,5 +141,31 @@
     </div>
 
 </section>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const roleSelect = document.getElementById("role");
+    const groupBlock = document.getElementById("studentGroupBlock");
+    const groupInput = document.getElementById("student_group");
+
+    function toggleGroupField() {
+        if (!roleSelect || !groupBlock || !groupInput) {
+            return;
+        }
+
+        if (roleSelect.value === "student") {
+            groupBlock.style.display = "block";
+            groupInput.required = true;
+        } else {
+            groupBlock.style.display = "none";
+            groupInput.required = false;
+            groupInput.value = "";
+        }
+    }
+
+    roleSelect.addEventListener("change", toggleGroupField);
+    toggleGroupField();
+});
+</script>
 
 {% endblock %}

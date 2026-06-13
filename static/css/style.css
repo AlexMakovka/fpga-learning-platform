@@ -1655,5 +1655,223 @@ details.card[open] summary::after {
     }
 }
 
+/* =========================================================
+   AUTH PAGES VISUAL FILL + SMOOTH TRANSITION
+   ========================================================= */
 
+/* Делаем вход/регистрацию ближе по композиции к приветственной странице */
+.auth-page-login .auth-split-shell,
+.auth-page-register .auth-split-shell {
+    width: min(1120px, 100%);
+    grid-template-columns: minmax(590px, 1.35fr) minmax(420px, 1fr);
+    gap: 24px;
+    align-items: stretch;
+}
+
+/* Левая карточка становится визуально наполненнее */
+.auth-page-login .auth-info-panel,
+.auth-page-register .auth-info-panel {
+    position: relative;
+    overflow: hidden;
+    min-height: 500px;
+    padding: 42px 44px;
+    border-radius: 30px;
+    background:
+        radial-gradient(circle at 88% 18%, rgba(96, 165, 250, 0.16) 0 42px, transparent 43px),
+        radial-gradient(circle at 92% 78%, rgba(244, 114, 182, 0.13) 0 34px, transparent 35px),
+        radial-gradient(circle at 12% 84%, rgba(216, 180, 254, 0.16) 0 30px, transparent 31px),
+        rgba(255, 255, 255, 0.58);
+}
+
+/* Внутренняя рамка внутри левой карточки */
+.auth-page-login .auth-info-panel::before,
+.auth-page-register .auth-info-panel::before {
+    content: "";
+    position: absolute;
+    inset: 22px;
+    border-radius: 24px;
+    border: 1px solid rgba(210, 220, 235, 0.58);
+    background: rgba(255, 255, 255, 0.12);
+    pointer-events: none;
+}
+
+/* Декоративный мягкий пузырь справа */
+.auth-page-login .auth-info-panel::after,
+.auth-page-register .auth-info-panel::after {
+    content: "";
+    position: absolute;
+    right: 42px;
+    top: 58px;
+    width: 82px;
+    height: 82px;
+    border-radius: 28px;
+    background: linear-gradient(135deg, rgba(244, 114, 182, 0.22), rgba(96, 165, 250, 0.20));
+    transform: rotate(12deg);
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+/* Чтобы текст был поверх рамки и пузырей */
+.auth-page-login .auth-info-panel > *,
+.auth-page-register .auth-info-panel > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Заголовок слева чуть компактнее, чтобы не было пустоты */
+.auth-page-login .auth-info-title,
+.auth-page-register .auth-info-title {
+    max-width: 520px;
+    font-size: 38px;
+    line-height: 1.08;
+    margin-bottom: 18px;
+}
+
+.auth-page-login .auth-info-text,
+.auth-page-register .auth-info-text {
+    max-width: 520px;
+    margin-bottom: 18px;
+}
+
+/* Список делаем не просто текстом, а отдельным мягким блоком */
+.auth-page-login .auth-info-list,
+.auth-page-register .auth-info-list {
+    width: min(520px, 100%);
+    padding: 14px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.42);
+    border: 1px solid rgba(220, 228, 240, 0.58);
+    gap: 6px;
+}
+
+/* Каждый пункт внутри списка становится аккуратнее */
+.auth-page-login .auth-info-list div,
+.auth-page-register .auth-info-list div {
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    padding-left: 34px;
+    border-radius: 13px;
+    background: rgba(255, 255, 255, 0.34);
+}
+
+/* Чекбоксы внутри списка */
+.auth-page-login .auth-info-list div::before,
+.auth-page-register .auth-info-list div::before {
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Правая карточка входа/регистрации чуть ближе и увереннее */
+.auth-page-login .auth-card,
+.auth-page-register .auth-card {
+    min-height: 500px;
+    border-radius: 30px;
+}
+
+/* Лёгкий плавный вход блоков при переходе */
+.auth-page-login .auth-info-panel,
+.auth-page-register .auth-info-panel,
+.landing-info-panel {
+    animation: authPanelLeftIn 0.45s ease both;
+}
+
+.auth-page-login .auth-card,
+.auth-page-register .auth-card,
+.landing-main-card {
+    animation: authPanelRightIn 0.45s ease both;
+}
+
+@keyframes authPanelLeftIn {
+    from {
+        opacity: 0;
+        transform: translateX(-18px) translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0) translateY(0);
+    }
+}
+
+@keyframes authPanelRightIn {
+    from {
+        opacity: 0;
+        transform: translateX(18px) translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0) translateY(0);
+    }
+}
+
+/* На маленьких экранах не перегружаем */
+@media (max-width: 992px) {
+    .auth-page-login .auth-split-shell,
+    .auth-page-register .auth-split-shell {
+        grid-template-columns: 1fr;
+        width: min(680px, 100%);
+    }
+
+    .auth-page-login .auth-info-panel,
+    .auth-page-register .auth-info-panel {
+        display: none;
+    }
+}
+
+/* =========================================================
+   REGISTER PAGE BALANCE
+   ========================================================= */
+
+/* На регистрации не растягиваем левую карточку по высоте формы */
+.auth-page-register .auth-split-shell {
+    align-items: center;
+}
+
+/* Левая карточка на регистрации ниже и плотнее */
+.auth-page-register .auth-info-panel {
+    min-height: 430px;
+    padding: 40px 44px;
+    justify-content: center;
+}
+
+/* Текст слева компактнее */
+.auth-page-register .auth-info-title {
+    font-size: 34px;
+    line-height: 1.08;
+    margin-bottom: 16px;
+}
+
+.auth-page-register .auth-info-text {
+    margin-bottom: 16px;
+}
+
+/* Список слева чуть плотнее */
+.auth-page-register .auth-info-list {
+    margin-top: 16px;
+    padding: 12px;
+}
+
+/* Убираем ощущение огромной пустой рамки */
+.auth-page-register .auth-info-panel::before {
+    inset: 16px;
+}
+
+/* Правая форма остаётся нормальной по высоте */
+.auth-page-register .auth-card {
+    min-height: auto;
+}
+
+/* Красивый select роли */
+.auth-select {
+    cursor: pointer;
+    appearance: auto;
+}
+
+.auth-select:focus {
+    border-color: #a5c8ff;
+    box-shadow: 0 0 0 4px rgba(165, 200, 255, 0.25);
+}
 
