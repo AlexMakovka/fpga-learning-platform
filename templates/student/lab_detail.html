@@ -459,6 +459,15 @@ endmodule{% endif %}</textarea>
                         </span>
                     </div>
 
+                    {% if sub["waveform_filename"] %}
+                        <div class="mt-2">
+                            <a class="btn btn-outline-info btn-sm"
+                            href="{{ url_for('download_waveform', submission_id=sub['id']) }}">
+                                Скачать временную диаграмму
+                            </a>
+                        </div>
+                    {% endif %}
+
                     {% if session.get("role") == "teacher" and not sub["file_deleted"] %}
                         <div class="mt-2">
                             <a class="btn btn-outline-primary btn-sm"

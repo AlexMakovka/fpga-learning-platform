@@ -93,6 +93,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "database.db")
 # Папка для зберігання завантажених користувачами файлів
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+WAVEFORM_DIR = os.path.join(BASE_DIR, "waveforms")
 # Завантажує налаштування з файлу .env, який знаходиться в папці проекту
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
@@ -105,7 +106,7 @@ PYTHON_CHECK_TIMEOUT_SECONDS = 15
 
 # Створюємо папку uploads, якщо її ще немає
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
+os.makedirs(WAVEFORM_DIR, exist_ok=True)
 
 # =========================
 # 1. Робота з базою даних
@@ -244,6 +245,7 @@ def init_db():
             lab_id INTEGER NOT NULL,
             username TEXT NOT NULL,
             filename TEXT NOT NULL,
+            waveform_filename TEXT DEFAULT '',
             status TEXT NOT NULL,
             score INTEGER DEFAULT 0,
             passed_tests INTEGER DEFAULT 0,
@@ -294,6 +296,9 @@ def init_db():
 
     if "file_hidden_for_student" not in column_names:
         cur.execute("ALTER TABLE submissions ADD COLUMN file_hidden_for_student INTEGER DEFAULT 0")
+
+    if "waveform_filename" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN waveform_filename TEXT DEFAULT ''")
 
 
 # Таблиця спроб відповідей на додаткові питання після перевірки лабораторної
@@ -800,6 +805,12 @@ def build_submission_filename(lab, student, attempt_number, original_filename):
     )
 
 
+def build_waveform_filename(submission_filename):
+    base_name = os.path.splitext(submission_filename)[0]
+    safe_base_name = make_safe_filename_part(base_name, "waveform", 120)
+    return f"{safe_base_name}.vcd"
+
+
 # Функція для читання HDL-коду з файлу, завантаженого студентом, з обробкою можливих помилок кодування та відсутності файлу.
 def read_submission_code(filename):
 
@@ -1128,12 +1139,13 @@ def format_hdl_report(raw_output):
 
 
 # Функція для автоматичної перевірки HDL-коду студента за допомогою Icarus Verilog та тестбенча викладача.
-def run_hdl_check(user_code_path, testbench_text):
+def run_hdl_check(user_code_path, testbench_text, waveform_save_path=None):
 # Створюємо тимчасову папку для зберігання файлу рішення студента, тестбенча та результатів симуляції.
     with tempfile.TemporaryDirectory() as temp_dir:
         solution_path = os.path.join(temp_dir, "solution.v")
         testbench_path = os.path.join(temp_dir, "testbench.v")
         output_path = os.path.join(temp_dir, "simulation.out")
+        waveform_temp_path = os.path.join(temp_dir, "wave.vcd")
 
         shutil.copy(user_code_path, solution_path)
 
@@ -1165,7 +1177,8 @@ def run_hdl_check(user_code_path, testbench_text):
                 "Ошибка: Icarus Verilog не установлен или команда iverilog не добавлена в PATH.",
                 0,
                 0,
-                0
+                0,
+                False
             )
         except subprocess.TimeoutExpired:
             return (
@@ -1173,7 +1186,8 @@ def run_hdl_check(user_code_path, testbench_text):
                 "Ошибка: компиляция выполнялась слишком долго.",
                 0,
                 0,
-                0
+                0,
+                False
             )
 
 # Якщо компіляція завершилася з помилкою, повертаємо статус COMPILE_ERROR та виведення компілятора для діагностики студенту.
@@ -1183,7 +1197,8 @@ def run_hdl_check(user_code_path, testbench_text):
                 compile_result.stderr or compile_result.stdout,
                 0,
                 0,
-                0
+                0,
+                False
             )
         
 # Команда для запуску симуляції зкомпільованого HDL-коду за допомогою Icarus Verilog. 
@@ -1194,7 +1209,8 @@ def run_hdl_check(user_code_path, testbench_text):
                 run_command,
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
+                cwd=temp_dir
             )
         except subprocess.TimeoutExpired:
             return (
@@ -1207,13 +1223,28 @@ def run_hdl_check(user_code_path, testbench_text):
 
         full_output = run_result.stdout + run_result.stderr
 
+        waveform_created = False
+
+        if waveform_save_path:
+            vcd_files = [
+                file_name
+                for file_name in os.listdir(temp_dir)
+                if file_name.lower().endswith(".vcd")
+            ]
+
+            if vcd_files:
+                source_vcd_path = os.path.join(temp_dir, vcd_files[0])
+                shutil.copy(source_vcd_path, waveform_save_path)
+                waveform_created = True
+
         if run_result.returncode != 0:
             return (
                 "SIMULATION_ERROR",
                 full_output,
                 0,
                 0,
-                0
+                0,
+                False
             )
 
 # Обробляємо вивід симуляції, шукаючи рядки, які починаються з "CASE|", 
@@ -1233,7 +1264,8 @@ def run_hdl_check(user_code_path, testbench_text):
                 formatted_report,
                 score,
                 passed_tests,
-                total_tests
+                total_tests, 
+                waveform_created
             )
 
         if "ALL_TESTS_PASSED" in full_output:
@@ -1242,7 +1274,8 @@ def run_hdl_check(user_code_path, testbench_text):
                 full_output,
                 100,
                 1,
-                1
+                1,
+                waveform_created
             )
 
         return (
@@ -1250,7 +1283,8 @@ def run_hdl_check(user_code_path, testbench_text):
             full_output or "Тесты не пройдены или testbench не вывел результат проверки.",
             0,
             0,
-            0
+            0,
+            waveform_created
         )
 
 
@@ -1546,6 +1580,7 @@ def run_python_unit_tests_check(solution_path, lab):
                 "score": 0,
                 "passed_tests": 0,
                 "total_tests": total_tests
+                
             }
 
 # Якщо не вдалося визначити кількість тестів, повертаємо статус FAILED та відповідне повідомлення для студента.
@@ -1640,14 +1675,15 @@ def run_cpp_tests_check(solution_path, lab):
 # Функція для запуску перевірки рішення студента на основі типу перевірки, визначеного в лабораторній роботі, 
 # та повернення результату перевірки у стандартному форматі, щоб забезпечити єдиний формат результатів перевірки 
 # для всіх типів лабораторних робіт та полегшити формування адаптивного навчального плану на основі результатів перевірки.
-def run_solution_check(solution_path, lab):
+def run_solution_check(solution_path, lab, waveform_save_path=None):
 
     checker_type = lab["checker_type"] or "hdl_testbench"
 
     if checker_type == "hdl_testbench":
-        status, output, score, passed_tests, total_tests = run_hdl_check(
+        status, output, score, passed_tests, total_tests, waveform_created = run_hdl_check(
             solution_path,
-            lab["testbench"]
+            lab["testbench"],
+            waveform_save_path
         )
 
         return {
@@ -1655,7 +1691,8 @@ def run_solution_check(solution_path, lab):
             "output": output,
             "score": score,
             "passed_tests": passed_tests,
-            "total_tests": total_tests
+            "total_tests": total_tests,
+            "waveform_created": waveform_created
         }
 
     if checker_type == "python_unit_tests":
@@ -1667,7 +1704,8 @@ def run_solution_check(solution_path, lab):
             "output": "Проверка SQL-заданий пока не реализована.",
             "score": 0,
             "passed_tests": 0,
-            "total_tests": 0
+            "total_tests": 0,
+            "waveform_created": False
         }
 
     if checker_type == "cpp_tests":
@@ -1676,7 +1714,8 @@ def run_solution_check(solution_path, lab):
             "output": "Проверка C++-заданий пока не реализована.",
             "score": 0,
             "passed_tests": 0,
-            "total_tests": 0
+            "total_tests": 0,
+            "waveform_created": False
         }
 
     return {
@@ -1684,7 +1723,8 @@ def run_solution_check(solution_path, lab):
         "output": f"Неизвестный тип проверки: {checker_type}",
         "score": 0,
         "passed_tests": 0,
-        "total_tests": 0
+        "total_tests": 0,
+        "waveform_created": False
     }
 
 
@@ -3852,6 +3892,46 @@ def download_submission(submission_id):
         as_attachment=True
     )
 
+@app.route("/waveform/<int:submission_id>")
+@login_required
+def download_waveform(submission_id):
+    conn = get_db()
+
+    submission = conn.execute(
+        "SELECT * FROM submissions WHERE id = ?",
+        (submission_id,)
+    ).fetchone()
+
+    conn.close()
+
+    if not submission:
+        abort(404)
+
+    if not submission["waveform_filename"]:
+        flash("Для этой попытки временная диаграмма недоступна.")
+        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
+
+    waveform_path = os.path.join(WAVEFORM_DIR, submission["waveform_filename"])
+
+    if not os.path.exists(waveform_path):
+        flash("Файл временной диаграммы отсутствует на сервере.")
+        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
+
+    if session.get("role") == "teacher":
+        return send_from_directory(
+            WAVEFORM_DIR,
+            submission["waveform_filename"],
+            as_attachment=True
+        )
+
+    if submission["username"] != session["username"]:
+        abort(403)
+
+    return send_from_directory(
+        WAVEFORM_DIR,
+        submission["waveform_filename"],
+        as_attachment=True
+    )
 
 # =========================
 # 12. Student routes - студент
@@ -4156,7 +4236,19 @@ def submit_solution(lab_id):
     saved_path = os.path.join(UPLOAD_DIR, saved_filename)
     file.save(saved_path)
 
-    check_result = run_solution_check(saved_path, lab)
+    waveform_filename = build_waveform_filename(saved_filename)
+    waveform_save_path = os.path.join(WAVEFORM_DIR, waveform_filename)
+
+    check_result = run_solution_check(
+        saved_path,
+        lab,
+        waveform_save_path=waveform_save_path
+    )
+
+    if not check_result.get("waveform_created"):
+        waveform_filename = ""
+        if os.path.exists(waveform_save_path):
+            os.remove(waveform_save_path)
 
     status = check_result["status"]
     output = check_result["output"]
@@ -4179,15 +4271,16 @@ def submit_solution(lab_id):
     conn.execute(
         """
         INSERT INTO submissions
-        (lab_id, username, filename, status, score, passed_tests, total_tests,
+        (lab_id, username, filename, waveform_filename, status, score, passed_tests, total_tests,
         error_type, error_title, error_details, recommendation, error_confidence,
         output, created_at, attempt_number, file_deleted, file_hidden_for_student)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             lab_id,
             session["username"],
             saved_filename,
+            waveform_filename,
             status,
             score,
             passed_tests,
@@ -4305,7 +4398,20 @@ def submit_code_from_editor(lab_id):
     with open(saved_path, "w", encoding="utf-8") as file:
         file.write(code_text)
 
-    check_result = run_solution_check(saved_path, lab)
+    waveform_filename = build_waveform_filename(saved_filename)
+    waveform_save_path = os.path.join(WAVEFORM_DIR, waveform_filename)
+
+    check_result = run_solution_check(
+        saved_path,
+        lab,
+        waveform_save_path=waveform_save_path
+    )
+
+    if not check_result.get("waveform_created"):
+        waveform_filename = ""
+
+        if os.path.exists(waveform_save_path):
+            os.remove(waveform_save_path)
 
     status = check_result["status"]
     output = check_result["output"]
@@ -4323,15 +4429,16 @@ def submit_code_from_editor(lab_id):
     conn.execute(
         """
         INSERT INTO submissions
-        (lab_id, username, filename, status, score, passed_tests, total_tests,
+        (lab_id, username, filename, waveform_filename, status, score, passed_tests, total_tests,
         error_type, error_title, error_details, recommendation, error_confidence,
         output, created_at, attempt_number, file_deleted, file_hidden_for_student)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             lab_id,
             session["username"],
             saved_filename,
+            waveform_filename,
             status,
             score,
             passed_tests,
