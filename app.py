@@ -4212,6 +4212,150 @@ def submit_solution(lab_id):
     return redirect(url_for("lab_detail", lab_id=lab_id))
 
 
+@app.route("/submit-code/<int:lab_id>", methods=["POST"])
+@login_required
+def submit_code_from_editor(lab_id):
+    if session.get("role") != "student":
+        flash("Отправлять решения может только студент.")
+        return redirect(url_for("lab_detail", lab_id=lab_id))
+
+    conn = get_db()
+
+    lab = conn.execute(
+        "SELECT * FROM labs WHERE id = ?",
+        (lab_id,)
+    ).fetchone()
+
+    if lab is None:
+        conn.close()
+        flash("Лабораторная работа не найдена.")
+        return redirect(url_for("index"))
+
+    checker_type = lab["checker_type"] or "hdl_testbench"
+
+    if checker_type != "hdl_testbench":
+        conn.close()
+        flash("HDL-редактор доступен только для Verilog-заданий.")
+        return redirect(url_for("lab_detail", lab_id=lab_id))
+
+    code_text = request.form.get("code_text", "").strip()
+
+    if not code_text:
+        conn.close()
+        flash("Код решения не может быть пустым.")
+        return redirect(url_for("lab_detail", lab_id=lab_id))
+
+    attempts_count = conn.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM submissions
+        WHERE lab_id = ? AND username = ?
+        """,
+        (lab_id, session["username"])
+    ).fetchone()["count"]
+
+    max_attempts = lab["max_attempts"] or 3
+
+    if attempts_count >= max_attempts:
+        conn.close()
+        flash("Лимит попыток по этой лабораторной работе исчерпан.")
+        return redirect(url_for("lab_detail", lab_id=lab_id))
+
+    previous_submission = conn.execute(
+        """
+        SELECT *
+        FROM submissions
+        WHERE lab_id = ? AND username = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (lab_id, session["username"])
+    ).fetchone()
+
+    if previous_submission:
+        conn.execute(
+            """
+            UPDATE submissions
+            SET file_hidden_for_student = 1
+            WHERE id = ?
+            """,
+            (previous_submission["id"],)
+        )
+
+    attempt_number = attempts_count + 1
+
+    student = conn.execute(
+        """
+        SELECT *
+        FROM users
+        WHERE username = ?
+        """,
+        (session["username"],)
+    ).fetchone()
+
+    saved_filename = build_submission_filename(
+        lab=lab,
+        student=student,
+        attempt_number=attempt_number,
+        original_filename="editor_solution.v"
+    )
+
+    saved_path = os.path.join(UPLOAD_DIR, saved_filename)
+
+    with open(saved_path, "w", encoding="utf-8") as file:
+        file.write(code_text)
+
+    check_result = run_solution_check(saved_path, lab)
+
+    status = check_result["status"]
+    output = check_result["output"]
+    score = check_result["score"]
+    passed_tests = check_result["passed_tests"]
+    total_tests = check_result["total_tests"]
+
+    diagnostics = classify_solution_error(
+        status=status,
+        output=output,
+        lab=lab,
+        code=code_text
+    )
+
+    conn.execute(
+        """
+        INSERT INTO submissions
+        (lab_id, username, filename, status, score, passed_tests, total_tests,
+        error_type, error_title, error_details, recommendation, error_confidence,
+        output, created_at, attempt_number, file_deleted, file_hidden_for_student)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            lab_id,
+            session["username"],
+            saved_filename,
+            status,
+            score,
+            passed_tests,
+            total_tests,
+            diagnostics["error_type"],
+            diagnostics["error_title"],
+            diagnostics["error_details"],
+            diagnostics["recommendation"],
+            diagnostics["error_confidence"],
+            output,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            attempt_number,
+            0,
+            0
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    flash("Код из HDL-редактора отправлен и проверен.")
+    return redirect(url_for("lab_detail", lab_id=lab_id))
+
+
 # Роут для повторної відправки рішення студентом по конкретній лабораторній роботі, 
 # який дозволяє студенту завантажити новий файл з рішенням після того, 
 # як його попередня відправка не пройшла перевірку, та формує адаптивний навчальний план на основі результату перевірки. 

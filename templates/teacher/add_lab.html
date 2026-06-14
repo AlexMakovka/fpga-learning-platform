@@ -11,7 +11,164 @@
         <h1 class="mb-4">Добавить лабораторную работу</h1>
 
         <form method="post" action="{{ url_for('add_lab') }}">
-            <!-- сюда вставляешь всю форму -->
+            <div class="mb-3">
+                <label class="form-label">Название</label>
+                <input type="text"
+                    name="title"
+                    class="form-control"
+                    placeholder="Например: Мультиплексор 2 к 1"
+                    required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Описание</label>
+                <textarea name="description"
+                        rows="4"
+                        class="form-control"
+                        placeholder="Опишите условие лабораторной работы"
+                        required></textarea>
+            </div>
+
+            <hr class="my-4">
+
+            <h4 class="mb-3">Паспорт лабораторной работы</h4>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Дисциплина</label>
+                    <input type="text"
+                        name="discipline"
+                        class="form-control"
+                        value="FPGA-проектирование">
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Язык / технология</label>
+                    <select name="programming_language" class="form-select">
+                        <option value="Verilog" selected>Verilog</option>
+                        <option value="Python">Python</option>
+                        <option value="SQL">SQL</option>
+                        <option value="C++">C++</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Тип проверки</label>
+                    <select name="checker_type" class="form-select">
+                        <option value="hdl_testbench" selected>HDL testbench</option>
+                        <option value="python_unit_tests">Python unit tests</option>
+                        <option value="sql_query">SQL query check</option>
+                        <option value="cpp_tests">C++ tests</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Тема задания</label>
+                    <input type="text"
+                        name="topic"
+                        class="form-control"
+                        placeholder="Например: mux, adder, counter">
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Сложность</label>
+                    <select name="difficulty" class="form-select">
+                        <option value="basic" selected>Базовая</option>
+                        <option value="medium">Средняя</option>
+                        <option value="hard">Высокая</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Ключевые понятия</label>
+                    <input type="text"
+                        name="concepts"
+                        class="form-control"
+                        placeholder="sel, assign, d0, d1">
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Критерии оценивания</label>
+                <textarea name="grading_policy"
+                        class="form-control"
+                        rows="3"
+                        placeholder="Например: 80% — прохождение testbench, 20% — дополнительные вопросы"></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Стартовый шаблон кода для HDL-редактора</label>
+                <textarea name="starter_code"
+                        class="form-control code-area"
+                        rows="8"
+                        placeholder="Этот код студент увидит во встроенном редакторе">module mux2to1(
+                input wire d0,
+                input wire d1,
+                input wire sel,
+                output wire y
+            );
+
+            // Опишите логику выбора входа здесь
+            assign y = 1'b0;
+
+            endmodule</textarea>
+
+                <div class="form-text">
+                    Для Verilog-заданий этот шаблон автоматически подставится во встроенный HDL-редактор.
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="mb-3">
+                <label class="form-label">Проверочный сценарий testbench / проверочный код</label>
+                <textarea name="testbench"
+                        rows="12"
+                        class="form-control code-area"
+                        required
+                        placeholder="Вставьте testbench для проверки решения"></textarea>
+
+                <div class="form-text">
+                    Для Verilog здесь указывается testbench. Именно он будет запускаться при автоматической проверке.
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Максимальное количество попыток</label>
+                    <input type="number"
+                        name="max_attempts"
+                        class="form-control"
+                        value="3"
+                        min="1">
+                </div>
+
+                <div class="col-md-6 mb-3 d-flex align-items-end">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                            type="checkbox"
+                            name="allow_extra_questions"
+                            id="allow_extra_questions"
+                            checked>
+
+                        <label class="form-check-label" for="allow_extra_questions">
+                            Разрешить улучшение оценки через дополнительные вопросы
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button class="btn btn-primary" type="submit">
+                    Добавить лабораторную работу
+                </button>
+
+                <a href="{{ url_for('teacher_labs') }}" class="btn btn-outline-secondary">
+                    Отмена
+                </a>
+            </div>
         </form>
     </div>
 </div>

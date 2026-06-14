@@ -119,22 +119,129 @@
                     {{ upload_description }}
                 </p>
 
-                {% if lab["starter_code"] %}
-                    <div class="card border-0 bg-light rounded-4 mb-3">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="mb-0">Стартовый шаблон кода</h6>
-                                <span class="badge bg-secondary">{{ programming_language }}</span>
-                            </div>
+{% if checker_type == "hdl_testbench" %}
+    <div class="card border-0 rounded-4 mb-4 hdl-editor-card">
+        <div class="card-body p-4">
 
-                            <pre class="result-box mb-0">{{ lab["starter_code"] }}</pre>
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                    <h4 class="mb-1">Встроенный HDL-редактор</h4>
+                    <p class="text-muted mb-0">
+                        Напишите Verilog-код прямо на странице и отправьте его на автоматическую проверку.
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        id="downloadHdlCode">
+                    Скачать решение .v
+                </button>
+            </div>
+
+            <form method="post"
+                  action="{{ url_for('submit_code_from_editor', lab_id=lab['id']) }}"
+                  id="hdlEditorForm">
+
+                <textarea id="hdlEditor" name="code_text">{% if lab["starter_code"] %}{{ lab["starter_code"] }}{% else %}module your_module_name(
+    input wire a,
+    input wire b,
+    output wire y
+);
+
+assign y = a & b;
+
+endmodule{% endif %}</textarea>
+
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                    <button type="submit" class="btn btn-success">
+                        Запустить проверку из редактора
+                    </button>
+
+                    <span class="text-muted small">
+                        Код будет сохранён как .v файл и проверен через testbench.
+                    </span>
+                </div>
+            </form>
+
+            {% if submissions and submissions|length > 0 %}
+                {% set last_submission = submissions[0] %}
+
+                <div class="alert alert-light border rounded-4 mt-4 mb-0">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <h5 class="mb-0">Последний результат проверки</h5>
+
+                        <span class="badge bg-dark">
+                            {{ last_submission["score"] }} / 100
+                        </span>
+                    </div>
+
+                    <div class="mb-2">
+                        <b>Статус:</b> {{ last_submission["status"] }}
+                    </div>
+
+                    {% if last_submission["error_title"] and last_submission["error_type"] != "NO_ERROR" %}
+                        <div class="mb-2">
+                            <b>Тип ошибки:</b> {{ last_submission["error_title"] }}
+                        </div>
+                    {% endif %}
+
+                    {% if last_submission["recommendation"] and last_submission["error_type"] != "NO_ERROR" %}
+                        <div class="mb-2">
+                            <b>Рекомендация:</b> {{ last_submission["recommendation"] }}
+                        </div>
+                    {% endif %}
+
+                    <details class="mt-2">
+                        <summary class="text-primary" style="cursor: pointer;">
+                            Показать полный отчёт проверки
+                        </summary>
+
+                        <pre class="result-box mt-3 mb-0">{{ last_submission["output"] }}</pre>
+                    </details>
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+    <details class="mb-3">
+        <summary class="text-muted" style="cursor: pointer;">
+            Или загрузить готовый Verilog-файл вручную
+        </summary>
+
+        <div class="card border-0 bg-light rounded-4 mt-3">
+            <div class="card-body">
+                <form method="post"
+                      action="{{ url_for('submit_solution', lab_id=lab['id']) }}"
+                      enctype="multipart/form-data">
+
+                    <div class="mb-3">
+                        <label class="form-label">{{ solution_file_name }}</label>
+                        <input type="file"
+                               name="solution"
+                               accept="{{ accepted_extensions }}"
+                               class="form-control"
+                               required>
+
+                        <div class="form-text">
+                            Допустимое расширение файла: {{ accepted_extensions }}
                         </div>
                     </div>
-                {% endif %}
+
+                    <button type="submit" class="btn btn-outline-success">
+                        Запустить проверку файла
+                    </button>
+                </form>
+            </div>
+        </div>
+    </details>
+
+            {% else %}
 
                 <form method="post"
                     action="{{ url_for('submit_solution', lab_id=lab['id']) }}"
                     enctype="multipart/form-data">
+
                     <div class="mb-3">
                         <label class="form-label">{{ solution_file_name }}</label>
                         <input type="file"
@@ -142,6 +249,7 @@
                             accept="{{ accepted_extensions }}"
                             class="form-control"
                             required>
+
                         <div class="form-text">
                             Допустимое расширение файла: {{ accepted_extensions }}
                         </div>
@@ -151,6 +259,8 @@
                         Запустить проверку
                     </button>
                 </form>
+
+            {% endif %}
 
             {% else %}
 
@@ -431,6 +541,83 @@
     <div class="alert alert-info rounded-4">
         Пока нет отправленных решений.
     </div>
+{% endif %}
+
+{% if session.get("role") == "student" and checker_type == "hdl_testbench" %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/verilog/verilog.js"></script>
+
+    <style>
+        .hdl-editor-card {
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border: 1px solid rgba(148, 163, 184, 0.35) !important;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+        }
+
+        .CodeMirror {
+            height: 430px;
+            border: 1px solid rgba(148, 163, 184, 0.55);
+            border-radius: 16px;
+            font-size: 14px;
+            font-family: Consolas, Monaco, "Courier New", monospace;
+        }
+
+        .CodeMirror-gutters {
+            border-top-left-radius: 16px;
+            border-bottom-left-radius: 16px;
+        }
+
+        .CodeMirror-scroll {
+            border-radius: 16px;
+        }
+    </style>
+
+    <script>
+        const hdlTextarea = document.getElementById("hdlEditor");
+
+        if (hdlTextarea) {
+            const hdlEditor = CodeMirror.fromTextArea(hdlTextarea, {
+                mode: "text/x-verilog",
+                lineNumbers: true,
+                indentUnit: 4,
+                tabSize: 4,
+                lineWrapping: true,
+                matchBrackets: true
+            });
+
+            hdlEditor.setSize("100%", "430px");
+
+            const hdlForm = document.getElementById("hdlEditorForm");
+
+            if (hdlForm) {
+                hdlForm.addEventListener("submit", function () {
+                    hdlEditor.save();
+                });
+            }
+
+            const downloadButton = document.getElementById("downloadHdlCode");
+
+            if (downloadButton) {
+                downloadButton.addEventListener("click", function () {
+                    hdlEditor.save();
+
+                    const code = hdlTextarea.value;
+                    const blob = new Blob([code], {
+                        type: "text/plain;charset=utf-8"
+                    });
+
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(blob);
+                    link.download = "solution.v";
+                    link.click();
+
+                    URL.revokeObjectURL(link.href);
+                });
+            }
+        }
+    </script>
 {% endif %}
 
 {% endblock %}

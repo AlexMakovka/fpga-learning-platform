@@ -109,11 +109,17 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Стартовый шаблон кода</label>
-                <textarea name="starter_code"
-                          class="form-control code-area"
-                          rows="8"
-                          placeholder="Шаблон, который студент увидит при открытии задания">{{ lab["starter_code"] or "" }}</textarea>
+                <div class="mb-3">
+                    <label class="form-label">Стартовый шаблон кода для HDL-редактора</label>
+                    <textarea name="starter_code"
+                            class="form-control code-area"
+                            rows="8"
+                            placeholder="Этот код студент увидит во встроенном редакторе">{{ lab["starter_code"] or "" }}</textarea>
+
+                    <div class="form-text">
+                        Для Verilog-заданий этот код автоматически подставляется студенту во встроенный HDL-редактор на странице лабораторной работы.
+                    </div>
+                </div>
             </div>
 
             <hr class="my-4">
