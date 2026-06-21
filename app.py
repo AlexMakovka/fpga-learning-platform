@@ -21,6 +21,8 @@ import shutil
 # Він потрібний для пошуку та перевірки тексту за шаблонами
 import re
 
+import json
+
 # sys дозволяє працювати з параметрами та налаштуваннями Python-інтерпретатора
 # Наприклад, можна отримувати аргументи запуску програми або завершувати програму
 import sys
@@ -97,6 +99,25 @@ WAVEFORM_DIR = os.path.join(BASE_DIR, "waveforms")
 # Завантажує налаштування з файлу .env, який знаходиться в папці проекту
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
+VERILATOR_PERL_PATH = os.getenv(
+    "VERILATOR_PERL_PATH",
+    r"Y:\MSYS2\usr\bin\perl.exe"
+)
+
+VERILATOR_SCRIPT_PATH = os.getenv(
+    "VERILATOR_SCRIPT_PATH",
+    r"Y:\MSYS2\ucrt64\bin\verilator"
+)
+
+VERILATOR_UCRT_BIN = os.getenv(
+    "VERILATOR_UCRT_BIN",
+    r"Y:\MSYS2\ucrt64\bin"
+)
+
+VERILATOR_USR_BIN = os.getenv(
+    "VERILATOR_USR_BIN",
+    r"Y:\MSYS2\usr\bin"
+)
 
 # Назва Docker-образу, в якому запускатиметься перевірка Python-коду
 PYTHON_DOCKER_IMAGE = "fpga-python-checker:latest"
@@ -284,6 +305,13 @@ def init_db():
             hidden_passed_tests INTEGER DEFAULT 0,
             hidden_total_tests INTEGER DEFAULT 0,
             hidden_output TEXT DEFAULT '',
+                
+            lint_status TEXT DEFAULT '',
+            lint_score INTEGER DEFAULT 0,
+            lint_issues_count INTEGER DEFAULT 0,
+            lint_output TEXT DEFAULT '',
+            lint_recommendation TEXT DEFAULT '',
+            lint_issues_json TEXT DEFAULT '',
 
             error_type TEXT DEFAULT '',
             error_title TEXT DEFAULT '',
@@ -401,6 +429,24 @@ def init_db():
 
     if "hidden_output" not in column_names:
         cur.execute("ALTER TABLE submissions ADD COLUMN hidden_output TEXT DEFAULT ''")
+
+    if "lint_status" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN lint_status TEXT DEFAULT ''")
+
+    if "lint_score" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN lint_score INTEGER DEFAULT 0")
+
+    if "lint_issues_count" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN lint_issues_count INTEGER DEFAULT 0")
+
+    if "lint_output" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN lint_output TEXT DEFAULT ''")
+
+    if "lint_recommendation" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN lint_recommendation TEXT DEFAULT ''")
+
+    if "lint_issues_json" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN lint_issues_json TEXT DEFAULT ''")
 
 
 # Таблиця зв'язків між викладачами, дисциплінами та навчальними групами 
@@ -1127,6 +1173,193 @@ def can_edit_lab_grade(conn, current_username, current_role, student_username, l
 # 6. Перевірка HDL / Verilog-рішень
 # =========================
 
+def get_verilator_base_command():
+    """
+    Возвращает базовую команду для запуска Verilator.
+
+    На Windows/MSYS2 Verilator установлен как Perl-скрипт,
+    поэтому запускаем его через perl.exe.
+
+    На Linux/macOS можно запускать просто команду verilator.
+    """
+    if os.name == "nt":
+        if os.path.exists(VERILATOR_PERL_PATH) and os.path.exists(VERILATOR_SCRIPT_PATH):
+            return [
+                VERILATOR_PERL_PATH,
+                VERILATOR_SCRIPT_PATH
+            ]
+
+    return ["verilator"]
+
+
+def get_verilator_environment():
+    """
+    Формирует окружение для запуска Verilator.
+    Добавляет MSYS2 ucrt64/bin и usr/bin в PATH.
+    """
+    env = os.environ.copy()
+
+    if os.name == "nt":
+        old_path = env.get("PATH", "")
+
+        env["PATH"] = (
+            VERILATOR_UCRT_BIN
+            + os.pathsep
+            + VERILATOR_USR_BIN
+            + os.pathsep
+            + old_path
+        )
+
+        # Лучше не задавать VERILATOR_ROOT вручную.
+        # MSYS2-обёртка Verilator сама определяет корректный путь.
+        env.pop("VERILATOR_ROOT", None)
+
+    return env
+
+
+def normalize_path_for_verilator(file_path):
+    """
+    На Windows заменяет обратные слэши на обычные.
+    Это уменьшает риск ошибок при передаче пути в MSYS2/Verilator.
+    """
+    return os.path.abspath(file_path).replace("\\", "/")
+
+
+def is_verilator_available():
+    try:
+        command = get_verilator_base_command() + ["--version"]
+
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=get_verilator_environment()
+        )
+
+        return result.returncode == 0
+
+    except Exception:
+        return False
+
+
+def strip_verilog_comments(code):
+    code = re.sub(r"/\*.*?\*/", "", code, flags=re.DOTALL)
+    code = re.sub(r"//.*", "", code)
+    return code
+
+
+def run_hdl_lint_check(solution_path):
+    if not is_verilator_available():
+        return {
+            "lint_status": "UNAVAILABLE",
+            "lint_score": 0,
+            "lint_issues_count": 0,
+            "lint_output": "Verilator не найден. Установите Verilator и добавьте команду verilator в PATH.",
+            "lint_recommendation": "Lint-проверка HDL-кода не выполнена, так как Verilator недоступен.",
+            "lint_issues": []
+        }
+
+    try:
+        with open(solution_path, "r", encoding="utf-8", errors="replace") as file:
+            code = file.read()
+
+        custom_issues = run_custom_hdl_style_checks(code)
+
+        verilator_solution_path = normalize_path_for_verilator(solution_path)
+
+        command = get_verilator_base_command() + [
+            "--lint-only",
+            "-Wall",
+            "-Wno-fatal",
+            "-Wno-DECLFILENAME",
+            "-sv",
+            verilator_solution_path
+        ]
+
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=get_verilator_environment()
+        )
+
+        raw_output = (result.stdout or "") + "\n" + (result.stderr or "")
+
+        verilator_issues = parse_verilator_lint_output(raw_output)
+
+        all_issues = custom_issues + verilator_issues
+
+        lint_score = calculate_hdl_lint_score(all_issues)
+        lint_recommendation = build_hdl_lint_recommendation(all_issues)
+
+        if any(issue.get("severity") == "error" for issue in all_issues):
+            lint_status = "ERROR"
+        elif all_issues:
+            lint_status = "WARNING"
+        else:
+            lint_status = "OK"
+
+        if not raw_output.strip():
+            raw_output = "Verilator не выявил предупреждений."
+
+        report_lines = []
+        report_lines.append(f"Статус lint-проверки: {lint_status}")
+        report_lines.append(f"Качество HDL-кода: {lint_score} / 100")
+        report_lines.append(f"Количество замечаний: {len(all_issues)}")
+        report_lines.append("")
+        report_lines.append("Рекомендация:")
+        report_lines.append(lint_recommendation)
+        report_lines.append("")
+
+        if all_issues:
+            report_lines.append("Список замечаний:")
+
+            for index, issue in enumerate(all_issues, start=1):
+                source = issue.get("source", "unknown")
+                code = issue.get("code", "UNKNOWN")
+                message = issue.get("message", "")
+
+                report_lines.append(
+                    f"{index}. [{source}] {code}: {message}"
+                )
+
+            report_lines.append("")
+
+        report_lines.append("--- Вывод Verilator ---")
+        report_lines.append(raw_output.strip())
+
+        return {
+            "lint_status": lint_status,
+            "lint_score": lint_score,
+            "lint_issues_count": len(all_issues),
+            "lint_output": "\n".join(report_lines),
+            "lint_recommendation": lint_recommendation,
+            "lint_issues": all_issues
+        }
+
+    except subprocess.TimeoutExpired:
+        return {
+            "lint_status": "TIMEOUT",
+            "lint_score": 0,
+            "lint_issues_count": 0,
+            "lint_output": "Lint-проверка выполнялась слишком долго и была остановлена.",
+            "lint_recommendation": "Проверьте сложность HDL-кода или наличие конструкций, затрудняющих статический анализ.",
+            "lint_issues": []
+        }
+
+    except Exception as error:
+        return {
+            "lint_status": "SYSTEM_ERROR",
+            "lint_score": 0,
+            "lint_issues_count": 0,
+            "lint_output": f"Ошибка lint-проверки HDL-кода: {str(error)}",
+            "lint_recommendation": "Проверьте настройку Verilator и корректность HDL-файла.",
+            "lint_issues": []
+        }
+
+
 # Функція для форматування сирого виводу з перевірки HDL-коду у зрозумілий звіт для студента.
 def format_hdl_report(raw_output):
     lines = raw_output.splitlines()
@@ -1638,6 +1871,226 @@ def get_waveform_submission_for_current_user(submission_id):
         abort(403)
 
     return submission
+
+
+# =========================
+# 6.1. HDL lint / статический анализ Verilog-кода
+# =========================
+
+def parse_verilator_lint_output(output):
+    issues = []
+
+    for line in str(output).splitlines():
+        line = line.strip()
+
+        warning_match = re.match(r"%Warning-([A-Z0-9_]+):\s*(.*)", line)
+        error_match = re.match(r"%Error-([A-Z0-9_]+):\s*(.*)", line)
+
+        if warning_match:
+            issues.append({
+                "severity": "warning",
+                "code": warning_match.group(1),
+                "message": warning_match.group(2),
+                "source": "verilator"
+            })
+
+        elif error_match:
+            issues.append({
+                "severity": "error",
+                "code": error_match.group(1),
+                "message": error_match.group(2),
+                "source": "verilator"
+            })
+
+        elif line.startswith("%Error:"):
+            issues.append({
+                "severity": "error",
+                "code": "ERROR",
+                "message": line,
+                "source": "verilator"
+            })
+
+    return issues
+
+
+def run_custom_hdl_style_checks(code):
+    clean_code = strip_verilog_comments(code)
+    code_lower = clean_code.lower()
+
+    issues = []
+
+    # 1. case без default
+    if "case" in code_lower and "default" not in code_lower:
+        issues.append({
+            "severity": "warning",
+            "code": "CASE_WITHOUT_DEFAULT",
+            "message": "В коде используется case без ветки default. Это может привести к неполному описанию логики.",
+            "source": "custom"
+        })
+
+    # 2. if без else в комбинационной логике
+    always_comb_blocks = re.findall(
+        r"always\s*@\s*\(\s*(?:\*|.*?)\s*\)\s*begin(.*?)end",
+        clean_code,
+        flags=re.IGNORECASE | re.DOTALL
+    )
+
+    for block in always_comb_blocks:
+        block_lower = block.lower()
+
+        if "posedge" in block_lower or "negedge" in block_lower:
+            continue
+
+        if "if" in block_lower and "else" not in block_lower:
+            issues.append({
+                "severity": "warning",
+                "code": "IF_WITHOUT_ELSE_COMB",
+                "message": "В комбинационном always-блоке найден if без else. Возможен вывод latch.",
+                "source": "custom"
+            })
+
+        if "<=" in block_lower:
+            issues.append({
+                "severity": "warning",
+                "code": "NONBLOCKING_IN_COMB",
+                "message": "В комбинационной логике найдено неблокирующее присваивание <=. Обычно в always @(*) используют blocking-присваивание =.",
+                "source": "custom"
+            })
+
+    # 3. blocking assignment в последовательностной логике
+    seq_blocks = re.findall(
+        r"always\s*@\s*\(([^)]*(?:posedge|negedge)[^)]*)\)\s*begin(.*?)end",
+        clean_code,
+        flags=re.IGNORECASE | re.DOTALL
+    )
+
+    for sensitivity, block in seq_blocks:
+        block_without_comparisons = re.sub(r"==|!=|<=|>=", "", block)
+
+        if re.search(r"(?<![<>=!])=(?!=)", block_without_comparisons):
+            issues.append({
+                "severity": "warning",
+                "code": "BLOCKING_IN_SEQ",
+                "message": "В последовательностной логике найдено blocking-присваивание =. Для триггеров обычно используют <=.",
+                "source": "custom"
+            })
+
+    # 4. reset есть в списке портов/сигналов, но не используется в always-блоке
+    has_reset_signal = re.search(r"\b(reset|rst)\b", code_lower) is not None
+
+    if has_reset_signal and "posedge" in code_lower:
+        reset_used_in_condition = re.search(
+            r"if\s*\(\s*(reset|rst|!\s*reset|!\s*rst)\s*\)",
+            code_lower
+        ) is not None
+
+        if not reset_used_in_condition:
+            issues.append({
+                "severity": "warning",
+                "code": "RESET_NOT_HANDLED",
+                "message": "В коде есть сигнал reset/rst, но не найдено явной обработки reset в условии if.",
+                "source": "custom"
+            })
+
+    # 5. подозрение на несинтезируемые задержки в решении студента
+    if re.search(r"#\s*\d+", clean_code):
+        issues.append({
+            "severity": "warning",
+            "code": "DELAY_IN_DESIGN",
+            "message": "В HDL-решении найдено временное задерживание через #. Для синтезируемого FPGA-кода такие задержки обычно не используются.",
+            "source": "custom"
+        })
+
+    # 6. initial в решении студента
+    if re.search(r"\binitial\b", code_lower):
+        issues.append({
+            "severity": "warning",
+            "code": "INITIAL_IN_DESIGN",
+            "message": "В решении найден блок initial. В учебных testbench он допустим, но в синтезируемом FPGA-модуле обычно нежелателен.",
+            "source": "custom"
+        })
+
+    return issues
+
+
+def calculate_hdl_lint_score(issues):
+    score = 100
+
+    penalties = {
+        "error": 40,
+        "warning": 10
+    }
+
+    code_specific_penalties = {
+        "LATCH": 25,
+        "CASE_WITHOUT_DEFAULT": 15,
+        "IF_WITHOUT_ELSE_COMB": 20,
+        "BLOCKING_IN_SEQ": 15,
+        "NONBLOCKING_IN_COMB": 10,
+        "UNUSEDSIGNAL": 5,
+        "UNDRIVEN": 20,
+        "RESET_NOT_HANDLED": 15,
+        "DELAY_IN_DESIGN": 20,
+        "INITIAL_IN_DESIGN": 10,
+        "BLKSEQ": 15
+    }
+
+    for issue in issues:
+        issue_code = issue.get("code", "")
+        severity = issue.get("severity", "warning")
+
+        penalty = code_specific_penalties.get(
+            issue_code,
+            penalties.get(severity, 10)
+        )
+
+        score -= penalty
+
+    if score < 0:
+        score = 0
+
+    return score
+
+
+def build_hdl_lint_recommendation(issues):
+    if not issues:
+        return "HDL-код не содержит заметных стилевых предупреждений. Код выглядит аккуратно."
+
+    recommendations = []
+
+    codes = {issue.get("code", "") for issue in issues}
+
+    if "CASE_WITHOUT_DEFAULT" in codes:
+        recommendations.append("Добавьте ветку default в case-конструкцию.")
+
+    if "IF_WITHOUT_ELSE_COMB" in codes or "LATCH" in codes:
+        recommendations.append("Проверьте полноту условий в комбинационной логике, чтобы избежать latch.")
+
+    if "BLOCKING_IN_SEQ" in codes or "BLKSEQ" in codes:
+        recommendations.append("В последовательностной логике используйте неблокирующие присваивания <=.")
+
+    if "NONBLOCKING_IN_COMB" in codes:
+        recommendations.append("В комбинационной логике обычно используют blocking-присваивание =.")
+
+    if "UNUSEDSIGNAL" in codes:
+        recommendations.append("Удалите или используйте объявленные, но неиспользуемые сигналы.")
+
+    if "UNDRIVEN" in codes:
+        recommendations.append("Проверьте сигналы, которым не присваивается значение.")
+
+    if "RESET_NOT_HANDLED" in codes:
+        recommendations.append("Добавьте явную обработку reset/rst в последовательностной логике.")
+
+    if "DELAY_IN_DESIGN" in codes:
+        recommendations.append("Уберите задержки # из синтезируемого HDL-модуля.")
+
+    if "INITIAL_IN_DESIGN" in codes:
+        recommendations.append("Проверьте необходимость initial-блока: для FPGA-дизайна он часто нежелателен.")
+
+    if not recommendations:
+        recommendations.append("Изучите предупреждения Verilator и скорректируйте стиль HDL-описания.")
+
+    return " ".join(recommendations)
 
 
 # =========================
@@ -4764,7 +5217,6 @@ def submit_solution(lab_id):
         flash(f"Для этой лабораторной можно загружать только файлы: {allowed_extensions}")
         return redirect(url_for("lab_detail", lab_id=lab_id))
 
-    filename = secure_filename(file.filename)
 
 # Перевіряємо кількість спроб студента по цій лабораторній роботі. Якщо кількість спроб досягла максимуму, закриваємо з'єднання та показуємо повідомлення про те, що ліміт спроб вичерпано.
     attempts_count = conn.execute(
@@ -4842,6 +5294,18 @@ def submit_solution(lab_id):
         if os.path.exists(waveform_save_path):
             os.remove(waveform_save_path)
 
+    lint_result = {
+        "lint_status": "",
+        "lint_score": 0,
+        "lint_issues_count": 0,
+        "lint_output": "",
+        "lint_recommendation": "",
+        "lint_issues": []
+    }
+
+    if (lab["checker_type"] or "hdl_testbench") == "hdl_testbench":
+        lint_result = run_hdl_lint_check(saved_path)
+
     status = check_result["status"]
     output = check_result["output"]
     score = check_result["score"]
@@ -4859,6 +5323,16 @@ def submit_solution(lab_id):
     hidden_passed_tests = check_result.get("hidden_passed_tests", 0)
     hidden_total_tests = check_result.get("hidden_total_tests", 0)
     hidden_output = check_result.get("hidden_output", "")
+
+    lint_status = lint_result.get("lint_status", "")
+    lint_score = lint_result.get("lint_score", 0)
+    lint_issues_count = lint_result.get("lint_issues_count", 0)
+    lint_output = lint_result.get("lint_output", "")
+    lint_recommendation = lint_result.get("lint_recommendation", "")
+    lint_issues_json = json.dumps(
+        lint_result.get("lint_issues", []),
+        ensure_ascii=False
+    )
 
 # Читаємо код студента з збереженого файлу, щоб передати його в функцію класифікації помилки та формування діагностики.
     with open(saved_path, "r", encoding="utf-8", errors="replace") as code_file:
@@ -4883,12 +5357,31 @@ def submit_solution(lab_id):
             "error_confidence": 85
         }
     else:
-        diagnostics = classify_solution_error(
-            status=status,
-            output=public_output or output,
-            lab=lab,
-            code=student_code
-        )
+        if (
+            hidden_total_tests > 0
+            and hidden_passed_tests < hidden_total_tests
+            and public_total_tests > 0
+            and public_passed_tests == public_total_tests
+        ):
+            diagnostics = {
+                "error_type": "HIDDEN_TEST_FAILED",
+                "error_title": "Не пройдены скрытые тесты",
+                "error_details": (
+                    "Решение прошло открытые тесты, но не прошло часть скрытых проверок. "
+                    "Это означает, что код работает для известных примеров, но ошибается на дополнительных или граничных случаях."
+                ),
+                "recommendation": (
+                    "Проверьте полную таблицу истинности, граничные комбинации входных сигналов и случаи, которые не были явно показаны в открытых тестах."
+                ),
+                "error_confidence": 85
+            }
+        else:
+            diagnostics = classify_solution_error(
+                status=status,
+                output=public_output or output,
+                lab=lab,
+                code=code_text
+            )
 
 # Зберігаємо результат відправки в базі даних, включаючи діагностику помилки, щоб потім використовувати цю інформацію для формування адаптивного навчального плану та надання студенту конкретних рекомендацій щодо виправлення помилки.
     conn.execute(
@@ -4898,9 +5391,10 @@ def submit_solution(lab_id):
         status, score, passed_tests, total_tests,
         public_status, public_score, public_passed_tests, public_total_tests, public_output,
         hidden_status, hidden_score, hidden_passed_tests, hidden_total_tests, hidden_output,
+        lint_status, lint_score, lint_issues_count, lint_output, lint_recommendation, lint_issues_json,
         error_type, error_title, error_details, recommendation, error_confidence,
         output, created_at, attempt_number, file_deleted, file_hidden_for_student)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             lab_id,
@@ -4924,6 +5418,13 @@ def submit_solution(lab_id):
             hidden_passed_tests,
             hidden_total_tests,
             hidden_output,
+
+            lint_status,
+            lint_score,
+            lint_issues_count,
+            lint_output,
+            lint_recommendation,
+            lint_issues_json,
 
             diagnostics["error_type"],
             diagnostics["error_title"],
@@ -5054,6 +5555,18 @@ def submit_code_from_editor(lab_id):
         if os.path.exists(waveform_save_path):
             os.remove(waveform_save_path)
 
+    lint_result = {
+        "lint_status": "",
+        "lint_score": 0,
+        "lint_issues_count": 0,
+        "lint_output": "",
+        "lint_recommendation": "",
+        "lint_issues": []
+    }
+
+    if (lab["checker_type"] or "hdl_testbench") == "hdl_testbench":
+        lint_result = run_hdl_lint_check(saved_path)
+
     status = check_result["status"]
     output = check_result["output"]
     score = check_result["score"]
@@ -5072,6 +5585,16 @@ def submit_code_from_editor(lab_id):
     hidden_total_tests = check_result.get("hidden_total_tests", 0)
     hidden_output = check_result.get("hidden_output", "")
 
+    lint_status = lint_result.get("lint_status", "")
+    lint_score = lint_result.get("lint_score", 0)
+    lint_issues_count = lint_result.get("lint_issues_count", 0)
+    lint_output = lint_result.get("lint_output", "")
+    lint_recommendation = lint_result.get("lint_recommendation", "")
+    lint_issues_json = json.dumps(
+        lint_result.get("lint_issues", []),
+        ensure_ascii=False
+    )
+
     diagnostics = classify_solution_error(
         status=status,
         output=output,
@@ -5084,11 +5607,12 @@ def submit_code_from_editor(lab_id):
         INSERT INTO submissions
         (lab_id, username, filename, waveform_filename,
         status, score, passed_tests, total_tests,
+        lint_status, lint_score, lint_issues_count, lint_output, lint_recommendation, lint_issues_json,
         public_status, public_score, public_passed_tests, public_total_tests, public_output,
         hidden_status, hidden_score, hidden_passed_tests, hidden_total_tests, hidden_output,
         error_type, error_title, error_details, recommendation, error_confidence,
         output, created_at, attempt_number, file_deleted, file_hidden_for_student)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             lab_id,
@@ -5100,6 +5624,13 @@ def submit_code_from_editor(lab_id):
             score,
             passed_tests,
             total_tests,
+
+            lint_status,
+            lint_score,
+            lint_issues_count,
+            lint_output,
+            lint_recommendation,
+            lint_issues_json,
 
             public_status,
             public_score,

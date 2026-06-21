@@ -193,6 +193,23 @@ endmodule{% endif %}</textarea>
                         <b>Статус:</b> {{ last_submission["status"] }}
                     </div>
 
+                    {% if last_submission["lint_status"] %}
+                        <div class="mb-2">
+                            <b>Качество HDL-кода:</b>
+                            {{ last_submission["lint_score"] }} / 100
+
+                            {% if last_submission["lint_status"] == "OK" %}
+                                <span class="badge bg-success ms-1">OK</span>
+                            {% elif last_submission["lint_status"] == "WARNING" %}
+                                <span class="badge bg-warning text-dark ms-1">WARNING</span>
+                            {% elif last_submission["lint_status"] == "UNAVAILABLE" %}
+                                <span class="badge bg-secondary ms-1">Lint недоступен</span>
+                            {% else %}
+                                <span class="badge bg-secondary ms-1">{{ last_submission["lint_status"] }}</span>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
                     {% if last_submission["error_title"] and last_submission["error_type"] != "NO_ERROR" %}
                         <div class="mb-2">
                             <b>Тип ошибки:</b> {{ last_submission["error_title"] }}
@@ -467,6 +484,28 @@ endmodule{% endif %}</textarea>
                         </span>
                     </div>
 
+                    {% if sub["lint_status"] %}
+                        <div class="mt-1">
+                            {% if sub["lint_status"] == "OK" %}
+                                <span class="badge bg-success">
+                                    Качество HDL: {{ sub["lint_score"] }} / 100
+                                </span>
+                            {% elif sub["lint_status"] == "WARNING" %}
+                                <span class="badge bg-warning text-dark">
+                                    Качество HDL: {{ sub["lint_score"] }} / 100
+                                </span>
+                            {% elif sub["lint_status"] == "UNAVAILABLE" %}
+                                <span class="badge bg-secondary">
+                                    Lint недоступен
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger">
+                                    Качество HDL: {{ sub["lint_score"] }} / 100
+                                </span>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
                     <div class="mt-1">
                         <span class="badge bg-light text-dark border">
                             Всего тестов: {{ sub["passed_tests"] }} из {{ sub["total_tests"] }}
@@ -539,6 +578,54 @@ endmodule{% endif %}</textarea>
                 </div>
             </div>
         {% endif %}
+
+            {% if sub["lint_status"] %}
+                <div class="alert alert-light border rounded-4 mt-3">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                            <h5 class="mb-2">Анализ качества HDL-кода</h5>
+
+                            <p class="mb-1">
+                                <b>Статус:</b> {{ sub["lint_status"] }}
+                            </p>
+
+                            <p class="mb-1">
+                                <b>Оценка качества:</b> {{ sub["lint_score"] }} / 100
+                            </p>
+
+                            <p class="mb-1">
+                                <b>Количество замечаний:</b> {{ sub["lint_issues_count"] }}
+                            </p>
+
+                            {% if sub["lint_recommendation"] %}
+                                <p class="mb-0">
+                                    <b>Рекомендация:</b> {{ sub["lint_recommendation"] }}
+                                </p>
+                            {% endif %}
+                        </div>
+
+                        {% if sub["lint_status"] == "OK" %}
+                            <span class="badge bg-success">OK</span>
+                        {% elif sub["lint_status"] == "WARNING" %}
+                            <span class="badge bg-warning text-dark">WARNING</span>
+                        {% elif sub["lint_status"] == "UNAVAILABLE" %}
+                            <span class="badge bg-secondary">Lint недоступен</span>
+                        {% else %}
+                            <span class="badge bg-danger">{{ sub["lint_status"] }}</span>
+                        {% endif %}
+                    </div>
+
+                    {% if sub["lint_output"] %}
+                        <details class="mt-3">
+                            <summary class="text-primary" style="cursor: pointer;">
+                                Показать подробный lint-отчёт
+                            </summary>
+
+                            <pre class="result-box mt-3">{{ sub["lint_output"] }}</pre>
+                        </details>
+                    {% endif %}
+                </div>
+            {% endif %}
 
             <pre class="result-box">{{ sub["output"] }}</pre>
 
