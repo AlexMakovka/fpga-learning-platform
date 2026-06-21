@@ -57,7 +57,7 @@ from authlib.integrations.flask_client import OAuth
 # flash — показує одноразові повідомлення користувачу
 # send_from_directory — дозволяє віддавати файл із папки
 # abort - примусово завершує запит з помилкою, наприклад 404 або 403
-from flask import Flask, request, redirect, url_for, session, render_template, flash, send_from_directory, abort
+from flask import Flask, request, redirect, url_for, session, render_template, flash, send_from_directory, abort, jsonify
 
 
 # secure_filename безпечно обробляє ім'я файлу, що завантажується
@@ -180,6 +180,10 @@ def init_db():
             title TEXT NOT NULL,
             description TEXT NOT NULL,
             testbench TEXT NOT NULL,
+                
+            public_testbench TEXT DEFAULT '',
+            hidden_testbench TEXT DEFAULT '',
+            show_hidden_details INTEGER DEFAULT 0,
 
             discipline TEXT DEFAULT 'FPGA-проектирование',
             programming_language TEXT DEFAULT 'Verilog',
@@ -203,6 +207,15 @@ def init_db():
     column_names = [column["name"] for column in columns]
 
 # Додаємо нові поля лабораторних робіт, якщо вони відсутні у старій версії бази даних
+    if "public_testbench" not in column_names:
+        cur.execute("ALTER TABLE labs ADD COLUMN public_testbench TEXT DEFAULT ''")
+
+    if "hidden_testbench" not in column_names:
+        cur.execute("ALTER TABLE labs ADD COLUMN hidden_testbench TEXT DEFAULT ''")
+
+    if "show_hidden_details" not in column_names:
+        cur.execute("ALTER TABLE labs ADD COLUMN show_hidden_details INTEGER DEFAULT 0")
+    
     if "discipline" not in column_names:
         cur.execute("ALTER TABLE labs ADD COLUMN discipline TEXT DEFAULT 'FPGA-проектирование'")
 
@@ -231,6 +244,15 @@ def init_db():
         cur.execute("ALTER TABLE labs ADD COLUMN created_by TEXT DEFAULT ''")
 
 
+    cur.execute("""
+        UPDATE labs
+        SET public_testbench = testbench
+        WHERE (public_testbench IS NULL OR public_testbench = '')
+        AND testbench IS NOT NULL
+        AND testbench != ''
+    """)
+
+
 # Для старих лабораторних робіт вказуємо автора за замовчуванням як "teacher", щоб не було порожніх значень.
     cur.execute("""
         UPDATE labs
@@ -250,6 +272,19 @@ def init_db():
             score INTEGER DEFAULT 0,
             passed_tests INTEGER DEFAULT 0,
             total_tests INTEGER DEFAULT 0,
+                
+            public_status TEXT DEFAULT '',
+            public_score INTEGER DEFAULT 0,
+            public_passed_tests INTEGER DEFAULT 0,
+            public_total_tests INTEGER DEFAULT 0,
+            public_output TEXT DEFAULT '',
+
+            hidden_status TEXT DEFAULT '',
+            hidden_score INTEGER DEFAULT 0,
+            hidden_passed_tests INTEGER DEFAULT 0,
+            hidden_total_tests INTEGER DEFAULT 0,
+            hidden_output TEXT DEFAULT '',
+
             error_type TEXT DEFAULT '',
             error_title TEXT DEFAULT '',
             error_details TEXT DEFAULT '',
@@ -336,6 +371,36 @@ def init_db():
 
     if "total_tests" not in column_names:
          cur.execute("ALTER TABLE submissions ADD COLUMN total_tests INTEGER DEFAULT 0")
+
+    if "public_status" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN public_status TEXT DEFAULT ''")
+
+    if "public_score" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN public_score INTEGER DEFAULT 0")
+
+    if "public_passed_tests" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN public_passed_tests INTEGER DEFAULT 0")
+
+    if "public_total_tests" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN public_total_tests INTEGER DEFAULT 0")
+
+    if "public_output" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN public_output TEXT DEFAULT ''")
+
+    if "hidden_status" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN hidden_status TEXT DEFAULT ''")
+
+    if "hidden_score" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN hidden_score INTEGER DEFAULT 0")
+
+    if "hidden_passed_tests" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN hidden_passed_tests INTEGER DEFAULT 0")
+
+    if "hidden_total_tests" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN hidden_total_tests INTEGER DEFAULT 0")
+
+    if "hidden_output" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN hidden_output TEXT DEFAULT ''")
 
 
 # Таблиця зв'язків між викладачами, дисциплінами та навчальними групами 
@@ -1288,6 +1353,293 @@ def run_hdl_check(user_code_path, testbench_text, waveform_save_path=None):
         )
 
 
+def normalize_vcd_value(value):
+    value = str(value or "").strip()
+
+    if not value:
+        return "x"
+
+    return value.lower()
+
+
+def parse_vcd_file(vcd_path, max_changes_per_signal=5000):
+    """
+    Простой VCD-парсер для отображения временных диаграмм на сайте.
+
+    Поддерживает:
+    - scalar-сигналы: 0, 1, x, z
+    - vector-сигналы: b1010, bxxxx
+    - иерархические имена через $scope
+    - timescale
+    """
+
+    if not os.path.exists(vcd_path):
+        return {
+            "timescale": "",
+            "max_time": 0,
+            "signals": [],
+            "error": "VCD-файл не найден."
+        }
+
+    timescale = ""
+    scope_stack = []
+
+    signal_defs = []
+    code_to_signal_indexes = {}
+
+    current_time = 0
+    max_time = 0
+    definitions_finished = False
+
+    try:
+        with open(vcd_path, "r", encoding="utf-8", errors="replace") as file:
+            lines = file.readlines()
+    except Exception as error:
+        return {
+            "timescale": "",
+            "max_time": 0,
+            "signals": [],
+            "error": f"Не удалось прочитать VCD-файл: {str(error)}"
+        }
+
+    index = 0
+
+    while index < len(lines):
+        raw_line = lines[index]
+        line = raw_line.strip()
+
+        if not line:
+            index += 1
+            continue
+
+        # -----------------------------
+        # 1. Парсинг timescale
+        # -----------------------------
+        if line.startswith("$timescale"):
+            # Вариант: $timescale 1ns $end
+            if "$end" in line:
+                timescale = (
+                    line
+                    .replace("$timescale", "")
+                    .replace("$end", "")
+                    .strip()
+                )
+            else:
+                # Вариант:
+                # $timescale
+                #   1ns
+                # $end
+                collected = []
+
+                index += 1
+
+                while index < len(lines):
+                    inner_line = lines[index].strip()
+
+                    if inner_line.startswith("$end"):
+                        break
+
+                    collected.append(inner_line)
+                    index += 1
+
+                timescale = " ".join(collected).strip()
+
+        # -----------------------------
+        # 2. Парсинг scope
+        # -----------------------------
+        elif line.startswith("$scope"):
+            parts = line.split()
+
+            # Формат: $scope module tb_mux2to1 $end
+            if len(parts) >= 3:
+                scope_name = parts[2]
+                scope_stack.append(scope_name)
+
+        elif line.startswith("$upscope"):
+            if scope_stack:
+                scope_stack.pop()
+
+        # -----------------------------
+        # 3. Парсинг переменных
+        # -----------------------------
+        elif line.startswith("$var"):
+            parts = line.split()
+
+            # Формат:
+            # $var wire 1 ! clk $end
+            # parts[0] = $var
+            # parts[1] = type
+            # parts[2] = size
+            # parts[3] = id_code
+            # parts[4:-1] = reference
+            if len(parts) >= 6:
+                var_type = parts[1]
+
+                try:
+                    size = int(parts[2])
+                except ValueError:
+                    size = 1
+
+                code = parts[3]
+                reference = " ".join(parts[4:-1])
+
+                full_name_parts = scope_stack + [reference]
+                full_name = ".".join(full_name_parts)
+
+                signal = {
+                    "index": len(signal_defs),
+                    "code": code,
+                    "name": full_name,
+                    "short_name": reference,
+                    "type": var_type,
+                    "size": size,
+                    "changes": []
+                }
+
+                signal_defs.append(signal)
+
+                if code not in code_to_signal_indexes:
+                    code_to_signal_indexes[code] = []
+
+                code_to_signal_indexes[code].append(signal["index"])
+
+        elif line.startswith("$enddefinitions"):
+            definitions_finished = True
+
+        # -----------------------------
+        # 4. Парсинг временных меток
+        # -----------------------------
+        elif line.startswith("#"):
+            try:
+                current_time = int(line[1:])
+                max_time = max(max_time, current_time)
+            except ValueError:
+                pass
+
+        # -----------------------------
+        # 5. Парсинг изменений сигналов
+        # -----------------------------
+        else:
+            # Значения могут появиться сразу после $dumpvars,
+            # поэтому не будем жестко требовать definitions_finished.
+            if line.startswith("$"):
+                index += 1
+                continue
+
+            # Scalar:
+            # 0!
+            # 1!
+            # x!
+            # z!
+            first_char = line[0]
+
+            if first_char in ["0", "1", "x", "X", "z", "Z"]:
+                value = normalize_vcd_value(first_char)
+                code = line[1:].strip()
+
+                if code in code_to_signal_indexes:
+                    for signal_index in code_to_signal_indexes[code]:
+                        changes = signal_defs[signal_index]["changes"]
+
+                        if len(changes) < max_changes_per_signal:
+                            changes.append({
+                                "time": current_time,
+                                "value": value
+                            })
+
+            # Vector:
+            # b1010 "
+            # bxxxx #
+            elif first_char in ["b", "B"]:
+                parts = line.split(maxsplit=1)
+
+                if len(parts) == 2:
+                    value = normalize_vcd_value(parts[0][1:])
+                    code = parts[1].strip()
+
+                    if code in code_to_signal_indexes:
+                        for signal_index in code_to_signal_indexes[code]:
+                            changes = signal_defs[signal_index]["changes"]
+
+                            if len(changes) < max_changes_per_signal:
+                                changes.append({
+                                    "time": current_time,
+                                    "value": value
+                                })
+
+            # Real:
+            # r3.14 !
+            # Пока можно игнорировать, для FPGA-лабораторных обычно не нужно.
+
+        index += 1
+
+    # Если у сигнала нет изменений, добавляем x в момент 0
+    for signal in signal_defs:
+        if not signal["changes"]:
+            signal["changes"].append({
+                "time": 0,
+                "value": "x"
+            })
+
+        # Убираем подряд идущие одинаковые значения
+        compact_changes = []
+
+        previous_value = None
+
+        for change in signal["changes"]:
+            if change["value"] != previous_value:
+                compact_changes.append(change)
+                previous_value = change["value"]
+
+        signal["changes"] = compact_changes
+
+    return {
+        "timescale": timescale or "1ns",
+        "max_time": max_time,
+        "signals": signal_defs,
+        "error": ""
+    }
+
+
+def get_waveform_submission_for_current_user(submission_id):
+    conn = get_db()
+
+    submission = conn.execute(
+        """
+        SELECT
+            submissions.*,
+            labs.title AS lab_title,
+            labs.discipline AS lab_discipline,
+            users.full_name AS student_full_name,
+            users.student_group AS student_group
+        FROM submissions
+        JOIN labs ON labs.id = submissions.lab_id
+        LEFT JOIN users ON users.username = submissions.username
+        WHERE submissions.id = ?
+        """,
+        (submission_id,)
+    ).fetchone()
+
+    conn.close()
+
+    if not submission:
+        abort(404)
+
+    current_role = session.get("role")
+    current_username = session.get("username")
+
+    if current_role == "admin":
+        return submission
+
+    if current_role == "teacher":
+        return submission
+
+    if submission["username"] != current_username:
+        abort(403)
+
+    return submission
+
+
 # =========================
 # 7. Перевірка Python-рішень
 # =========================
@@ -1672,6 +2024,254 @@ def run_cpp_tests_check(solution_path, lab):
     }
 
 
+def build_student_visible_hdl_output(
+    public_result,
+    hidden_result,
+    final_score,
+    show_hidden_details=False
+):
+    public_passed = public_result["passed_tests"]
+    public_total = public_result["total_tests"]
+
+    hidden_passed = hidden_result["passed_tests"]
+    hidden_total = hidden_result["total_tests"]
+
+    output_lines = []
+
+    output_lines.append(f"Открытые тесты: {public_passed} из {public_total}")
+
+    if hidden_total > 0:
+        output_lines.append(f"Скрытые тесты: {hidden_passed} из {hidden_total}")
+    else:
+        output_lines.append("Скрытые тесты: не заданы")
+
+    output_lines.append(f"Итоговый балл: {final_score} / 100")
+    output_lines.append("")
+    output_lines.append("--- Открытый отчёт проверки ---")
+    output_lines.append(public_result["output"])
+
+    if hidden_total > 0:
+        output_lines.append("")
+        output_lines.append("--- Скрытые тесты ---")
+
+        if show_hidden_details:
+            output_lines.append(hidden_result["output"])
+        else:
+            output_lines.append(
+                "Детали скрытых тестов не показываются студенту. "
+                "Они используются только для итоговой оценки."
+            )
+
+    return "\n".join(output_lines)
+
+
+def run_hdl_public_hidden_check(solution_path, lab, waveform_save_path=None):
+    public_testbench = ""
+
+    if "public_testbench" in lab.keys():
+        public_testbench = lab["public_testbench"] or ""
+
+    if not public_testbench:
+        public_testbench = lab["testbench"] or ""
+
+    hidden_testbench = ""
+
+    if "hidden_testbench" in lab.keys():
+        hidden_testbench = lab["hidden_testbench"] or ""
+
+    show_hidden_details = 0
+
+    if "show_hidden_details" in lab.keys():
+        show_hidden_details = int(lab["show_hidden_details"] or 0)
+
+    # 1. Запускаем открытые тесты.
+    public_status, public_output, public_score, public_passed, public_total, waveform_created = run_hdl_check(
+        solution_path,
+        public_testbench,
+        waveform_save_path
+    )
+
+    public_result = {
+        "status": public_status,
+        "output": public_output,
+        "score": public_score,
+        "passed_tests": public_passed,
+        "total_tests": public_total
+    }
+
+    # Если открытые тесты не скомпилировались, скрытые запускать нет смысла.
+    critical_statuses = [
+        "COMPILE_ERROR",
+        "SYSTEM_ERROR",
+        "TIMEOUT",
+        "SIMULATION_ERROR"
+    ]
+
+    if public_status in critical_statuses:
+        hidden_result = {
+            "status": "NOT_RUN",
+            "output": "Скрытые тесты не запускались, так как открытая проверка завершилась критической ошибкой.",
+            "score": 0,
+            "passed_tests": 0,
+            "total_tests": 0
+        }
+
+        final_score = 0
+
+        student_output = build_student_visible_hdl_output(
+            public_result=public_result,
+            hidden_result=hidden_result,
+            final_score=final_score,
+            show_hidden_details=False
+        )
+
+        return {
+            "status": public_status,
+            "output": student_output,
+            "score": final_score,
+            "passed_tests": public_passed,
+            "total_tests": public_total,
+            "public_status": public_status,
+            "public_score": public_score,
+            "public_passed_tests": public_passed,
+            "public_total_tests": public_total,
+            "public_output": public_output,
+            "hidden_status": "NOT_RUN",
+            "hidden_score": 0,
+            "hidden_passed_tests": 0,
+            "hidden_total_tests": 0,
+            "hidden_output": hidden_result["output"],
+            "waveform_created": waveform_created
+        }
+
+    # 2. Если скрытый testbench не задан, работаем как раньше.
+    if not hidden_testbench:
+        hidden_result = {
+            "status": "NOT_CONFIGURED",
+            "output": "Скрытые тесты для этой лабораторной работы не заданы.",
+            "score": 0,
+            "passed_tests": 0,
+            "total_tests": 0
+        }
+
+        final_passed = public_passed
+        final_total = public_total
+
+        if final_total > 0:
+            final_score = round((final_passed / final_total) * 100)
+        else:
+            final_score = public_score
+
+        if public_status == "PASSED":
+            final_status = "PASSED"
+        elif public_passed > 0:
+            final_status = "PARTIAL"
+        else:
+            final_status = "FAILED"
+
+        student_output = build_student_visible_hdl_output(
+            public_result=public_result,
+            hidden_result=hidden_result,
+            final_score=final_score,
+            show_hidden_details=False
+        )
+
+        return {
+            "status": final_status,
+            "output": student_output,
+            "score": final_score,
+            "passed_tests": final_passed,
+            "total_tests": final_total,
+            "public_status": public_status,
+            "public_score": public_score,
+            "public_passed_tests": public_passed,
+            "public_total_tests": public_total,
+            "public_output": public_output,
+            "hidden_status": "NOT_CONFIGURED",
+            "hidden_score": 0,
+            "hidden_passed_tests": 0,
+            "hidden_total_tests": 0,
+            "hidden_output": hidden_result["output"],
+            "waveform_created": waveform_created
+        }
+
+    # 3. Запускаем скрытые тесты.
+    hidden_status, hidden_output, hidden_score, hidden_passed, hidden_total, hidden_waveform_created = run_hdl_check(
+        solution_path,
+        hidden_testbench,
+        None
+    )
+
+    hidden_result = {
+        "status": hidden_status,
+        "output": hidden_output,
+        "score": hidden_score,
+        "passed_tests": hidden_passed,
+        "total_tests": hidden_total
+    }
+
+    # 4. Считаем итоговый результат по всем тестам.
+    final_passed = public_passed + hidden_passed
+    final_total = public_total + hidden_total
+
+    if final_total > 0:
+        final_score = round((final_passed / final_total) * 100)
+    else:
+        final_score = 0
+
+    if hidden_status in critical_statuses:
+        final_status = hidden_status
+    elif final_total > 0 and final_passed == final_total:
+        final_status = "PASSED"
+    elif final_passed > 0:
+        final_status = "PARTIAL"
+    else:
+        final_status = "FAILED"
+
+    student_output = build_student_visible_hdl_output(
+        public_result=public_result,
+        hidden_result=hidden_result,
+        final_score=final_score,
+        show_hidden_details=show_hidden_details
+    )
+
+    return {
+        "status": final_status,
+        "output": student_output,
+        "score": final_score,
+        "passed_tests": final_passed,
+        "total_tests": final_total,
+        "public_status": public_status,
+        "public_score": public_score,
+        "public_passed_tests": public_passed,
+        "public_total_tests": public_total,
+        "public_output": public_output,
+        "hidden_status": hidden_status,
+        "hidden_score": hidden_score,
+        "hidden_passed_tests": hidden_passed,
+        "hidden_total_tests": hidden_total,
+        "hidden_output": hidden_output,
+        "waveform_created": waveform_created
+    }
+
+
+def add_default_check_fields(result):
+    result.setdefault("public_status", "")
+    result.setdefault("public_score", 0)
+    result.setdefault("public_passed_tests", 0)
+    result.setdefault("public_total_tests", 0)
+    result.setdefault("public_output", "")
+
+    result.setdefault("hidden_status", "")
+    result.setdefault("hidden_score", 0)
+    result.setdefault("hidden_passed_tests", 0)
+    result.setdefault("hidden_total_tests", 0)
+    result.setdefault("hidden_output", "")
+
+    result.setdefault("waveform_created", False)
+
+    return result
+
 # Функція для запуску перевірки рішення студента на основі типу перевірки, визначеного в лабораторній роботі, 
 # та повернення результату перевірки у стандартному форматі, щоб забезпечити єдиний формат результатів перевірки 
 # для всіх типів лабораторних робіт та полегшити формування адаптивного навчального плану на основі результатів перевірки.
@@ -1680,52 +2280,44 @@ def run_solution_check(solution_path, lab, waveform_save_path=None):
     checker_type = lab["checker_type"] or "hdl_testbench"
 
     if checker_type == "hdl_testbench":
-        status, output, score, passed_tests, total_tests, waveform_created = run_hdl_check(
-            solution_path,
-            lab["testbench"],
-            waveform_save_path
+        return add_default_check_fields(
+            run_hdl_public_hidden_check(
+                solution_path=solution_path,
+                lab=lab,
+                waveform_save_path=waveform_save_path
+            )
         )
 
-        return {
-            "status": status,
-            "output": output,
-            "score": score,
-            "passed_tests": passed_tests,
-            "total_tests": total_tests,
-            "waveform_created": waveform_created
-        }
-
     if checker_type == "python_unit_tests":
-        return run_python_unit_tests_check(solution_path, lab)
+        return add_default_check_fields(
+            run_python_unit_tests_check(solution_path, lab)
+        )
 
     if checker_type == "sql_query":
-        return {
+        return add_default_check_fields({
             "status": "SYSTEM_ERROR",
             "output": "Проверка SQL-заданий пока не реализована.",
             "score": 0,
             "passed_tests": 0,
-            "total_tests": 0,
-            "waveform_created": False
-        }
+            "total_tests": 0
+        })
 
     if checker_type == "cpp_tests":
-        return {
+        return add_default_check_fields({
             "status": "SYSTEM_ERROR",
             "output": "Проверка C++-заданий пока не реализована.",
             "score": 0,
             "passed_tests": 0,
-            "total_tests": 0,
-            "waveform_created": False
-        }
+            "total_tests": 0
+        })
 
-    return {
+    return add_default_check_fields({
         "status": "SYSTEM_ERROR",
         "output": f"Неизвестный тип проверки: {checker_type}",
         "score": 0,
         "passed_tests": 0,
-        "total_tests": 0,
-        "waveform_created": False
-    }
+        "total_tests": 0
+    })
 
 
 # =========================
@@ -4256,40 +4848,89 @@ def submit_solution(lab_id):
     passed_tests = check_result["passed_tests"]
     total_tests = check_result["total_tests"]
 
+    public_status = check_result.get("public_status", status)
+    public_score = check_result.get("public_score", 0)
+    public_passed_tests = check_result.get("public_passed_tests", 0)
+    public_total_tests = check_result.get("public_total_tests", 0)
+    public_output = check_result.get("public_output", "")
+
+    hidden_status = check_result.get("hidden_status", "")
+    hidden_score = check_result.get("hidden_score", 0)
+    hidden_passed_tests = check_result.get("hidden_passed_tests", 0)
+    hidden_total_tests = check_result.get("hidden_total_tests", 0)
+    hidden_output = check_result.get("hidden_output", "")
+
 # Читаємо код студента з збереженого файлу, щоб передати його в функцію класифікації помилки та формування діагностики.
     with open(saved_path, "r", encoding="utf-8", errors="replace") as code_file:
         student_code = code_file.read()
 
-    diagnostics = classify_solution_error(
-        status=status,
-        output=output,
-        lab=lab,
-        code=student_code
-    )
+    if (
+        hidden_total_tests > 0
+        and hidden_passed_tests < hidden_total_tests
+        and public_total_tests > 0
+        and public_passed_tests == public_total_tests
+    ):
+        diagnostics = {
+            "error_type": "HIDDEN_TEST_FAILED",
+            "error_title": "Не пройдены скрытые тесты",
+            "error_details": (
+                "Решение прошло открытые тесты, но не прошло часть скрытых проверок. "
+                "Это означает, что код работает для известных примеров, но ошибается на дополнительных или граничных случаях."
+            ),
+            "recommendation": (
+                "Проверьте полную таблицу истинности, граничные комбинации входных сигналов и случаи, которые не были явно показаны в открытых тестах."
+            ),
+            "error_confidence": 85
+        }
+    else:
+        diagnostics = classify_solution_error(
+            status=status,
+            output=public_output or output,
+            lab=lab,
+            code=student_code
+        )
 
 # Зберігаємо результат відправки в базі даних, включаючи діагностику помилки, щоб потім використовувати цю інформацію для формування адаптивного навчального плану та надання студенту конкретних рекомендацій щодо виправлення помилки.
     conn.execute(
         """
         INSERT INTO submissions
-        (lab_id, username, filename, waveform_filename, status, score, passed_tests, total_tests,
+        (lab_id, username, filename, waveform_filename,
+        status, score, passed_tests, total_tests,
+        public_status, public_score, public_passed_tests, public_total_tests, public_output,
+        hidden_status, hidden_score, hidden_passed_tests, hidden_total_tests, hidden_output,
         error_type, error_title, error_details, recommendation, error_confidence,
         output, created_at, attempt_number, file_deleted, file_hidden_for_student)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             lab_id,
             session["username"],
             saved_filename,
             waveform_filename,
+
             status,
             score,
             passed_tests,
             total_tests,
+
+            public_status,
+            public_score,
+            public_passed_tests,
+            public_total_tests,
+            public_output,
+
+            hidden_status,
+            hidden_score,
+            hidden_passed_tests,
+            hidden_total_tests,
+            hidden_output,
+
             diagnostics["error_type"],
             diagnostics["error_title"],
             diagnostics["error_details"],
             diagnostics["recommendation"],
             diagnostics["error_confidence"],
+
             output,
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             attempt_number,
@@ -4419,6 +5060,18 @@ def submit_code_from_editor(lab_id):
     passed_tests = check_result["passed_tests"]
     total_tests = check_result["total_tests"]
 
+    public_status = check_result.get("public_status", status)
+    public_score = check_result.get("public_score", 0)
+    public_passed_tests = check_result.get("public_passed_tests", 0)
+    public_total_tests = check_result.get("public_total_tests", 0)
+    public_output = check_result.get("public_output", "")
+
+    hidden_status = check_result.get("hidden_status", "")
+    hidden_score = check_result.get("hidden_score", 0)
+    hidden_passed_tests = check_result.get("hidden_passed_tests", 0)
+    hidden_total_tests = check_result.get("hidden_total_tests", 0)
+    hidden_output = check_result.get("hidden_output", "")
+
     diagnostics = classify_solution_error(
         status=status,
         output=output,
@@ -4429,25 +5082,43 @@ def submit_code_from_editor(lab_id):
     conn.execute(
         """
         INSERT INTO submissions
-        (lab_id, username, filename, waveform_filename, status, score, passed_tests, total_tests,
+        (lab_id, username, filename, waveform_filename,
+        status, score, passed_tests, total_tests,
+        public_status, public_score, public_passed_tests, public_total_tests, public_output,
+        hidden_status, hidden_score, hidden_passed_tests, hidden_total_tests, hidden_output,
         error_type, error_title, error_details, recommendation, error_confidence,
         output, created_at, attempt_number, file_deleted, file_hidden_for_student)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             lab_id,
             session["username"],
             saved_filename,
             waveform_filename,
+
             status,
             score,
             passed_tests,
             total_tests,
+
+            public_status,
+            public_score,
+            public_passed_tests,
+            public_total_tests,
+            public_output,
+
+            hidden_status,
+            hidden_score,
+            hidden_passed_tests,
+            hidden_total_tests,
+            hidden_output,
+
             diagnostics["error_type"],
             diagnostics["error_title"],
             diagnostics["error_details"],
             diagnostics["recommendation"],
             diagnostics["error_confidence"],
+
             output,
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             attempt_number,
@@ -4670,7 +5341,58 @@ def improve_score(submission_id):
 
 
 # =========================
-# 13. Grade routes - оцінки
+# 13. Waveform routes - временные диаграммы
+# =========================
+
+@app.route("/waveform-view/<int:submission_id>")
+@login_required
+def view_waveform(submission_id):
+    submission = get_waveform_submission_for_current_user(submission_id)
+
+    if not submission["waveform_filename"]:
+        flash("Для этой попытки временная диаграмма недоступна.")
+        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
+
+    waveform_path = os.path.join(WAVEFORM_DIR, submission["waveform_filename"])
+
+    if not os.path.exists(waveform_path):
+        flash("Файл временной диаграммы отсутствует на сервере.")
+        return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
+
+    return render_template(
+        "student/waveform_viewer.html",
+        submission=submission
+    )
+
+@app.route("/waveform-data/<int:submission_id>")
+@login_required
+def waveform_data(submission_id):
+    submission = get_waveform_submission_for_current_user(submission_id)
+
+    if not submission["waveform_filename"]:
+        return jsonify({
+            "timescale": "",
+            "max_time": 0,
+            "signals": [],
+            "error": "Для этой попытки временная диаграмма недоступна."
+        })
+
+    waveform_path = os.path.join(WAVEFORM_DIR, submission["waveform_filename"])
+
+    if not os.path.exists(waveform_path):
+        return jsonify({
+            "timescale": "",
+            "max_time": 0,
+            "signals": [],
+            "error": "VCD-файл не найден на сервере."
+        })
+
+    parsed = parse_vcd_file(waveform_path)
+
+    return jsonify(parsed)
+
+# =========================
+# 15. Grade routes - оцінки
 # =========================
 
 @app.route("/grades/lab/<int:lab_id>/<username>/update", methods=["POST"])
@@ -5216,7 +5938,7 @@ def admin_teacher_access():
 
 
 # =========================
-# 15. Teacher routes - викладач
+# 16. Teacher routes - викладач
 # =========================
 
 # Роут для вчителя, який відображає загальну статистику по всім лабораторним роботам та відправкам студентів,
@@ -6292,7 +7014,11 @@ def add_lab():
 
     title = request.form.get("title", "").strip()
     description = request.form.get("description", "").strip()
-    testbench = request.form.get("testbench", "").strip()
+    public_testbench = request.form.get("public_testbench", "").strip()
+    hidden_testbench = request.form.get("hidden_testbench", "").strip()
+    show_hidden_details = 1 if request.form.get("show_hidden_details") == "on" else 0
+
+    testbench = public_testbench
 
     discipline = request.form.get("discipline", "FPGA-проектирование").strip()
     programming_language = request.form.get("programming_language", "Verilog").strip()
@@ -6306,8 +7032,8 @@ def add_lab():
     max_attempts = request.form.get("max_attempts", "3")
     allow_extra_questions = 1 if request.form.get("allow_extra_questions") == "on" else 0
 
-    if not title or not description or not testbench:
-        flash("Нужно заполнить название, описание и проверочный сценарий.")
+    if not title or not description or not public_testbench:
+        flash("Нужно заполнить название, описание и открытый testbench.")
         return redirect(url_for("teacher_panel"))
 
     try:
@@ -6326,6 +7052,9 @@ def add_lab():
             title,
             description,
             testbench,
+            public_testbench,
+            hidden_testbench,
+            show_hidden_details,
             discipline,
             programming_language,
             checker_type,
@@ -6339,12 +7068,15 @@ def add_lab():
             created_by,
             created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             title,
             description,
             testbench,
+            public_testbench,
+            hidden_testbench,
+            show_hidden_details,
             discipline,
             programming_language,
             checker_type,
@@ -6387,7 +7119,11 @@ def edit_lab(lab_id):
     if request.method == "POST":
         title = request.form.get("title", "").strip()
         description = request.form.get("description", "").strip()
-        testbench = request.form.get("testbench", "").strip()
+        public_testbench = request.form.get("public_testbench", "").strip()
+        hidden_testbench = request.form.get("hidden_testbench", "").strip()
+        show_hidden_details = 1 if request.form.get("show_hidden_details") == "on" else 0
+
+        testbench = public_testbench
 
         discipline = request.form.get("discipline", "FPGA-проектирование").strip()
         programming_language = request.form.get("programming_language", "Verilog").strip()
@@ -6408,9 +7144,9 @@ def edit_lab(lab_id):
 
         allow_extra_questions = 1 if request.form.get("allow_extra_questions") == "on" else 0
 
-        if not title or not description or not testbench:
+        if not title or not description or not public_testbench:
             conn.close()
-            flash("Название, описание и проверочный сценарий обязательны для заполнения.")
+            flash("Название, описание и открытый testbench обязательны для заполнения.")
             return redirect(url_for("edit_lab", lab_id=lab_id))
 
         conn.execute(
@@ -6419,6 +7155,9 @@ def edit_lab(lab_id):
             SET title = ?,
                 description = ?,
                 testbench = ?,
+                public_testbench = ?,
+                hidden_testbench = ?,
+                show_hidden_details = ?,
                 discipline = ?,
                 programming_language = ?,
                 checker_type = ?,
@@ -6435,6 +7174,9 @@ def edit_lab(lab_id):
                 title,
                 description,
                 testbench,
+                public_testbench,
+                hidden_testbench,
+                show_hidden_details,
                 discipline,
                 programming_language,
                 checker_type,
@@ -6487,7 +7229,7 @@ def delete_lab(lab_id):
 
 
 # =========================
-# 16. App start
+# 17. App start
 # =========================
 
 if __name__ == "__main__":

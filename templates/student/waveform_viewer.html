@@ -1,0 +1,694 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+
+<a href="{{ url_for('lab_detail', lab_id=submission['lab_id']) }}"
+   class="btn btn-outline-secondary btn-sm mb-3">
+    ← Назад к лабораторной работе
+</a>
+
+<div class="card shadow-sm border-0 rounded-4 mb-4">
+    <div class="card-body p-4">
+
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+            <div>
+                <h1 class="mb-1">Просмотр временной диаграммы</h1>
+                <p class="text-muted mb-0">
+                    Лабораторная работа: <b>{{ submission["lab_title"] }}</b>
+                </p>
+
+                <p class="text-muted mb-0 small">
+                    Попытка {{ submission["attempt_number"] or 1 }} ·
+                    {{ submission["created_at"] }} ·
+                    {{ submission["filename"] }}
+                </p>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ url_for('download_waveform', submission_id=submission['id']) }}"
+                   class="btn btn-outline-info">
+                    Скачать .vcd
+                </a>
+
+                <button type="button" class="btn btn-outline-secondary" id="zoomOutBtn">
+                    −
+                </button>
+
+                <button type="button" class="btn btn-outline-secondary" id="zoomInBtn">
+                    +
+                </button>
+
+                <button type="button" class="btn btn-outline-primary" id="fitBtn">
+                    По размеру
+                </button>
+            </div>
+        </div>
+
+        <div class="alert alert-light border rounded-4 mb-3">
+            <div class="row">
+                <div class="col-md-3 mb-2">
+                    <div class="text-muted small">Timescale</div>
+                    <b id="timescaleLabel">—</b>
+                </div>
+
+                <div class="col-md-3 mb-2">
+                    <div class="text-muted small">Максимальное время</div>
+                    <b id="maxTimeLabel">—</b>
+                </div>
+
+                <div class="col-md-3 mb-2">
+                    <div class="text-muted small">Сигналов</div>
+                    <b id="signalsCountLabel">—</b>
+                </div>
+
+                <div class="col-md-3 mb-2">
+                    <div class="text-muted small">Курсор</div>
+                    <b id="cursorTimeLabel">—</b>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Фильтр сигналов</label>
+            <input type="text"
+                   id="signalFilter"
+                   class="form-control"
+                   placeholder="Например: clk, reset, sel, y, count, state">
+            <div class="form-text">
+                Можно быстро отфильтровать нужные сигналы по имени.
+            </div>
+        </div>
+
+        <div id="waveformError" class="alert alert-danger rounded-4 d-none"></div>
+
+        <div class="waveform-wrapper">
+            <svg id="waveformSvg"></svg>
+        </div>
+
+        <div class="card border-0 bg-light rounded-4 mt-3">
+            <div class="card-body">
+                <h5 class="mb-3">Значения сигналов в точке курсора</h5>
+                <div id="cursorValues" class="cursor-values">
+                    Наведите курсор на диаграмму.
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .waveform-wrapper {
+        width: 100%;
+        overflow: auto;
+        border: 1px solid rgba(148, 163, 184, 0.45);
+        border-radius: 18px;
+        background: #ffffff;
+        max-height: 720px;
+    }
+
+    #waveformSvg {
+        display: block;
+        font-family: Consolas, Monaco, "Courier New", monospace;
+        background: #ffffff;
+    }
+
+    .wf-bg-header {
+        fill: #f8fafc;
+    }
+
+    .wf-bg-name {
+        fill: #f8fafc;
+    }
+
+    .wf-grid-line {
+        stroke: #e2e8f0;
+        stroke-width: 1;
+    }
+
+    .wf-axis-text {
+        fill: #64748b;
+        font-size: 12px;
+    }
+
+    .wf-signal-name {
+        fill: #0f172a;
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    .wf-signal-meta {
+        fill: #64748b;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .wf-wave-line {
+        stroke: #2563eb;
+        stroke-width: 2;
+        fill: none;
+    }
+
+    .wf-wave-unknown {
+        stroke: #f97316;
+        stroke-width: 2;
+        fill: none;
+        stroke-dasharray: 4 4;
+    }
+
+    .wf-bus-box {
+        fill: #eff6ff;
+        stroke: #2563eb;
+        stroke-width: 1;
+    }
+
+    .wf-bus-text {
+        fill: #1e3a8a;
+        font-size: 12px;
+    }
+
+    .wf-row-line {
+        stroke: #f1f5f9;
+        stroke-width: 1;
+    }
+
+    .wf-cursor-line {
+        stroke: #ef4444;
+        stroke-width: 1.5;
+        stroke-dasharray: 5 5;
+        pointer-events: none;
+    }
+
+    .cursor-values {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .cursor-value-pill {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #ffffff;
+        border: 1px solid rgba(148, 163, 184, 0.45);
+        font-family: Consolas, Monaco, "Courier New", monospace;
+        font-size: 13px;
+    }
+</style>
+
+<script>
+    const waveformDataUrl = "{{ url_for('waveform_data', submission_id=submission['id']) }}";
+
+    const svg = document.getElementById("waveformSvg");
+    const waveformError = document.getElementById("waveformError");
+
+    const timescaleLabel = document.getElementById("timescaleLabel");
+    const maxTimeLabel = document.getElementById("maxTimeLabel");
+    const signalsCountLabel = document.getElementById("signalsCountLabel");
+    const cursorTimeLabel = document.getElementById("cursorTimeLabel");
+    const cursorValues = document.getElementById("cursorValues");
+
+    const zoomInBtn = document.getElementById("zoomInBtn");
+    const zoomOutBtn = document.getElementById("zoomOutBtn");
+    const fitBtn = document.getElementById("fitBtn");
+    const signalFilter = document.getElementById("signalFilter");
+
+    let waveformData = null;
+    let visibleSignals = [];
+
+    let pixelsPerTime = 0.008;
+    let cursorLine = null;
+
+    const leftWidth = 180;
+    const topHeight = 52;
+    const rowHeight = 62;
+    const rightPadding = 60;
+    const minWaveWidth = 620;
+
+    function createSvgElement(tag, attrs = {}) {
+        const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+
+        Object.keys(attrs).forEach(key => {
+            element.setAttribute(key, attrs[key]);
+        });
+
+        return element;
+    }
+
+    function clearSvg() {
+        while (svg.firstChild) {
+            svg.removeChild(svg.firstChild);
+        }
+    }
+
+    function getSignalValueAt(signal, time) {
+        let currentValue = "x";
+
+        for (const change of signal.changes) {
+            if (change.time <= time) {
+                currentValue = change.value;
+            } else {
+                break;
+            }
+        }
+
+        return currentValue;
+    }
+
+    function getTimeTicks(maxTime) {
+        if (maxTime <= 0) {
+            return [0];
+        }
+
+        const targetTicks = 10;
+        const rawStep = maxTime / targetTicks;
+        const power = Math.pow(10, Math.floor(Math.log10(rawStep)));
+        const normalized = rawStep / power;
+
+        let niceStep;
+
+        if (normalized <= 1) {
+            niceStep = 1 * power;
+        } else if (normalized <= 2) {
+            niceStep = 2 * power;
+        } else if (normalized <= 5) {
+            niceStep = 5 * power;
+        } else {
+            niceStep = 10 * power;
+        }
+
+        const ticks = [];
+
+        for (let time = 0; time <= maxTime; time += niceStep) {
+            ticks.push(time);
+        }
+
+        if (ticks[ticks.length - 1] !== maxTime) {
+            ticks.push(maxTime);
+        }
+
+        return ticks;
+    }
+
+    function formatValueForDisplay(signal, value) {
+        if (signal.size <= 1) {
+            return value;
+        }
+
+        if (/^[01]+$/.test(value)) {
+            if (value.length > 8) {
+                const decimal = parseInt(value, 2);
+                if (!Number.isNaN(decimal)) {
+                    return value + " / 0x" + decimal.toString(16).toUpperCase();
+                }
+            }
+
+            return value;
+        }
+
+        return value;
+    }
+
+    function drawAxis(maxTime, width, height) {
+        const headerBg = createSvgElement("rect", {
+            x: 0,
+            y: 0,
+            width: width,
+            height: topHeight,
+            class: "wf-bg-header"
+        });
+
+        svg.appendChild(headerBg);
+
+        const nameBg = createSvgElement("rect", {
+            x: 0,
+            y: 0,
+            width: leftWidth,
+            height: height,
+            class: "wf-bg-name"
+        });
+
+        svg.appendChild(nameBg);
+
+        const separator = createSvgElement("line", {
+            x1: leftWidth,
+            y1: 0,
+            x2: leftWidth,
+            y2: height,
+            class: "wf-grid-line"
+        });
+
+        svg.appendChild(separator);
+
+        const ticks = getTimeTicks(maxTime);
+
+        ticks.forEach(time => {
+            const x = leftWidth + time * pixelsPerTime;
+
+            const gridLine = createSvgElement("line", {
+                x1: x,
+                y1: topHeight,
+                x2: x,
+                y2: height,
+                class: "wf-grid-line"
+            });
+
+            svg.appendChild(gridLine);
+
+            const label = createSvgElement("text", {
+                x: x + 4,
+                y: 25,
+                class: "wf-axis-text"
+            });
+
+            label.textContent = time;
+            svg.appendChild(label);
+        });
+
+        const timeLabel = createSvgElement("text", {
+            x: leftWidth + 8,
+            y: 40,
+            class: "wf-axis-text"
+        });
+
+        timeLabel.textContent = "time";
+        svg.appendChild(timeLabel);
+    }
+
+    function drawSignalName(signal, rowIndex) {
+        const y = topHeight + rowIndex * rowHeight;
+
+        const rowLine = createSvgElement("line", {
+            x1: 0,
+            y1: y + rowHeight,
+            x2: "100%",
+            y2: y + rowHeight,
+            class: "wf-row-line"
+        });
+
+        svg.appendChild(rowLine);
+
+        const nameText = createSvgElement("text", {
+            x: 16,
+            y: y + 25,
+            class: "wf-signal-name"
+        });
+
+        nameText.textContent = signal.short_name || signal.name;
+        svg.appendChild(nameText);
+
+        const metaText = createSvgElement("text", {
+            x: 16,
+            y: y + 45,
+            class: "wf-signal-meta"
+        });
+
+        metaText.textContent = signal.size > 1
+            ? `${signal.name} [${signal.size} bit]`
+            : signal.name;
+
+        svg.appendChild(metaText);
+    }
+
+    function drawScalarSignal(signal, rowIndex, maxTime) {
+        const yBase = topHeight + rowIndex * rowHeight;
+        const yHigh = yBase + 14;
+        const yLow = yBase + 40;
+        const yUnknown = yBase + 27;
+
+        const changes = signal.changes;
+
+        if (!changes || changes.length === 0) {
+            return;
+        }
+
+        let pathData = "";
+
+        for (let i = 0; i < changes.length; i++) {
+            const current = changes[i];
+            const next = changes[i + 1];
+
+            const startTime = current.time;
+            const endTime = next ? next.time : maxTime;
+
+            const startX = leftWidth + startTime * pixelsPerTime;
+            const endX = leftWidth + endTime * pixelsPerTime;
+
+            let y;
+
+            if (current.value === "1") {
+                y = yHigh;
+            } else if (current.value === "0") {
+                y = yLow;
+            } else {
+                y = yUnknown;
+            }
+
+            if (i === 0) {
+                pathData += `M ${startX} ${y} `;
+            } else {
+                pathData += `L ${startX} ${y} `;
+            }
+
+            pathData += `L ${endX} ${y} `;
+
+            if (next) {
+                let nextY;
+
+                if (next.value === "1") {
+                    nextY = yHigh;
+                } else if (next.value === "0") {
+                    nextY = yLow;
+                } else {
+                    nextY = yUnknown;
+                }
+
+                pathData += `L ${endX} ${nextY} `;
+            }
+        }
+
+        const hasUnknown = changes.some(change => !["0", "1"].includes(change.value));
+
+        const path = createSvgElement("path", {
+            d: pathData,
+            class: hasUnknown ? "wf-wave-unknown" : "wf-wave-line"
+        });
+
+        svg.appendChild(path);
+    }
+
+    function drawBusSignal(signal, rowIndex, maxTime) {
+        const yBase = topHeight + rowIndex * rowHeight;
+        const y = yBase + 12;
+        const height = 24;
+
+        const changes = signal.changes;
+
+        if (!changes || changes.length === 0) {
+            return;
+        }
+
+        for (let i = 0; i < changes.length; i++) {
+            const current = changes[i];
+            const next = changes[i + 1];
+
+            const startTime = current.time;
+            const endTime = next ? next.time : maxTime;
+
+            const startX = leftWidth + startTime * pixelsPerTime;
+            const endX = leftWidth + endTime * pixelsPerTime;
+            const width = Math.max(endX - startX, 2);
+
+            const rect = createSvgElement("rect", {
+                x: startX,
+                y: y,
+                width: width,
+                height: height,
+                rx: 6,
+                class: "wf-bus-box"
+            });
+
+            svg.appendChild(rect);
+
+            if (width > 40) {
+                const text = createSvgElement("text", {
+                    x: startX + 6,
+                    y: y + 17,
+                    class: "wf-bus-text"
+                });
+
+                text.textContent = formatValueForDisplay(signal, current.value);
+                svg.appendChild(text);
+            }
+        }
+    }
+
+    function drawCursor(height) {
+        cursorLine = createSvgElement("line", {
+            x1: leftWidth,
+            y1: topHeight,
+            x2: leftWidth,
+            y2: height,
+            class: "wf-cursor-line"
+        });
+
+        svg.appendChild(cursorLine);
+    }
+
+    function updateCursor(mouseX) {
+        if (!waveformData || !cursorLine) {
+            return;
+        }
+
+        const svgRect = svg.getBoundingClientRect();
+        const relativeX = mouseX - svgRect.left;
+
+        let time = Math.round((relativeX - leftWidth) / pixelsPerTime);
+
+        if (time < 0) {
+            time = 0;
+        }
+
+        if (time > waveformData.max_time) {
+            time = waveformData.max_time;
+        }
+
+        const x = leftWidth + time * pixelsPerTime;
+
+        cursorLine.setAttribute("x1", x);
+        cursorLine.setAttribute("x2", x);
+
+        cursorTimeLabel.textContent = `${time} ${waveformData.timescale}`;
+
+        const valuesHtml = visibleSignals.map(signal => {
+            const value = getSignalValueAt(signal, time);
+            const displayValue = formatValueForDisplay(signal, value);
+
+            return `
+                <span class="cursor-value-pill">
+                    <b>${signal.short_name}</b> = ${displayValue}
+                </span>
+            `;
+        }).join("");
+
+        cursorValues.innerHTML = valuesHtml || "Нет сигналов для отображения.";
+    }
+
+    function renderWaveform() {
+        if (!waveformData) {
+            return;
+        }
+
+        clearSvg();
+
+        const maxTime = waveformData.max_time || 1;
+        const calculatedWaveWidth = leftWidth + maxTime * pixelsPerTime + rightPadding;
+        const width = Math.max(calculatedWaveWidth, minWaveWidth);
+        const height = topHeight + visibleSignals.length * rowHeight + 20;
+
+        svg.setAttribute("width", width);
+        svg.setAttribute("height", height);
+        svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+        drawAxis(maxTime, width, height);
+
+        visibleSignals.forEach((signal, index) => {
+            drawSignalName(signal, index);
+
+            if (signal.size > 1) {
+                drawBusSignal(signal, index, maxTime);
+            } else {
+                drawScalarSignal(signal, index, maxTime);
+            }
+        });
+
+        drawCursor(height);
+    }
+
+    function applySignalFilter() {
+        if (!waveformData) {
+            return;
+        }
+
+        const query = signalFilter.value.trim().toLowerCase();
+
+        if (!query) {
+            visibleSignals = waveformData.signals;
+        } else {
+            visibleSignals = waveformData.signals.filter(signal => {
+                return signal.name.toLowerCase().includes(query)
+                    || signal.short_name.toLowerCase().includes(query);
+            });
+        }
+
+        signalsCountLabel.textContent = `${visibleSignals.length} / ${waveformData.signals.length}`;
+        renderWaveform();
+    }
+
+    function fitToScreen() {
+        if (!waveformData || waveformData.max_time <= 0) {
+            return;
+        }
+
+        const wrapper = document.querySelector(".waveform-wrapper");
+        const availableWidth = wrapper.clientWidth - leftWidth - rightPadding;
+
+        const calculatedScale = availableWidth / waveformData.max_time;
+
+        // Не даём диаграмме становиться слишком растянутой.
+        // Для больших значений времени масштаб ограничивается сверху.
+        pixelsPerTime = Math.min(0.012, Math.max(0.004, calculatedScale));
+
+        renderWaveform();
+    }
+
+    async function loadWaveform() {
+        try {
+            const response = await fetch(waveformDataUrl);
+            const data = await response.json();
+
+            if (data.error) {
+                waveformError.textContent = data.error;
+                waveformError.classList.remove("d-none");
+                return;
+            }
+
+            waveformData = data;
+            visibleSignals = data.signals;
+
+            timescaleLabel.textContent = data.timescale || "—";
+            maxTimeLabel.textContent = `${data.max_time} ${data.timescale}`;
+            signalsCountLabel.textContent = data.signals.length;
+
+            renderWaveform();
+        } catch (error) {
+            waveformError.textContent = "Не удалось загрузить временную диаграмму: " + error;
+            waveformError.classList.remove("d-none");
+        }
+    }
+
+    zoomInBtn.addEventListener("click", function () {
+        pixelsPerTime = pixelsPerTime * 1.4;
+        renderWaveform();
+    });
+
+    zoomOutBtn.addEventListener("click", function () {
+        pixelsPerTime = Math.max(0.2, pixelsPerTime / 1.4);
+        renderWaveform();
+    });
+
+    fitBtn.addEventListener("click", function () {
+        fitToScreen();
+    });
+
+    signalFilter.addEventListener("input", function () {
+        applySignalFilter();
+    });
+
+    svg.addEventListener("mousemove", function (event) {
+        updateCursor(event.clientX);
+    });
+
+    loadWaveform();
+</script>
+
+{% endblock %}

@@ -124,11 +124,47 @@
 
             <div class="mb-3">
                 <label class="form-label">Проверочный сценарий testbench / проверочный код</label>
-                <textarea name="testbench"
-                        rows="12"
-                        class="form-control code-area"
-                        required
-                        placeholder="Вставьте testbench для проверки решения"></textarea>
+                    <div class="mb-3">
+                        <label class="form-label">Открытый testbench</label>
+                        <textarea name="public_testbench"
+                                rows="12"
+                                class="form-control code-area"
+                                required
+                                placeholder="Этот testbench студент увидит через подробный отчёт проверки"></textarea>
+
+                        <div class="form-text">
+                            Открытые тесты показываются студенту подробно: входные значения, ожидаемый результат и фактический результат.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Скрытый testbench</label>
+                        <textarea name="hidden_testbench"
+                                rows="12"
+                                class="form-control code-area"
+                                placeholder="Этот testbench используется только для итоговой оценки"></textarea>
+
+                        <div class="form-text">
+                            Скрытые тесты позволяют проверить дополнительные и граничные случаи. Подробности по ним по умолчанию не показываются студенту.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                type="checkbox"
+                                name="show_hidden_details"
+                                id="show_hidden_details">
+
+                            <label class="form-check-label" for="show_hidden_details">
+                                Показывать студенту подробности скрытых тестов
+                            </label>
+                        </div>
+
+                        <div class="form-text">
+                            Обычно эту настройку лучше оставить выключенной, чтобы студент видел только количество пройденных скрытых тестов.
+                        </div>
+                    </div>
 
                 <div class="form-text">
                     Для Verilog здесь указывается testbench. Именно он будет запускаться при автоматической проверке.

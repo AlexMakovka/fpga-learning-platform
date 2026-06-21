@@ -125,13 +125,43 @@
             <hr class="my-4">
 
             <div class="mb-3">
-                <label class="form-label">Проверочный сценарий testbench / проверочный код</label>
-                <textarea name="testbench"
-                          rows="12"
-                          class="form-control code-area"
-                          required>{{ lab["testbench"] }}</textarea>
+                <label class="form-label">Открытый testbench</label>
+                <textarea name="public_testbench"
+                        rows="12"
+                        class="form-control code-area"
+                        required>{{ lab["public_testbench"] or lab["testbench"] or "" }}</textarea>
+
                 <div class="form-text">
-                    Для Verilog здесь указывается testbench. Для будущих Python-заданий здесь можно хранить unit-тесты.
+                    Открытые тесты показываются студенту подробно и используются для учебной диагностики ошибок.
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Скрытый testbench</label>
+                <textarea name="hidden_testbench"
+                        rows="12"
+                        class="form-control code-area">{{ lab["hidden_testbench"] or "" }}</textarea>
+
+                <div class="form-text">
+                    Скрытые тесты используются для итоговой оценки. Студент по умолчанию видит только количество пройденных скрытых тестов.
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check">
+                    <input class="form-check-input"
+                        type="checkbox"
+                        name="show_hidden_details"
+                        id="show_hidden_details"
+                        {% if lab["show_hidden_details"] %}checked{% endif %}>
+
+                    <label class="form-check-label" for="show_hidden_details">
+                        Показывать студенту подробности скрытых тестов
+                    </label>
+                </div>
+
+                <div class="form-text">
+                    Обычно эту настройку лучше не включать, чтобы скрытые проверки оставались закрытыми.
                 </div>
             </div>
 

@@ -26,7 +26,7 @@ body {
 
 .lab-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12) !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
 }
 
 
@@ -188,7 +188,7 @@ main.container {
 
 .auth-main {
     min-height: calc(100vh - var(--topbar-height));
-    padding: 0 !important;
+    padding: 0;
 }
 
 
@@ -325,7 +325,7 @@ details.card[open] summary::after {
 .student-column {
     min-width: 240px;
     max-width: 280px;
-    text-align: left !important;
+    text-align: left;
     position: sticky;
     left: 0;
     z-index: 2;
@@ -1006,7 +1006,7 @@ details.card[open] summary::after {
 }
 
 .landing-google-btn {
-    width: auto !important;
+    width: auto;
     padding-left: 20px;
     padding-right: 20px;
 }
@@ -1367,7 +1367,7 @@ details.card[open] summary::after {
     .auth-card,
     .auth-info-panel,
     .alert {
-        animation: none !important;
+        animation: none;
     }
 }
 
@@ -1520,138 +1520,138 @@ details.card[open] summary::after {
    ========================================================= */
 
 .auth-page .auth-split-shell.landing-split-shell {
-    width: min(1120px, 100%) !important;
-    grid-template-columns: minmax(590px, 1.32fr) minmax(460px, 1fr) !important;
-    gap: 24px !important;
-    align-items: stretch !important;
+    width: min(1120px, 100%);
+    grid-template-columns: minmax(590px, 1.32fr) minmax(460px, 1fr);
+    gap: 24px;
+    align-items: stretch;
 }
 
 /* Левая карточка — чуть уже и ниже */
 .auth-page .landing-info-panel {
-    min-height: 480px !important;
-    padding: 40px 42px !important;
+    min-height: 480px;
+    padding: 40px 42px;
 }
 
 /* Правая карточка — шире и полноценнее */
 .auth-page .landing-main-card {
-    min-height: 480px !important;
-    padding: 24px !important;
+    min-height: 480px;
+    padding: 24px;
 }
 
 /* Заголовок слева компактнее */
 .auth-page .landing-info-panel .auth-info-title {
-    max-width: 560px !important;
-    font-size: 36px !important;
-    line-height: 1.08 !important;
-    margin-bottom: 18px !important;
+    max-width: 560px;
+    font-size: 36px;
+    line-height: 1.08;
+    margin-bottom: 18px;
 }
 
 .auth-page .landing-info-panel .auth-info-text {
-    max-width: 540px !important;
-    font-size: 15px !important;
-    line-height: 1.65 !important;
-    margin-bottom: 16px !important;
+    max-width: 540px;
+    font-size: 15px;
+    line-height: 1.65;
+    margin-bottom: 16px;
 }
 
 /* Правая часть: убираем ощущение кучи отдельных коробок */
 .auth-page .landing-main-card .main-panel-card {
-    padding: 22px 22px 18px !important;
-    border-radius: 20px !important;
-    background: rgba(255, 255, 255, 0.64) !important;
-    border: 1px solid rgba(220, 228, 240, 0.55) !important;
-    box-shadow: none !important;
+    padding: 22px 22px 18px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.64);
+    border: 1px solid rgba(220, 228, 240, 0.55);
+    box-shadow: none;
 }
 
 .auth-page .landing-main-card .main-panel-card h3 {
-    font-size: 21px !important;
-    line-height: 1.18 !important;
-    margin-bottom: 10px !important;
+    font-size: 21px;
+    line-height: 1.18;
+    margin-bottom: 10px;
 }
 
 .auth-page .landing-main-card .main-panel-card p {
-    font-size: 13.5px !important;
-    line-height: 1.55 !important;
+    font-size: 13.5px;
+    line-height: 1.55;
 }
 
 /* Общая зона функций */
 .auth-page .landing-main-card .landing-feature-grid {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 10px !important;
-    margin-top: 14px !important;
-    padding: 12px !important;
-    border-radius: 20px !important;
-    background: rgba(255, 255, 255, 0.42) !important;
-    border: 1px solid rgba(220, 228, 240, 0.48) !important;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 12px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.42);
+    border: 1px solid rgba(220, 228, 240, 0.48);
 }
 
 /* Функции внутри — мягче, без жесткого разделения */
 .auth-page .landing-main-card .landing-feature-card {
-    min-height: 108px !important;
-    padding: 15px 15px 13px !important;
-    border-radius: 15px !important;
-    background: rgba(255, 255, 255, 0.46) !important;
-    border: none !important;
-    box-shadow: none !important;
+    min-height: 108px;
+    padding: 15px 15px 13px;
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.46);
+    border: none;
+    box-shadow: none;
 }
 
 .auth-page .landing-main-card .feature-icon {
-    width: 32px !important;
-    height: 32px !important;
-    border-radius: 11px !important;
-    font-size: 12px !important;
-    margin-bottom: 9px !important;
+    width: 32px;
+    height: 32px;
+    border-radius: 11px;
+    font-size: 12px;
+    margin-bottom: 9px;
 }
 
 .auth-page .landing-main-card .landing-feature-card h4 {
-    font-size: 15px !important;
-    line-height: 1.2 !important;
-    margin-bottom: 5px !important;
+    font-size: 15px;
+    line-height: 1.2;
+    margin-bottom: 5px;
 }
 
 .auth-page .landing-main-card .landing-feature-card p {
-    font-size: 12.3px !important;
-    line-height: 1.45 !important;
+    font-size: 12.3px;
+    line-height: 1.45;
 }
 
 /* Кнопки слева */
 .auth-page .landing-info-panel .landing-actions {
-    margin-top: 30px !important;
-    margin-bottom: 8px !important;
-    gap: 12px !important;
+    margin-top: 30px;
+    margin-bottom: 8px;
+    gap: 12px;
 }
 
 .auth-page .landing-info-panel .landing-actions .btn {
-    height: 44px !important;
-    min-height: 44px !important;
-    padding: 0 20px !important;
-    border-radius: 14px !important;
-    font-size: 14px !important;
-    font-weight: 800 !important;
+    height: 44px;
+    min-height: 44px;
+    padding: 0 20px;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: 800;
 }
 
 .auth-page .landing-info-panel .landing-google-btn {
-    min-width: 112px !important;
+    min-width: 112px;
 }
 
 /* Нижняя плашка */
 .auth-page .landing-info-panel .auth-info-note {
-    max-width: 500px !important;
-    margin-top: 18px !important;
-    padding: 11px 15px !important;
-    font-size: 12px !important;
-    line-height: 1.45 !important;
+    max-width: 500px;
+    margin-top: 18px;
+    padding: 11px 15px;
+    font-size: 12px;
+    line-height: 1.45;
 }
 
 /* Адаптив */
 @media (max-width: 992px) {
     .auth-page .auth-split-shell.landing-split-shell {
-        grid-template-columns: 1fr !important;
-        width: min(680px, 100%) !important;
+        grid-template-columns: 1fr;
+        width: min(680px, 100%);
     }
 
     .auth-page .landing-main-card .landing-feature-grid {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: 1fr;
     }
 }
 
@@ -1873,5 +1873,19 @@ details.card[open] summary::after {
 .auth-select:focus {
     border-color: #a5c8ff;
     box-shadow: 0 0 0 4px rgba(165, 200, 255, 0.25);
+}
+
+.waveform-wrapper {
+    width: fit-content;
+    max-width: 100%;
+    overflow: auto;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    border-radius: 18px;
+    background: #ffffff;
+    max-height: 720px;
+}
+
+.waveform-wrapper {
+    min-height: 260px;
 }
 
