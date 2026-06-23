@@ -77,6 +77,12 @@
                         </a>
                     {% endif %}
 
+                    {% if session.get("role") in ["teacher", "admin"] %}
+                        <a class="nav-link" href="{{ url_for('teacher_analytics') }}">
+                            Аналитика
+                        </a>
+                    {% endif %}
+
                     <a href="{{ url_for('logout') }}" class="topbar-btn topbar-btn-danger">
                         Выйти
                     </a>

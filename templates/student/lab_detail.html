@@ -506,6 +506,32 @@ endmodule{% endif %}</textarea>
                         </div>
                     {% endif %}
 
+                    {% if sub["synth_status"] %}
+                        <div class="mt-1">
+                            {% if sub["synth_status"] == "OK" %}
+                                <span class="badge bg-success">
+                                    Синтез: OK
+                                </span>
+                            {% elif sub["synth_status"] == "WARNING" %}
+                                <span class="badge bg-warning text-dark">
+                                    Синтез: WARNING
+                                </span>
+                            {% elif sub["synth_status"] == "UNAVAILABLE" %}
+                                <span class="badge bg-secondary">
+                                    Yosys недоступен
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger">
+                                    Синтез: {{ sub["synth_status"] }}
+                                </span>
+                            {% endif %}
+
+                            <span class="badge bg-light text-dark border">
+                                Ячеек: {{ sub["synth_cells_count"] }}
+                            </span>
+                        </div>
+                    {% endif %}
+
                     <div class="mt-1">
                         <span class="badge bg-light text-dark border">
                             Всего тестов: {{ sub["passed_tests"] }} из {{ sub["total_tests"] }}
@@ -622,6 +648,66 @@ endmodule{% endif %}</textarea>
                             </summary>
 
                             <pre class="result-box mt-3">{{ sub["lint_output"] }}</pre>
+                        </details>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            {% if sub["synth_status"] %}
+                <div class="alert alert-light border rounded-4 mt-3">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                            <h5 class="mb-2">Проверка синтезируемости HDL-кода</h5>
+
+                            <p class="mb-1">
+                                <b>Статус:</b> {{ sub["synth_status"] }}
+                            </p>
+
+                            <p class="mb-1">
+                                <b>Оценка синтезируемости:</b> {{ sub["synth_score"] }} / 100
+                            </p>
+
+                            <p class="mb-1">
+                                <b>Логических ячеек:</b> {{ sub["synth_cells_count"] }}
+                            </p>
+
+                            <p class="mb-1">
+                                <b>Проводов:</b> {{ sub["synth_wires_count"] }}
+                            </p>
+
+                            <p class="mb-1">
+                                <b>Битов проводов:</b> {{ sub["synth_wire_bits_count"] }}
+                            </p>
+
+                            <p class="mb-1">
+                                <b>Предупреждений:</b> {{ sub["synth_warnings_count"] }}
+                            </p>
+
+                            {% if sub["synth_recommendation"] %}
+                                <p class="mb-0">
+                                    <b>Рекомендация:</b> {{ sub["synth_recommendation"] }}
+                                </p>
+                            {% endif %}
+                        </div>
+
+                        {% if sub["synth_status"] == "OK" %}
+                            <span class="badge bg-success">OK</span>
+                        {% elif sub["synth_status"] == "WARNING" %}
+                            <span class="badge bg-warning text-dark">WARNING</span>
+                        {% elif sub["synth_status"] == "ERROR" %}
+                            <span class="badge bg-danger">ERROR</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ sub["synth_status"] }}</span>
+                        {% endif %}
+                    </div>
+
+                    {% if sub["synth_output"] %}
+                        <details class="mt-3">
+                            <summary class="text-primary" style="cursor: pointer;">
+                                Показать подробный отчёт Yosys
+                            </summary>
+
+                            <pre class="result-box mt-3">{{ sub["synth_output"] }}</pre>
                         </details>
                     {% endif %}
                 </div>

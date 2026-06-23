@@ -1,0 +1,393 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Аналитика по группе{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="mb-1">Аналитика по группе</h1>
+            <p class="text-muted mb-0">
+                Мониторинг успеваемости, попыток и типовых ошибок студентов по лабораторным работам.
+            </p>
+        </div>
+
+        <a href="{{ url_for('teacher_journal') }}" class="btn btn-outline-secondary">
+            Перейти в журнал
+        </a>
+    </div>
+
+    <form method="get" class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+
+                <div class="col-md-3">
+                    <label class="form-label">Дисциплина</label>
+                    <select name="discipline" class="form-select">
+                        <option value="">Все дисциплины</option>
+
+                        {% for item in disciplines %}
+                            <option value="{{ item['discipline'] }}"
+                                    {% if selected_discipline == item['discipline'] %}selected{% endif %}>
+                                {{ item['discipline'] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Лабораторная</label>
+                    <select name="lab_id" class="form-select">
+                        <option value="">Все лабораторные</option>
+
+                        {% for lab in labs_for_filter %}
+                            <option value="{{ lab['id'] }}"
+                                    {% if selected_lab_id|string == lab['id']|string %}selected{% endif %}>
+                                {{ lab['title'] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Группа</label>
+                    <select name="group" class="form-select">
+                        <option value="">Все группы</option>
+
+                        {% for item in groups %}
+                            <option value="{{ item['student_group'] }}"
+                                    {% if selected_group == item['student_group'] %}selected{% endif %}>
+                                {{ item['student_group'] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Дата от</label>
+                    <input type="date"
+                           name="date_from"
+                           value="{{ date_from }}"
+                           class="form-control">
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Дата до</label>
+                    <input type="date"
+                           name="date_to"
+                           value="{{ date_to }}"
+                           class="form-control">
+                </div>
+
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <button class="btn btn-primary" type="submit">
+                    Применить фильтры
+                </button>
+
+                <a href="{{ url_for('teacher_analytics') }}" class="btn btn-outline-secondary">
+                    Сбросить
+                </a>
+            </div>
+        </div>
+    </form>
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Средний балл</div>
+                    <div class="display-6 fw-bold">{{ overview.average_score }}</div>
+                    <div class="text-muted small">по лучшим попыткам</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Среднее число попыток</div>
+                    <div class="display-6 fw-bold">{{ overview.average_attempts }}</div>
+                    <div class="text-muted small">на студента и лабораторную</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Успешно выполнено</div>
+                    <div class="display-6 fw-bold">{{ overview.success_percent }}%</div>
+                    <div class="text-muted small">{{ overview.success_count }} успешных решений</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">С первой попытки</div>
+                    <div class="display-6 fw-bold">{{ overview.first_try_percent }}%</div>
+                    <div class="text-muted small">{{ overview.first_try_count }} случаев</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {% if hardest_lab %}
+        <div class="alert alert-warning rounded-4 border-0 shadow-sm mb-4">
+            <h5 class="mb-1">Самая сложная лабораторная</h5>
+            <div>
+                <b>{{ hardest_lab.lab_title }}</b>
+                — средний балл {{ hardest_lab.avg_score }},
+                среднее число попыток {{ hardest_lab.avg_attempts }},
+                ошибок {{ hardest_lab.errors_count }}.
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="row g-4">
+
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body">
+                    <h4 class="mb-3">Лабораторные работы</h4>
+
+                    {% if lab_analytics %}
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Лабораторная</th>
+                                        <th>Тема</th>
+                                        <th class="text-end">Средний балл</th>
+                                        <th class="text-end">Попытки</th>
+                                        <th class="text-end">С первой</th>
+                                        <th class="text-end">Ошибки</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {% for lab in lab_analytics %}
+                                        <tr>
+                                            <td>
+                                                <b>{{ lab.lab_title }}</b>
+                                                <div class="text-muted small">{{ lab.discipline }}</div>
+                                            </td>
+
+                                            <td>{{ lab.topic_display }}</td>
+
+                                            <td class="text-end">
+                                                <span class="badge bg-light text-dark border">
+                                                    {{ lab.avg_score }}
+                                                </span>
+                                            </td>
+
+                                            <td class="text-end">{{ lab.avg_attempts }}</td>
+
+                                            <td class="text-end">
+                                                {{ lab.first_try_percent }}%
+                                            </td>
+
+                                            <td class="text-end">
+                                                {% if lab.errors_count > 0 %}
+                                                    <span class="badge bg-danger">
+                                                        {{ lab.errors_count }}
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-success">
+                                                        0
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+
+                                        <tr>
+                                            <td colspan="6" class="pt-0">
+                                                <div class="progress" style="height: 8px;">
+                                                    <div class="progress-bar analytics-progress-bar"
+                                                        role="progressbar"
+                                                        data-progress="{{ lab.success_percent }}"
+                                                        aria-valuemin="0"
+                                                        aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                                <div class="text-muted small mt-1">
+                                                    Успешность выполнения: {{ lab.success_percent }}%
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">
+                            Пока нет данных по выбранным фильтрам.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body">
+                    <h4 class="mb-3">Самые частые ошибки</h4>
+
+                    {% if common_errors %}
+                        <div class="list-group list-group-flush">
+                            {% for error in common_errors %}
+                                <div class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between gap-3">
+                                        <div>
+                                            <b>{{ error.error_title }}</b>
+                                            <div class="text-muted small">{{ error.error_type }}</div>
+                                        </div>
+
+                                        <span class="badge bg-danger rounded-pill align-self-start">
+                                            {{ error.count }}
+                                        </span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">
+                            Ошибки по выбранным фильтрам не найдены.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body">
+                    <h4 class="mb-3">Карта ошибок по темам</h4>
+
+                    {% if topic_error_rows %}
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Тема</th>
+                                        <th>Частая ошибка</th>
+                                        <th class="text-end">Кол-во</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {% for row in topic_error_rows %}
+                                        <tr>
+                                            <td>{{ row.topic_display }}</td>
+                                            <td>
+                                                <b>{{ row.error_title }}</b>
+                                                <div class="text-muted small">{{ row.error_type }}</div>
+                                            </td>
+                                            <td class="text-end">
+                                                <span class="badge bg-secondary">
+                                                    {{ row.count }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">
+                            Нет ошибок для построения карты.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 mt-4">
+        <div class="card-body">
+            <h4 class="mb-3">Динамика успеваемости</h4>
+
+            {% if dynamics_rows %}
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th class="text-end">Средний балл</th>
+                                <th class="text-end">Отправок</th>
+                                <th class="text-end">Успешность</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for row in dynamics_rows %}
+                                <tr>
+                                    <td>{{ row.date }}</td>
+
+                                    <td class="text-end">
+                                        {{ row.avg_score }}
+                                    </td>
+
+                                    <td class="text-end">
+                                        {{ row.submissions_count }}
+                                    </td>
+
+                                    <td class="text-end" style="min-width: 180px;">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="progress flex-grow-1" style="height: 8px;">
+                                                <div class="progress-bar analytics-progress-bar"
+                                                    role="progressbar"
+                                                    data-progress="{{ row.success_percent }}"
+                                                    aria-valuemin="0"
+                                                    aria-valuemax="100">
+                                                </div>
+                                            </div>
+
+                                            <span class="small text-muted">
+                                                {{ row.success_percent }}%
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted mb-0">
+                    Пока нет данных для динамики.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const progressBars = document.querySelectorAll(".analytics-progress-bar");
+
+    progressBars.forEach(function (bar) {
+        const rawValue = bar.dataset.progress || "0";
+        const normalizedValue = rawValue.replace(",", ".");
+        let value = parseFloat(normalizedValue);
+
+        if (Number.isNaN(value)) {
+            value = 0;
+        }
+
+        value = Math.max(0, Math.min(100, value));
+
+        bar.style.width = value + "%";
+        bar.setAttribute("aria-valuenow", value);
+    });
+});
+</script>
+
+{% endblock %}

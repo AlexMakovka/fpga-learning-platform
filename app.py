@@ -119,6 +119,21 @@ VERILATOR_USR_BIN = os.getenv(
     r"Y:\MSYS2\usr\bin"
 )
 
+YOSYS_EXE_PATH = os.getenv(
+    "YOSYS_EXE_PATH",
+    r"Y:\MSYS2\ucrt64\bin\yosys.exe"
+)
+
+YOSYS_UCRT_BIN = os.getenv(
+    "YOSYS_UCRT_BIN",
+    r"Y:\MSYS2\ucrt64\bin"
+)
+
+YOSYS_USR_BIN = os.getenv(
+    "YOSYS_USR_BIN",
+    r"Y:\MSYS2\usr\bin"
+)
+
 # Назва Docker-образу, в якому запускатиметься перевірка Python-коду
 PYTHON_DOCKER_IMAGE = "fpga-python-checker:latest"
 # Максимальний час перевірки Python-коду 
@@ -293,6 +308,16 @@ def init_db():
             score INTEGER DEFAULT 0,
             passed_tests INTEGER DEFAULT 0,
             total_tests INTEGER DEFAULT 0,
+            
+            synth_status TEXT DEFAULT '',
+            synth_score INTEGER DEFAULT 0,
+            synth_cells_count INTEGER DEFAULT 0,
+            synth_wires_count INTEGER DEFAULT 0,
+            synth_wire_bits_count INTEGER DEFAULT 0,
+            synth_warnings_count INTEGER DEFAULT 0,
+            synth_output TEXT DEFAULT '',
+            synth_recommendation TEXT DEFAULT '',
+            synth_stats_json TEXT DEFAULT '',
                 
             public_status TEXT DEFAULT '',
             public_score INTEGER DEFAULT 0,
@@ -447,6 +472,33 @@ def init_db():
 
     if "lint_issues_json" not in column_names:
         cur.execute("ALTER TABLE submissions ADD COLUMN lint_issues_json TEXT DEFAULT ''")
+
+    if "synth_status" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN synth_status TEXT DEFAULT ''")
+
+    if "synth_score" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN synth_score INTEGER DEFAULT 0")
+
+    if "synth_cells_count" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN synth_cells_count INTEGER DEFAULT 0")
+
+    if "synth_wires_count" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN synth_wires_count INTEGER DEFAULT 0")
+
+    if "synth_wire_bits_count" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN synth_wire_bits_count INTEGER DEFAULT 0")
+
+    if "synth_warnings_count" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN synth_warnings_count INTEGER DEFAULT 0")
+
+    if "synth_output" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN synth_output TEXT DEFAULT ''")
+
+    if "synth_recommendation" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN synth_recommendation TEXT DEFAULT ''")
+
+    if "synth_stats_json" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN synth_stats_json TEXT DEFAULT ''")
 
 
 # Таблиця зв'язків між викладачами, дисциплінами та навчальними групами 
@@ -1358,6 +1410,296 @@ def run_hdl_lint_check(solution_path):
             "lint_recommendation": "Проверьте настройку Verilator и корректность HDL-файла.",
             "lint_issues": []
         }
+
+
+def get_yosys_base_command():
+    if os.name == "nt":
+        if os.path.exists(YOSYS_EXE_PATH):
+            return [YOSYS_EXE_PATH]
+
+    return ["yosys"]
+
+
+def get_yosys_environment():
+    env = os.environ.copy()
+
+    if os.name == "nt":
+        old_path = env.get("PATH", "")
+
+        env["PATH"] = (
+            YOSYS_UCRT_BIN
+            + os.pathsep
+            + YOSYS_USR_BIN
+            + os.pathsep
+            + old_path
+        )
+
+    return env
+
+
+def is_yosys_available():
+    try:
+        result = subprocess.run(
+            get_yosys_base_command() + ["-V"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env=get_yosys_environment()
+        )
+
+        return result.returncode == 0
+
+    except Exception:
+        return False
+
+
+def extract_yosys_number(output, label):
+    pattern = rf"{re.escape(label)}:\s+(\d+)"
+    match = re.search(pattern, output)
+
+    if match:
+        return int(match.group(1))
+
+    return 0
+
+
+def parse_yosys_warnings(output):
+    warnings = []
+
+    for line in str(output).splitlines():
+        stripped = line.strip()
+
+        if "Warning:" in stripped or stripped.startswith("Warning:"):
+            warnings.append(stripped)
+
+    return warnings
+
+
+def parse_yosys_cells(output):
+    cells = {}
+    lines = output.splitlines()
+    after_cells_header = False
+
+    for line in lines:
+        stripped = line.strip()
+
+        if stripped.startswith("Number of cells:"):
+            after_cells_header = True
+            continue
+
+        if after_cells_header:
+            if not stripped:
+                continue
+
+            match = re.match(r"([A-Za-z0-9_$.\-]+)\s+(\d+)$", stripped)
+
+            if match:
+                cell_name = match.group(1)
+                cell_count = int(match.group(2))
+                cells[cell_name] = cell_count
+            else:
+                if stripped.startswith("===") or stripped.startswith("Warnings:"):
+                    break
+
+    return cells
+
+
+def define_synthesis_complexity(cells_count, wire_bits_count):
+    if cells_count == 0 and wire_bits_count <= 8:
+        return "очень простая схема"
+
+    if cells_count <= 5:
+        return "простая схема"
+
+    if cells_count <= 25:
+        return "схема средней сложности"
+
+    if cells_count <= 100:
+        return "достаточно сложная схема"
+
+    return "сложная схема"
+
+
+def build_yosys_recommendation(synth_status, warnings_count, cells_count):
+    if synth_status == "UNAVAILABLE":
+        return "Проверка синтезируемости не выполнена, так как Yosys недоступен."
+
+    if synth_status == "ERROR":
+        return (
+            "Код не прошёл этап синтеза. Проверьте, что в решении используется синтезируемый Verilog "
+            "без testbench-конструкций, задержек #, неопределённых модулей и неподдерживаемых операторов."
+        )
+
+    if warnings_count > 0:
+        return (
+            "Код синтезируется, но Yosys выдал предупреждения. Проверьте возможные неиспользуемые сигналы, "
+            "неполные присваивания и корректность описания аппаратной логики."
+        )
+
+    if cells_count == 0:
+        return (
+            "Код синтезируется. Логических ячеек почти нет: схема может быть очень простой "
+            "или описывать прямое соединение сигналов."
+        )
+
+    return "Код успешно синтезируется. Критических проблем на этапе синтеза не обнаружено."
+
+
+def run_hdl_synthesis_check(solution_path, lab=None):
+    if not is_yosys_available():
+        return {
+            "synth_status": "UNAVAILABLE",
+            "synth_score": 0,
+            "synth_cells_count": 0,
+            "synth_wires_count": 0,
+            "synth_wire_bits_count": 0,
+            "synth_warnings_count": 0,
+            "synth_output": "Yosys не найден или не запускается из Flask.",
+            "synth_recommendation": "Проверьте путь YOSYS_EXE_PATH и наличие Yosys в MSYS2.",
+            "synth_stats": {}
+        }
+
+    temp_dir = tempfile.mkdtemp(prefix="yosys_synth_")
+
+    try:
+        temp_solution_path = os.path.join(temp_dir, "solution.v")
+        shutil.copy(solution_path, temp_solution_path)
+
+        yosys_script = (
+            "read_verilog -sv solution.v; "
+            "hierarchy -check -auto-top; "
+            "proc; "
+            "opt; "
+            "check; "
+            "stat"
+        )
+
+        command = get_yosys_base_command() + [
+            "-p",
+            yosys_script
+        ]
+
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            cwd=temp_dir,
+            env=get_yosys_environment()
+        )
+
+        raw_output = (result.stdout or "") + "\n" + (result.stderr or "")
+
+        warnings = parse_yosys_warnings(raw_output)
+
+        wires_count = extract_yosys_number(raw_output, "Number of wires")
+        wire_bits_count = extract_yosys_number(raw_output, "Number of wire bits")
+        cells_count = extract_yosys_number(raw_output, "Number of cells")
+
+        cells_by_type = parse_yosys_cells(raw_output)
+
+        has_error = result.returncode != 0 or "ERROR:" in raw_output
+
+        if has_error:
+            synth_status = "ERROR"
+            synth_score = 0
+        elif warnings:
+            synth_status = "WARNING"
+            synth_score = max(60, 100 - len(warnings) * 10)
+        else:
+            synth_status = "OK"
+            synth_score = 100
+
+        complexity = define_synthesis_complexity(cells_count, wire_bits_count)
+
+        synth_recommendation = build_yosys_recommendation(
+            synth_status=synth_status,
+            warnings_count=len(warnings),
+            cells_count=cells_count
+        )
+
+        synth_stats = {
+            "wires_count": wires_count,
+            "wire_bits_count": wire_bits_count,
+            "cells_count": cells_count,
+            "warnings_count": len(warnings),
+            "cells_by_type": cells_by_type,
+            "complexity": complexity
+        }
+
+        report_lines = []
+        report_lines.append(f"Статус синтеза: {synth_status}")
+        report_lines.append(f"Оценка синтезируемости: {synth_score} / 100")
+        report_lines.append(f"Примерная сложность: {complexity}")
+        report_lines.append("")
+        report_lines.append("Статистика схемы:")
+        report_lines.append(f"- Количество проводов: {wires_count}")
+        report_lines.append(f"- Количество битов проводов: {wire_bits_count}")
+        report_lines.append(f"- Количество логических ячеек: {cells_count}")
+
+        if cells_by_type:
+            report_lines.append("")
+            report_lines.append("Типы ячеек:")
+
+            for cell_name, cell_count in cells_by_type.items():
+                report_lines.append(f"- {cell_name}: {cell_count}")
+
+        report_lines.append("")
+        report_lines.append("Предупреждения синтеза:")
+
+        if warnings:
+            for warning in warnings:
+                report_lines.append(f"- {warning}")
+        else:
+            report_lines.append("- Предупреждений нет.")
+
+        report_lines.append("")
+        report_lines.append("Рекомендация:")
+        report_lines.append(synth_recommendation)
+        report_lines.append("")
+        report_lines.append("--- Полный вывод Yosys ---")
+        report_lines.append(raw_output.strip())
+
+        return {
+            "synth_status": synth_status,
+            "synth_score": synth_score,
+            "synth_cells_count": cells_count,
+            "synth_wires_count": wires_count,
+            "synth_wire_bits_count": wire_bits_count,
+            "synth_warnings_count": len(warnings),
+            "synth_output": "\n".join(report_lines),
+            "synth_recommendation": synth_recommendation,
+            "synth_stats": synth_stats
+        }
+
+    except subprocess.TimeoutExpired:
+        return {
+            "synth_status": "TIMEOUT",
+            "synth_score": 0,
+            "synth_cells_count": 0,
+            "synth_wires_count": 0,
+            "synth_wire_bits_count": 0,
+            "synth_warnings_count": 0,
+            "synth_output": "Проверка синтезируемости выполнялась слишком долго и была остановлена.",
+            "synth_recommendation": "Проверьте сложность HDL-кода или наличие конструкций, затрудняющих синтез.",
+            "synth_stats": {}
+        }
+
+    except Exception as error:
+        return {
+            "synth_status": "SYSTEM_ERROR",
+            "synth_score": 0,
+            "synth_cells_count": 0,
+            "synth_wires_count": 0,
+            "synth_warnings_count": 0,
+            "synth_wire_bits_count": 0,
+            "synth_output": f"Ошибка проверки синтезируемости HDL-кода: {str(error)}",
+            "synth_recommendation": "Проверьте настройку Yosys и корректность HDL-файла.",
+            "synth_stats": {}
+        }
+
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 # Функція для форматування сирого виводу з перевірки HDL-коду у зрозумілий звіт для студента.
@@ -3119,6 +3461,43 @@ def classify_solution_error(status, output, lab, code):
 # =========================
 # 9. Адаптивний ІІ-модуль та підказки
 # =========================
+
+def normalize_lab_topic_for_analytics(topic, title=""):
+    topic = str(topic or "").strip().lower()
+    title = str(title or "").strip().lower()
+
+    text = topic + " " + title
+
+    if "mux" in text or "мультиплексор" in text or "селектор" in text:
+        return "mux"
+
+    if "adder" in text or "сумматор" in text or "sum" in text or "carry" in text:
+        return "adder"
+
+    if "counter" in text or "счетчик" in text or "счётчик" in text or "count" in text:
+        return "counter"
+
+    if "register" in text or "регистр" in text:
+        return "register"
+
+    if "fsm" in text or "автомат" in text or "state" in text:
+        return "fsm"
+
+    return "general"
+
+
+def get_topic_display_name(topic):
+    names = {
+        "mux": "Мультиплексор",
+        "adder": "Сумматор",
+        "counter": "Счётчик",
+        "register": "Регистр",
+        "fsm": "FSM",
+        "general": "Общая тема"
+    }
+
+    return names.get(topic, topic)
+
 
 # Функція для визначення номера наступної спроби виконання додаткового завдання (extra task) по конкретній спробі.
 def extract_failed_tests(output):
@@ -5306,6 +5685,21 @@ def submit_solution(lab_id):
     if (lab["checker_type"] or "hdl_testbench") == "hdl_testbench":
         lint_result = run_hdl_lint_check(saved_path)
 
+    synth_result = {
+        "synth_status": "",
+        "synth_score": 0,
+        "synth_cells_count": 0,
+        "synth_wires_count": 0,
+        "synth_wire_bits_count": 0,
+        "synth_warnings_count": 0,
+        "synth_output": "",
+        "synth_recommendation": "",
+        "synth_stats": {}
+    }
+
+    if (lab["checker_type"] or "hdl_testbench") == "hdl_testbench":
+        synth_result = run_hdl_synthesis_check(saved_path, lab)
+
     status = check_result["status"]
     output = check_result["output"]
     score = check_result["score"]
@@ -5380,7 +5774,7 @@ def submit_solution(lab_id):
                 status=status,
                 output=public_output or output,
                 lab=lab,
-                code=code_text
+                code=student_code
             )
 
 # Зберігаємо результат відправки в базі даних, включаючи діагностику помилки, щоб потім використовувати цю інформацію для формування адаптивного навчального плану та надання студенту конкретних рекомендацій щодо виправлення помилки.
@@ -5567,6 +5961,21 @@ def submit_code_from_editor(lab_id):
     if (lab["checker_type"] or "hdl_testbench") == "hdl_testbench":
         lint_result = run_hdl_lint_check(saved_path)
 
+    synth_result = {
+        "synth_status": "",
+        "synth_score": 0,
+        "synth_cells_count": 0,
+        "synth_wires_count": 0,
+        "synth_wire_bits_count": 0,
+        "synth_warnings_count": 0,
+        "synth_output": "",
+        "synth_recommendation": "",
+        "synth_stats": {}
+    }
+
+    if (lab["checker_type"] or "hdl_testbench") == "hdl_testbench":
+        synth_result = run_hdl_synthesis_check(saved_path, lab)
+
     status = check_result["status"]
     output = check_result["output"]
     score = check_result["score"]
@@ -5595,67 +6004,103 @@ def submit_code_from_editor(lab_id):
         ensure_ascii=False
     )
 
-    diagnostics = classify_solution_error(
-        status=status,
-        output=output,
-        lab=lab,
-        code=code_text
+    if (
+        hidden_total_tests > 0
+        and hidden_passed_tests < hidden_total_tests
+        and public_total_tests > 0
+        and public_passed_tests == public_total_tests
+    ):
+        diagnostics = {
+            "error_type": "HIDDEN_TEST_FAILED",
+            "error_title": "Не пройдены скрытые тесты",
+            "error_details": (
+                "Решение прошло открытые тесты, но не прошло часть скрытых проверок. "
+                "Это означает, что код работает для известных примеров, но ошибается на дополнительных или граничных случаях."
+            ),
+            "recommendation": (
+                "Проверьте полную таблицу истинности, граничные комбинации входных сигналов и случаи, которые не были явно показаны в открытых тестах."
+            ),
+            "error_confidence": 85
+        }
+    else:
+        diagnostics = classify_solution_error(
+            status=status,
+            output=public_output or output,
+            lab=lab,
+            code=code_text
+        )
+
+    submission_values = (
+        lab_id,
+        session["username"],
+        saved_filename,
+        waveform_filename,
+
+        status,
+        score,
+        passed_tests,
+        total_tests,
+
+        lint_status,
+        lint_score,
+        lint_issues_count,
+        lint_output,
+        lint_recommendation,
+        lint_issues_json,
+
+        synth_result["synth_status"],
+        synth_result["synth_score"],
+        synth_result["synth_cells_count"],
+        synth_result["synth_wires_count"],
+        synth_result["synth_wire_bits_count"],
+        synth_result["synth_warnings_count"],
+        synth_result["synth_output"],
+        synth_result["synth_recommendation"],
+        json.dumps(synth_result["synth_stats"], ensure_ascii=False),
+
+        public_status,
+        public_score,
+        public_passed_tests,
+        public_total_tests,
+        public_output,
+
+        hidden_status,
+        hidden_score,
+        hidden_passed_tests,
+        hidden_total_tests,
+        hidden_output,
+
+        diagnostics["error_type"],
+        diagnostics["error_title"],
+        diagnostics["error_details"],
+        diagnostics["recommendation"],
+        diagnostics["error_confidence"],
+
+        output,
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        attempt_number,
+        0,
+        0
     )
 
+    submission_placeholders = ", ".join(["?"] * len(submission_values))
+
     conn.execute(
-        """
+        f"""
         INSERT INTO submissions
         (lab_id, username, filename, waveform_filename,
         status, score, passed_tests, total_tests,
         lint_status, lint_score, lint_issues_count, lint_output, lint_recommendation, lint_issues_json,
+        synth_status, synth_score, synth_cells_count, synth_wires_count,
+        synth_wire_bits_count, synth_warnings_count, synth_output,
+        synth_recommendation, synth_stats_json,
         public_status, public_score, public_passed_tests, public_total_tests, public_output,
         hidden_status, hidden_score, hidden_passed_tests, hidden_total_tests, hidden_output,
         error_type, error_title, error_details, recommendation, error_confidence,
         output, created_at, attempt_number, file_deleted, file_hidden_for_student)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES ({submission_placeholders})
         """,
-        (
-            lab_id,
-            session["username"],
-            saved_filename,
-            waveform_filename,
-
-            status,
-            score,
-            passed_tests,
-            total_tests,
-
-            lint_status,
-            lint_score,
-            lint_issues_count,
-            lint_output,
-            lint_recommendation,
-            lint_issues_json,
-
-            public_status,
-            public_score,
-            public_passed_tests,
-            public_total_tests,
-            public_output,
-
-            hidden_status,
-            hidden_score,
-            hidden_passed_tests,
-            hidden_total_tests,
-            hidden_output,
-
-            diagnostics["error_type"],
-            diagnostics["error_title"],
-            diagnostics["error_details"],
-            diagnostics["recommendation"],
-            diagnostics["error_confidence"],
-
-            output,
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            attempt_number,
-            0,
-            0
-        )
+        submission_values
     )
 
     conn.commit()
@@ -6516,6 +6961,535 @@ def teacher_panel():
         "teacher/dashboard.html",
         stats=stats,
         error_summary=error_summary
+    )
+
+
+@app.route("/teacher/analytics")
+@login_required
+def teacher_analytics():
+    current_role = session.get("role")
+    current_username = session.get("username")
+
+    if current_role not in ["teacher", "admin"]:
+        flash("Аналитика доступна только преподавателю или администратору.")
+        return redirect(url_for("index"))
+
+    is_admin = current_role == "admin"
+
+    selected_discipline = request.args.get("discipline", "").strip()
+    selected_lab_id = request.args.get("lab_id", "").strip()
+    selected_group = request.args.get("group", "").strip()
+    date_from = request.args.get("date_from", "").strip()
+    date_to = request.args.get("date_to", "").strip()
+
+    conn = get_db()
+
+    # -------------------------------------------------
+    # 1. Списки для фильтров
+    # -------------------------------------------------
+
+    if is_admin:
+        disciplines = conn.execute(
+            """
+            SELECT DISTINCT discipline
+            FROM labs
+            WHERE discipline IS NOT NULL
+              AND discipline != ''
+            ORDER BY discipline ASC
+            """
+        ).fetchall()
+
+        groups = conn.execute(
+            """
+            SELECT DISTINCT student_group
+            FROM users
+            WHERE role = 'student'
+              AND student_group IS NOT NULL
+              AND student_group != ''
+            ORDER BY student_group ASC
+            """
+        ).fetchall()
+
+        labs_for_filter = conn.execute(
+            """
+            SELECT id, title, discipline
+            FROM labs
+            ORDER BY discipline ASC, title ASC
+            """
+        ).fetchall()
+
+    else:
+        disciplines = conn.execute(
+            """
+            SELECT DISTINCT labs.discipline
+            FROM labs
+            LEFT JOIN teacher_subject_groups tsg
+                ON tsg.discipline = labs.discipline
+               AND tsg.teacher_username = ?
+            WHERE labs.created_by = ?
+               OR tsg.teacher_username = ?
+            ORDER BY labs.discipline ASC
+            """,
+            (
+                current_username,
+                current_username,
+                current_username
+            )
+        ).fetchall()
+
+        groups = conn.execute(
+            """
+            SELECT DISTINCT users.student_group
+            FROM users
+            WHERE users.role = 'student'
+              AND users.student_group IS NOT NULL
+              AND users.student_group != ''
+              AND (
+                  users.student_group IN (
+                      SELECT student_group
+                      FROM teacher_subject_groups
+                      WHERE teacher_username = ?
+                  )
+                  OR EXISTS (
+                      SELECT 1
+                      FROM submissions
+                      JOIN labs ON submissions.lab_id = labs.id
+                      WHERE submissions.username = users.username
+                        AND labs.created_by = ?
+                  )
+              )
+            ORDER BY users.student_group ASC
+            """,
+            (
+                current_username,
+                current_username
+            )
+        ).fetchall()
+
+        labs_for_filter = conn.execute(
+            """
+            SELECT DISTINCT labs.id, labs.title, labs.discipline
+            FROM labs
+            LEFT JOIN teacher_subject_groups tsg
+                ON tsg.discipline = labs.discipline
+               AND tsg.teacher_username = ?
+            WHERE labs.created_by = ?
+               OR tsg.teacher_username = ?
+            ORDER BY labs.discipline ASC, labs.title ASC
+            """,
+            (
+                current_username,
+                current_username,
+                current_username
+            )
+        ).fetchall()
+
+    # -------------------------------------------------
+    # 2. Основной запрос попыток
+    # -------------------------------------------------
+
+    sql = """
+        SELECT
+            submissions.id,
+            submissions.lab_id,
+            submissions.username,
+            submissions.status,
+            submissions.score,
+            submissions.attempt_number,
+            submissions.error_type,
+            submissions.error_title,
+            submissions.created_at,
+
+            labs.title AS lab_title,
+            labs.discipline AS discipline,
+            labs.topic AS lab_topic,
+            labs.created_by AS lab_created_by,
+
+            users.full_name AS full_name,
+            users.student_group AS student_group
+        FROM submissions
+        JOIN labs ON submissions.lab_id = labs.id
+        LEFT JOIN users ON users.username = submissions.username
+        WHERE 1 = 1
+    """
+
+    params = []
+
+    if not is_admin:
+        sql += """
+            AND (
+                labs.created_by = ?
+                OR EXISTS (
+                    SELECT 1
+                    FROM teacher_subject_groups tsg
+                    WHERE tsg.teacher_username = ?
+                      AND tsg.discipline = labs.discipline
+                      AND tsg.student_group = users.student_group
+                )
+            )
+        """
+        params.extend([
+            current_username,
+            current_username
+        ])
+
+    if selected_discipline:
+        sql += " AND labs.discipline = ?"
+        params.append(selected_discipline)
+
+    if selected_lab_id:
+        sql += " AND labs.id = ?"
+        params.append(selected_lab_id)
+
+    if selected_group:
+        sql += " AND users.student_group = ?"
+        params.append(selected_group)
+
+    if date_from:
+        sql += " AND submissions.created_at >= ?"
+        params.append(date_from + " 00:00:00")
+
+    if date_to:
+        sql += " AND submissions.created_at <= ?"
+        params.append(date_to + " 23:59:59")
+
+    sql += """
+        ORDER BY submissions.created_at ASC, submissions.id ASC
+    """
+
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+
+    attempts = [dict(row) for row in rows]
+
+    # -------------------------------------------------
+    # 3. Группировка по студенту и лабораторной
+    # -------------------------------------------------
+
+    student_lab_map = {}
+
+    for attempt in attempts:
+        key = (attempt["username"], attempt["lab_id"])
+
+        if key not in student_lab_map:
+            student_lab_map[key] = {
+                "username": attempt["username"],
+                "full_name": attempt["full_name"] or attempt["username"],
+                "student_group": attempt["student_group"] or "—",
+                "lab_id": attempt["lab_id"],
+                "lab_title": attempt["lab_title"],
+                "discipline": attempt["discipline"] or "—",
+                "topic": normalize_lab_topic_for_analytics(
+                    attempt["lab_topic"],
+                    attempt["lab_title"]
+                ),
+                "attempts": []
+            }
+
+        student_lab_map[key]["attempts"].append(attempt)
+
+    student_lab_results = []
+
+    for item in student_lab_map.values():
+        item_attempts = item["attempts"]
+
+        item_attempts.sort(
+            key=lambda row: int(row["attempt_number"] or 1)
+        )
+
+        best_score = max(int(row["score"] or 0) for row in item_attempts)
+        attempts_count = len(item_attempts)
+
+        passed_attempts = [
+            row for row in item_attempts
+            if row["status"] == "PASSED"
+        ]
+
+        is_passed = len(passed_attempts) > 0
+
+        first_attempt = item_attempts[0]
+        first_try_passed = first_attempt["status"] == "PASSED"
+
+        last_attempt = item_attempts[-1]
+
+        student_lab_results.append({
+            "username": item["username"],
+            "full_name": item["full_name"],
+            "student_group": item["student_group"],
+            "lab_id": item["lab_id"],
+            "lab_title": item["lab_title"],
+            "discipline": item["discipline"],
+            "topic": item["topic"],
+            "topic_display": get_topic_display_name(item["topic"]),
+            "best_score": best_score,
+            "attempts_count": attempts_count,
+            "is_passed": is_passed,
+            "first_try_passed": first_try_passed,
+            "last_status": last_attempt["status"],
+            "last_created_at": last_attempt["created_at"]
+        })
+
+    # -------------------------------------------------
+    # 4. Общие показатели
+    # -------------------------------------------------
+
+    total_students = len(set(row["username"] for row in attempts))
+    total_submissions = len(attempts)
+    total_student_lab_pairs = len(student_lab_results)
+
+    if student_lab_results:
+        average_score = round(
+            sum(item["best_score"] for item in student_lab_results)
+            / len(student_lab_results),
+            1
+        )
+
+        average_attempts = round(
+            sum(item["attempts_count"] for item in student_lab_results)
+            / len(student_lab_results),
+            2
+        )
+
+        success_count = sum(1 for item in student_lab_results if item["is_passed"])
+        first_try_count = sum(1 for item in student_lab_results if item["first_try_passed"])
+
+        success_percent = round(success_count * 100 / len(student_lab_results), 1)
+        first_try_percent = round(first_try_count * 100 / len(student_lab_results), 1)
+
+    else:
+        average_score = 0
+        average_attempts = 0
+        success_count = 0
+        first_try_count = 0
+        success_percent = 0
+        first_try_percent = 0
+
+    overview = {
+        "total_students": total_students,
+        "total_submissions": total_submissions,
+        "total_student_lab_pairs": total_student_lab_pairs,
+        "average_score": average_score,
+        "average_attempts": average_attempts,
+        "success_count": success_count,
+        "first_try_count": first_try_count,
+        "success_percent": success_percent,
+        "first_try_percent": first_try_percent
+    }
+
+    # -------------------------------------------------
+    # 5. Аналитика по лабораторным
+    # -------------------------------------------------
+
+    lab_map = {}
+
+    for result in student_lab_results:
+        lab_id = result["lab_id"]
+
+        if lab_id not in lab_map:
+            lab_map[lab_id] = {
+                "lab_id": lab_id,
+                "lab_title": result["lab_title"],
+                "discipline": result["discipline"],
+                "topic": result["topic"],
+                "topic_display": result["topic_display"],
+                "students_count": 0,
+                "best_scores": [],
+                "attempts_counts": [],
+                "passed_count": 0,
+                "first_try_count": 0,
+                "errors_count": 0
+            }
+
+        lab_item = lab_map[lab_id]
+        lab_item["students_count"] += 1
+        lab_item["best_scores"].append(result["best_score"])
+        lab_item["attempts_counts"].append(result["attempts_count"])
+
+        if result["is_passed"]:
+            lab_item["passed_count"] += 1
+
+        if result["first_try_passed"]:
+            lab_item["first_try_count"] += 1
+
+    for attempt in attempts:
+        if attempt["error_type"] and attempt["error_type"] != "NO_ERROR":
+            lab_id = attempt["lab_id"]
+
+            if lab_id in lab_map:
+                lab_map[lab_id]["errors_count"] += 1
+
+    lab_analytics = []
+
+    for lab_item in lab_map.values():
+        students_count = lab_item["students_count"]
+
+        if students_count > 0:
+            avg_score = round(sum(lab_item["best_scores"]) / students_count, 1)
+            avg_attempts = round(sum(lab_item["attempts_counts"]) / students_count, 2)
+            success_percent_lab = round(lab_item["passed_count"] * 100 / students_count, 1)
+            first_try_percent_lab = round(lab_item["first_try_count"] * 100 / students_count, 1)
+        else:
+            avg_score = 0
+            avg_attempts = 0
+            success_percent_lab = 0
+            first_try_percent_lab = 0
+
+        difficulty_index = round(
+            (100 - avg_score)
+            + avg_attempts * 10
+            + lab_item["errors_count"] * 2,
+            1
+        )
+
+        lab_analytics.append({
+            "lab_id": lab_item["lab_id"],
+            "lab_title": lab_item["lab_title"],
+            "discipline": lab_item["discipline"],
+            "topic_display": lab_item["topic_display"],
+            "students_count": students_count,
+            "avg_score": avg_score,
+            "avg_attempts": avg_attempts,
+            "success_percent": success_percent_lab,
+            "first_try_percent": first_try_percent_lab,
+            "errors_count": lab_item["errors_count"],
+            "difficulty_index": difficulty_index
+        })
+
+    lab_analytics.sort(
+        key=lambda item: item["difficulty_index"],
+        reverse=True
+    )
+
+    hardest_lab = lab_analytics[0] if lab_analytics else None
+
+    # -------------------------------------------------
+    # 6. Ошибки по типам и темам
+    # -------------------------------------------------
+
+    error_map = {}
+    topic_error_map = {}
+
+    for attempt in attempts:
+        error_type = attempt["error_type"] or ""
+        error_title = attempt["error_title"] or ""
+
+        if not error_type or error_type == "NO_ERROR":
+            continue
+
+        topic = normalize_lab_topic_for_analytics(
+            attempt["lab_topic"],
+            attempt["lab_title"]
+        )
+
+        error_key = (error_type, error_title)
+
+        if error_key not in error_map:
+            error_map[error_key] = {
+                "error_type": error_type,
+                "error_title": error_title or error_type,
+                "count": 0
+            }
+
+        error_map[error_key]["count"] += 1
+
+        topic_key = (topic, error_type, error_title)
+
+        if topic_key not in topic_error_map:
+            topic_error_map[topic_key] = {
+                "topic": topic,
+                "topic_display": get_topic_display_name(topic),
+                "error_type": error_type,
+                "error_title": error_title or error_type,
+                "count": 0
+            }
+
+        topic_error_map[topic_key]["count"] += 1
+
+    common_errors = sorted(
+        error_map.values(),
+        key=lambda item: item["count"],
+        reverse=True
+    )[:10]
+
+    topic_error_rows = sorted(
+        topic_error_map.values(),
+        key=lambda item: item["count"],
+        reverse=True
+    )[:15]
+
+    # -------------------------------------------------
+    # 7. Динамика успеваемости
+    # -------------------------------------------------
+
+    dynamics_map = {}
+
+    for attempt in attempts:
+        created_at = attempt["created_at"] or ""
+
+        if len(created_at) >= 10:
+            day = created_at[:10]
+        else:
+            day = "—"
+
+        if day not in dynamics_map:
+            dynamics_map[day] = {
+                "date": day,
+                "scores": [],
+                "submissions_count": 0,
+                "passed_count": 0
+            }
+
+        dynamics_map[day]["scores"].append(int(attempt["score"] or 0))
+        dynamics_map[day]["submissions_count"] += 1
+
+        if attempt["status"] == "PASSED":
+            dynamics_map[day]["passed_count"] += 1
+
+    dynamics_rows = []
+
+    for item in dynamics_map.values():
+        if item["scores"]:
+            avg_day_score = round(sum(item["scores"]) / len(item["scores"]), 1)
+        else:
+            avg_day_score = 0
+
+        if item["submissions_count"] > 0:
+            day_success_percent = round(
+                item["passed_count"] * 100 / item["submissions_count"],
+                1
+            )
+        else:
+            day_success_percent = 0
+
+        dynamics_rows.append({
+            "date": item["date"],
+            "avg_score": avg_day_score,
+            "submissions_count": item["submissions_count"],
+            "success_percent": day_success_percent
+        })
+
+    dynamics_rows.sort(key=lambda item: item["date"])
+
+    # -------------------------------------------------
+    # 8. Рендер страницы
+    # -------------------------------------------------
+
+    return render_template(
+        "teacher/analytics.html",
+        overview=overview,
+        lab_analytics=lab_analytics,
+        hardest_lab=hardest_lab,
+        common_errors=common_errors,
+        topic_error_rows=topic_error_rows,
+        dynamics_rows=dynamics_rows,
+        disciplines=disciplines,
+        groups=groups,
+        labs_for_filter=labs_for_filter,
+        selected_discipline=selected_discipline,
+        selected_lab_id=selected_lab_id,
+        selected_group=selected_group,
+        date_from=date_from,
+        date_to=date_to
     )
 
 
