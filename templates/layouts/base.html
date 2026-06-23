@@ -63,6 +63,14 @@
                         <a href="{{ url_for('index') }}" class="topbar-btn topbar-btn-outline">
                             Лабораторные
                         </a>
+
+                        <a href="{{ url_for('student_gradebook') }}" class="topbar-btn topbar-btn-outline">
+                            Зачётка
+                        </a>
+
+                        <a href="{{ url_for('student_competencies') }}" class="topbar-btn topbar-btn-outline">
+                            Компетенции
+                        </a>
                     {% endif %}
 
                     {% if session.get("role") == "teacher" %}
@@ -78,7 +86,7 @@
                     {% endif %}
 
                     {% if session.get("role") in ["teacher", "admin"] %}
-                        <a class="nav-link" href="{{ url_for('teacher_analytics') }}">
+                        <a href="{{ url_for('teacher_analytics') }}" class="topbar-btn topbar-btn-outline">
                             Аналитика
                         </a>
                     {% endif %}

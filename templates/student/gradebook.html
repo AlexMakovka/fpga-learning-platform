@@ -2,7 +2,18 @@
 
 {% block content %}
 
-<h1 class="mb-4">Моя зачётка</h1>
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1 class="mb-1">Моя зачётка</h1>
+        <p class="text-muted mb-0">
+            Ваши результаты по лабораторным работам.
+        </p>
+    </div>
+
+    <a href="{{ url_for('student_competencies') }}" class="btn btn-primary">
+        Карта компетенций
+    </a>
+</div>
 
 <div class="card shadow-sm border-0 rounded-4 mb-4">
     <div class="card-body">

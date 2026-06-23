@@ -5357,6 +5357,407 @@ def download_waveform(submission_id):
         as_attachment=True
     )
 
+
+# ============================================================
+# Карта компетенций студента
+# ============================================================
+
+def get_competency_catalog():
+    return {
+        "combinational_logic": {
+            "title": "Комбинационная логика",
+            "description": "Мультиплексоры, сумматоры, логические выражения, assign и always @(*)."
+        },
+        "testbench_work": {
+            "title": "Работа с testbench",
+            "description": "Понимание проверочного сценария, совпадение имени модуля и портов."
+        },
+        "sequential_logic": {
+            "title": "Последовательностная логика",
+            "description": "Регистры, счётчики, изменение состояния по тактовому сигналу."
+        },
+        "fsm": {
+            "title": "FSM",
+            "description": "Конечные автоматы, состояния, переходы и обработка входных условий."
+        },
+        "reset_clock": {
+            "title": "Reset/clock",
+            "description": "Корректная работа со сбросом, clock, posedge/negedge и начальными состояниями."
+        },
+        "hdl_syntax_structure": {
+            "title": "Структура HDL-модуля",
+            "description": "Синтаксис Verilog, module/endmodule, input/output, wire/reg."
+        }
+    }
+
+
+def normalize_topic_for_competencies(topic, title=""):
+    topic = str(topic or "").strip().lower()
+    title = str(title or "").strip().lower()
+
+    text = topic + " " + title
+
+    if "mux" in text or "мультиплексор" in text or "селектор" in text:
+        return "mux"
+
+    if "adder" in text or "сумматор" in text or "sum" in text or "carry" in text:
+        return "adder"
+
+    if "counter" in text or "счетчик" in text or "счётчик" in text or "count" in text:
+        return "counter"
+
+    if "register" in text or "регистр" in text:
+        return "register"
+
+    if "fsm" in text or "автомат" in text or "state" in text:
+        return "fsm"
+
+    return "general"
+
+
+def get_competencies_for_topic(topic):
+    topic = normalize_topic_for_competencies(topic)
+
+    mapping = {
+        "mux": [
+            "combinational_logic",
+            "testbench_work"
+        ],
+        "adder": [
+            "combinational_logic",
+            "testbench_work"
+        ],
+        "counter": [
+            "sequential_logic",
+            "reset_clock",
+            "testbench_work"
+        ],
+        "register": [
+            "sequential_logic",
+            "reset_clock",
+            "testbench_work"
+        ],
+        "fsm": [
+            "fsm",
+            "sequential_logic",
+            "reset_clock",
+            "testbench_work"
+        ],
+        "general": [
+            "hdl_syntax_structure",
+            "testbench_work"
+        ]
+    }
+
+    return mapping.get(topic, mapping["general"])
+
+
+def get_competencies_for_error(error_type):
+    error_type = str(error_type or "")
+
+    mapping = {
+        "MODULE_NAME_MISMATCH": [
+            "testbench_work",
+            "hdl_syntax_structure"
+        ],
+        "PORT_MISMATCH": [
+            "testbench_work",
+            "hdl_syntax_structure"
+        ],
+        "COMPILE_ERROR": [
+            "hdl_syntax_structure"
+        ],
+        "CONTROL_SIGNAL_ERROR": [
+            "combinational_logic"
+        ],
+        "INCOMPLETE_CONDITION": [
+            "combinational_logic",
+            "fsm"
+        ],
+        "WRONG_COMBINATIONAL_LOGIC": [
+            "combinational_logic"
+        ],
+        "RESET_CLOCK_ERROR": [
+            "reset_clock",
+            "sequential_logic"
+        ],
+        "BOUNDARY_TEST_FAILED": [
+            "combinational_logic",
+            "sequential_logic"
+        ],
+        "HIDDEN_TEST_FAILED": [
+            "testbench_work",
+            "combinational_logic"
+        ],
+        "FUNCTIONAL_ERROR": [
+            "combinational_logic",
+            "testbench_work"
+        ]
+    }
+
+    return mapping.get(error_type, ["testbench_work"])
+
+
+def get_competency_level_title(score):
+    if score is None:
+        return "Нет данных"
+
+    if score >= 85:
+        return "Высокий уровень"
+
+    if score >= 70:
+        return "Хороший уровень"
+
+    if score >= 50:
+        return "Базовый уровень"
+
+    return "Проблемная зона"
+
+
+def get_competency_badge_class(score):
+    if score is None:
+        return "bg-secondary"
+
+    if score >= 85:
+        return "bg-success"
+
+    if score >= 70:
+        return "bg-primary"
+
+    if score >= 50:
+        return "bg-warning text-dark"
+
+    return "bg-danger"
+
+
+def build_competency_recommendation(competency_id, score, frequent_errors):
+    if score is None:
+        return "Пока недостаточно данных. Выполните больше лабораторных работ по этой теме."
+
+    if score >= 85:
+        return "Тема освоена хорошо. Можно переходить к более сложным заданиям."
+
+    if competency_id == "combinational_logic":
+        return "Повторите таблицы истинности, условный оператор, assign и полное описание всех входных комбинаций."
+
+    if competency_id == "testbench_work":
+        return "Проверьте соответствие имени модуля, портов и формата вывода требованиям testbench."
+
+    if competency_id == "sequential_logic":
+        return "Повторите работу регистров, счётчиков и изменение значений по фронту тактового сигнала."
+
+    if competency_id == "fsm":
+        return "Повторите описание состояний, переходов, next_state и обработку всех возможных входных условий."
+
+    if competency_id == "reset_clock":
+        return "Повторите синтаксис always-блоков с posedge/negedge и корректную обработку reset/rst."
+
+    if competency_id == "hdl_syntax_structure":
+        return "Повторите структуру Verilog-модуля: module, input/output, wire/reg, assign, always, endmodule."
+
+    return "Изучите ошибки в последних попытках и повторите соответствующий раздел."
+
+
+def calculate_student_competency_map(username):
+    conn = get_db()
+
+    rows = conn.execute(
+        """
+        SELECT
+            submissions.id,
+            submissions.lab_id,
+            submissions.username,
+            submissions.status,
+            submissions.score,
+            submissions.attempt_number,
+            submissions.error_type,
+            submissions.error_title,
+            submissions.created_at,
+
+            labs.title AS lab_title,
+            labs.description AS lab_description,
+            labs.topic AS lab_topic,
+            labs.discipline AS lab_discipline
+        FROM submissions
+        JOIN labs ON submissions.lab_id = labs.id
+        WHERE submissions.username = ?
+        ORDER BY submissions.lab_id ASC, submissions.attempt_number ASC, submissions.id ASC
+        """,
+        (username,)
+    ).fetchall()
+
+    conn.close()
+
+    catalog = get_competency_catalog()
+
+    competency_data = {}
+
+    for competency_id, item in catalog.items():
+        competency_data[competency_id] = {
+            "id": competency_id,
+            "title": item["title"],
+            "description": item["description"],
+            "values": [],
+            "penalty": 0,
+            "errors": {},
+            "labs": []
+        }
+
+    # Группируем попытки по лабораторной работе.
+    lab_attempts = {}
+
+    for row in rows:
+        row_dict = dict(row)
+        lab_id = row_dict["lab_id"]
+
+        if lab_id not in lab_attempts:
+            lab_attempts[lab_id] = []
+
+        lab_attempts[lab_id].append(row_dict)
+
+    for lab_id, attempts in lab_attempts.items():
+        attempts.sort(
+            key=lambda item: (
+                int(item["attempt_number"] or 1),
+                int(item["id"] or 0)
+            )
+        )
+
+        first_attempt = attempts[0]
+        last_attempt = attempts[-1]
+
+        best_score = max(int(item["score"] or 0) for item in attempts)
+        attempts_count = len(attempts)
+
+        topic = normalize_topic_for_competencies(
+            first_attempt["lab_topic"],
+            first_attempt["lab_title"]
+        )
+
+        topic_competencies = get_competencies_for_topic(topic)
+
+        # Чем больше попыток, тем ниже уверенность в освоении темы.
+        attempt_penalty = min(15, max(0, attempts_count - 1) * 4)
+
+        base_value = max(0, best_score - attempt_penalty)
+
+        for competency_id in topic_competencies:
+            competency_data[competency_id]["values"].append(base_value)
+            competency_data[competency_id]["labs"].append({
+                "lab_id": lab_id,
+                "lab_title": first_attempt["lab_title"],
+                "topic": topic,
+                "best_score": best_score,
+                "attempts_count": attempts_count,
+                "last_status": last_attempt["status"]
+            })
+
+        # Ошибки дополнительно снижают связанные компетенции.
+        for attempt in attempts:
+            error_type = attempt["error_type"] or ""
+
+            if not error_type or error_type == "NO_ERROR":
+                continue
+
+            error_title = attempt["error_title"] or error_type
+            related_competencies = get_competencies_for_error(error_type)
+
+            for competency_id in related_competencies:
+                if competency_id not in competency_data:
+                    continue
+
+                # Если компетенция ещё не получила значение от темы,
+                # добавляем слабое evidence-значение, чтобы ошибка тоже учитывалась.
+                if not competency_data[competency_id]["values"]:
+                    competency_data[competency_id]["values"].append(50)
+
+                competency_data[competency_id]["penalty"] += 6
+
+                if error_title not in competency_data[competency_id]["errors"]:
+                    competency_data[competency_id]["errors"][error_title] = 0
+
+                competency_data[competency_id]["errors"][error_title] += 1
+
+    competency_rows = []
+
+    for competency_id, item in competency_data.items():
+        values = item["values"]
+
+        if values:
+            average_value = sum(values) / len(values)
+            score = round(max(0, min(100, average_value - item["penalty"])))
+        else:
+            score = None
+
+        errors_sorted = sorted(
+            item["errors"].items(),
+            key=lambda pair: pair[1],
+            reverse=True
+        )
+
+        frequent_errors = [
+            {
+                "title": title,
+                "count": count
+            }
+            for title, count in errors_sorted[:3]
+        ]
+
+        competency_rows.append({
+            "id": competency_id,
+            "title": item["title"],
+            "description": item["description"],
+            "score": score,
+            "level_title": get_competency_level_title(score),
+            "badge_class": get_competency_badge_class(score),
+            "recommendation": build_competency_recommendation(
+                competency_id,
+                score,
+                frequent_errors
+            ),
+            "frequent_errors": frequent_errors,
+            "labs": item["labs"][:5]
+        })
+
+    # Сначала показываем проблемные зоны, потом сильные.
+    competency_rows.sort(
+        key=lambda item: 999 if item["score"] is None else item["score"]
+    )
+
+    weak_competencies = [
+        item for item in competency_rows
+        if item["score"] is not None and item["score"] < 70
+    ]
+
+    strong_competencies = [
+        item for item in competency_rows
+        if item["score"] is not None and item["score"] >= 85
+    ]
+
+    completed_labs_count = len(lab_attempts)
+    total_attempts_count = len(rows)
+
+    if competency_rows:
+        scored = [
+            item["score"]
+            for item in competency_rows
+            if item["score"] is not None
+        ]
+
+        average_competency_score = round(sum(scored) / len(scored), 1) if scored else None
+    else:
+        average_competency_score = None
+
+    return {
+        "competencies": competency_rows,
+        "weak_competencies": weak_competencies,
+        "strong_competencies": strong_competencies,
+        "completed_labs_count": completed_labs_count,
+        "total_attempts_count": total_attempts_count,
+        "average_competency_score": average_competency_score
+    }
+
+
 # =========================
 # 12. Student routes - студент
 # =========================
@@ -5519,6 +5920,41 @@ def student_gradebook():
         "student/gradebook.html",
         student=student,
         gradebook_rows=gradebook_rows
+    )
+
+
+@app.route("/student/competencies")
+@login_required
+def student_competencies():
+    if session.get("role") != "student":
+        flash("Карта компетенций доступна только студенту.")
+        return redirect(url_for("index"))
+
+    username = session["username"]
+
+    conn = get_db()
+
+    student = conn.execute(
+        """
+        SELECT *
+        FROM users
+        WHERE username = ?
+        """,
+        (username,)
+    ).fetchone()
+
+    conn.close()
+
+    if not student:
+        flash("Студент не найден.")
+        return redirect(url_for("index"))
+
+    competency_map = calculate_student_competency_map(username)
+
+    return render_template(
+        "student/competencies.html",
+        student=student,
+        competency_map=competency_map
     )
 
 
