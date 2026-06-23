@@ -49,8 +49,6 @@ from functools import wraps
 # Наприклад, секретні ключі та налаштування, які не варто зберігати прямо в коді
 from dotenv import load_dotenv
 
-load_dotenv()
-
 # Включає OAuth-авторизацію у Flask
 # Потрібна для входу через зовнішні сервіси, наприклад Google
 from authlib.integrations.flask_client import OAuth
@@ -75,10 +73,24 @@ from flask import Flask, request, redirect, url_for, session, render_template, f
 # secure_filename безпечно обробляє ім'я файлу, що завантажується
 # Це захищає від небезпечних імен файлів та шляхів
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 
+
+# Абсолютный путь до папки, где лежит app.py
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Загружаем переменные окружения из файла .env
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # Створюємо екземпляр Flask-додатки
 app = Flask(__name__)
+
+# Секретный ключ Flask берётся только из .env
+app.secret_key = os.getenv("SECRET_KEY", "").strip()
+
+if not app.secret_key:
+    raise RuntimeError("SECRET_KEY не задан в .env")
+
 # Реєструємо Google як зовнішній сервіс для авторизації
 oauth = OAuth(app)
 
@@ -87,27 +99,15 @@ google = oauth.register(
     name="google",
     client_id=os.getenv("GOOGLE_CLIENT_ID"),
     client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
-# Адреса з налаштуваннями Google OAuth/OpenID Connect
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-# Запитуємо у Google базові дані користувача: email та профіль
     client_kwargs={
         "scope": "openid email profile"
     }
 )
-# Секретний ключ необхідний роботи сесій.
-# У реальному проекті його краще зберігати в змінних оточення, а не прямо в коді.
-app.secret_key = "change_this_secret_key"
 
-
-# Абсолютний шлях до папки, де лежить поточний файл програми
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Шлях до файлу бази даних SQLite
 DB_PATH = os.path.join(BASE_DIR, "database.db")
-# Папка для зберігання завантажених користувачами файлів
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 WAVEFORM_DIR = os.path.join(BASE_DIR, "waveforms")
-# Завантажує налаштування з файлу .env, який знаходиться в папці проекту
-load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 
 # =========================
@@ -178,6 +178,68 @@ def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def password_is_hashed(password_value):
+    password_value = str(password_value or "")
+
+    return (
+        password_value.startswith("scrypt:")
+        or password_value.startswith("pbkdf2:")
+        or password_value.startswith("argon2:")
+    )
+
+
+def hash_password(raw_password):
+    return generate_password_hash(str(raw_password))
+
+
+def verify_password(stored_password, raw_password):
+    stored_password = str(stored_password or "")
+    raw_password = str(raw_password or "")
+
+    if not stored_password or not raw_password:
+        return False
+
+    if password_is_hashed(stored_password):
+        try:
+            return check_password_hash(stored_password, raw_password)
+        except Exception:
+            return False
+
+    # Временная поддержка старых паролей, которые уже лежали в базе открытым текстом.
+    # После успешного входа они будут автоматически заменены на хеш.
+    return stored_password == raw_password
+
+
+def validate_password_strength(password, username=""):
+    password = str(password or "")
+    username = str(username or "").lower()
+
+    errors = []
+
+    if not password:
+        errors.append("Пароль не может быть пустым.")
+
+    if password.strip() != password:
+        errors.append("Пароль не должен начинаться или заканчиваться пробелом.")
+
+    if len(password) < 8:
+        errors.append("Пароль должен содержать минимум 8 символов.")
+
+    if not re.search(r"[A-Za-zА-Яа-я]", password):
+        errors.append("Пароль должен содержать хотя бы одну букву.")
+
+    if not re.search(r"\d", password):
+        errors.append("Пароль должен содержать хотя бы одну цифру.")
+
+    if username and username in password.lower():
+        errors.append("Пароль не должен содержать логин пользователя.")
+
+    if errors:
+        return False, " ".join(errors)
+
+    return True, ""
 
 # Функція для ініціалізації бази даних. Вона створює необхідні таблиці, додає відсутні стовпці та вставляє початкові дані.
 def init_db():
@@ -769,7 +831,7 @@ def init_db():
             """,
             (
                 "student1",
-                "student123",
+                hash_password("student123"),
                 "student",
                 "Иван Иванов",
                 "Группа 101",
@@ -796,7 +858,7 @@ def init_db():
             """,
             (
                 "teacher",
-                "teacher123",
+                hash_password("teacher123"),
                 "teacher",
                 "Преподаватель",
                 "",
@@ -823,7 +885,7 @@ def init_db():
             """,
             (
                 "admin",
-                "admin123",
+                hash_password("admin123"),
                 "admin",
                 "Администратор системы",
                 "",
@@ -837,6 +899,32 @@ def init_db():
 # Якщо їх немає, створюємо тестову лабораторну роботу для демонстрації та перевірки роботи системи.
     cur.execute("SELECT COUNT(*) AS count FROM labs")
     cur.fetchone()
+
+    # Миграция старых паролей:
+    # если в базе пароль хранится открытым текстом, заменяем его на хеш.
+    legacy_users = cur.execute(
+        """
+        SELECT id, password
+        FROM users
+        """
+    ).fetchall()
+
+    for legacy_user in legacy_users:
+        current_password = legacy_user["password"] or ""
+
+        if current_password and not password_is_hashed(current_password):
+            cur.execute(
+                """
+                UPDATE users
+                SET password = ?
+                WHERE id = ?
+                """,
+                (
+                    hash_password(current_password),
+                    legacy_user["id"]
+                )
+            )
+
 
 # Якщо лабораторних робіт немає, створюємо тестову лабораторну роботу з базовим описом та тестбенчем.
     conn.commit()
@@ -4894,18 +4982,28 @@ def build_adaptive_learning_plan(submission, code):
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+
+        if not username or not password:
+            flash("Введите логин и пароль.")
+            return redirect(url_for("login"))
 
         conn = get_db()
-        user = conn.execute(
-            "SELECT * FROM users WHERE username = ? AND password = ?",
-            (username, password)
-        ).fetchone()
-        conn.close()
 
-        if user:
+        user = conn.execute(
+            """
+            SELECT *
+            FROM users
+            WHERE username = ?
+            """,
+            (username,)
+        ).fetchone()
+
+        if user and verify_password(user["password"], password):
             if user["status"] != "active":
+                conn.close()
+
                 if user["status"] == "pending":
                     flash("Ваша учетная запись ожидает подтверждения администратором.")
                 elif user["status"] == "blocked":
@@ -4915,14 +5013,34 @@ def login():
 
                 return redirect(url_for("login"))
 
+            # Если пользователь вошёл со старым открытым паролем,
+            # сразу заменяем его на безопасный хеш.
+            if not password_is_hashed(user["password"]):
+                conn.execute(
+                    """
+                    UPDATE users
+                    SET password = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        hash_password(password),
+                        user["id"]
+                    )
+                )
+
+                conn.commit()
+
             session["username"] = user["username"]
             session["role"] = user["role"]
+
+            conn.close()
 
             if user["role"] == "admin":
                 return redirect(url_for("admin_panel"))
 
             return redirect(url_for("index"))
 
+        conn.close()
         flash("Неверный логин или пароль.")
 
     return render_template("auth/login.html")
@@ -4933,11 +5051,13 @@ def login():
 def register():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
-        password = request.form.get("password", "").strip()
+        password = request.form.get("password", "")
         role = request.form.get("role", "").strip()
         full_name = request.form.get("full_name", "").strip()
         student_group = request.form.get("student_group", "").strip()
         email = request.form.get("email", "").strip()
+        
+        password_hash = hash_password(password)
 
         if role not in ["student", "teacher"]:
             flash("Можно зарегистрироваться только как студент или преподаватель.")
@@ -4945,6 +5065,12 @@ def register():
 
         if not username or not password or not full_name:
             flash("Нужно заполнить логин, пароль и ФИО.")
+            return redirect(url_for("register"))
+        
+        password_ok, password_error = validate_password_strength(password, username)
+
+        if not password_ok:
+            flash(password_error)
             return redirect(url_for("register"))
 
         if role == "student" and not student_group:
@@ -4954,14 +5080,16 @@ def register():
         if role == "teacher":
             student_group = ""
 
+        password_hash = hash_password(password)
         conn = get_db()
+        
 
         try:
             conn.execute(
                 """
                 INSERT INTO users (
                     username,
-                    password,
+                    password_hash,
                     role,
                     full_name,
                     student_group,
@@ -4973,7 +5101,7 @@ def register():
                 """,
                 (
                     username,
-                    password,
+                    password_hash,
                     role,
                     full_name,
                     student_group,
@@ -11033,15 +11161,24 @@ def manage_students():
     conn = get_db()
 
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
-        full_name = request.form.get("full_name")
-        student_group = request.form.get("student_group")
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        full_name = request.form.get("full_name", "").strip()
+        student_group = request.form.get("student_group", "").strip()
 
         if not username or not password or not full_name or not student_group:
             conn.close()
             flash("Нужно заполнить все поля.")
             return redirect(url_for("manage_students"))
+
+        password_ok, password_error = validate_password_strength(password, username)
+
+        if not password_ok:
+            conn.close()
+            flash(password_error)
+            return redirect(url_for("manage_students"))
+
+        password_hash = hash_password(password)
 
         try:
             conn.execute(
@@ -11049,7 +11186,7 @@ def manage_students():
                 INSERT INTO users (username, password, role, full_name, student_group)
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                (username, password, "student", full_name, student_group)
+                (username, password_hash, "student", full_name, student_group)
             )
             conn.commit()
             flash("Студент успешно добавлен.")
@@ -11059,9 +11196,11 @@ def manage_students():
 
         conn.close()
         return redirect(url_for("manage_students"))
-
+    
+    
     search_query = request.args.get("q", "").strip()
     selected_group = request.args.get("group", "").strip()
+
 
     groups = conn.execute(
         """
@@ -11155,14 +11294,21 @@ def edit_student(user_id):
         return redirect(url_for("manage_students"))
 
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
-        full_name = request.form.get("full_name")
-        student_group = request.form.get("student_group")
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        full_name = request.form.get("full_name", "").strip()
+        student_group = request.form.get("student_group", "").strip()
 
         if not username or not password or not full_name or not student_group:
             conn.close()
             flash("Нужно заполнить все поля.")
+            return redirect(url_for("edit_student", user_id=user_id))
+
+        password_ok, password_error = validate_password_strength(password, username)
+
+        if not password_ok:
+            conn.close()
+            flash(password_error)
             return redirect(url_for("edit_student", user_id=user_id))
 
         old_username = student["username"]
@@ -11181,13 +11327,15 @@ def edit_student(user_id):
             flash("Пользователь с таким логином уже существует.")
             return redirect(url_for("edit_student", user_id=user_id))
 
+        password_hash = hash_password(password)
+
         conn.execute(
             """
             UPDATE users
             SET username = ?, password = ?, full_name = ?, student_group = ?
             WHERE id = ? AND role = 'student'
             """,
-            (username, password, full_name, student_group, user_id)
+            (username, password_hash, full_name, student_group, user_id)
         )
 
         if old_username != username:
