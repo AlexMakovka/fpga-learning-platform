@@ -42,8 +42,12 @@
                     <div>
                         <b>Попытки:</b> {{ attempts_count or 0 }} из {{ lab["max_attempts"] or 3 }}
 
-                        {% if lab["allow_extra_questions"] %}
+                        {% if submissions and submissions[0]["status"] == "PASSED" %}
                             <span class="badge bg-success ms-2">
+                                Доп. вопросы не требуются
+                            </span>
+                        {% elif lab["allow_extra_questions"] %}
+                            <span class="badge bg-info text-dark ms-2">
                                 Доп. вопросы доступны
                             </span>
                         {% else %}
@@ -196,16 +200,23 @@ endmodule{% endif %}</textarea>
                     {% if last_submission["lint_status"] %}
                         <div class="mb-2">
                             <b>Качество HDL-кода:</b>
-                            {{ last_submission["lint_score"] }} / 100
+
+                            {% if last_submission["lint_status"] not in ["UNAVAILABLE", "SYSTEM_ERROR"] %}
+                                {{ last_submission["lint_score"] }} / 100
+                            {% else %}
+                                Lint-проверка не учитывается
+                            {% endif %}
 
                             {% if last_submission["lint_status"] == "OK" %}
                                 <span class="badge bg-success ms-1">OK</span>
                             {% elif last_submission["lint_status"] == "WARNING" %}
                                 <span class="badge bg-warning text-dark ms-1">WARNING</span>
                             {% elif last_submission["lint_status"] == "UNAVAILABLE" %}
-                                <span class="badge bg-secondary ms-1">Lint недоступен</span>
+                                <span class="badge bg-secondary ms-1">Недоступно</span>
+                            {% elif last_submission["lint_status"] == "SYSTEM_ERROR" %}
+                                <span class="badge bg-secondary ms-1">Ошибка настройки</span>
                             {% else %}
-                                <span class="badge bg-secondary ms-1">{{ last_submission["lint_status"] }}</span>
+                                <span class="badge bg-danger ms-1">{{ last_submission["lint_status"] }}</span>
                             {% endif %}
                         </div>
                     {% endif %}
@@ -529,9 +540,13 @@ endmodule{% endif %}</textarea>
                                 <span class="badge bg-secondary">
                                     Lint недоступен
                                 </span>
+                            {% elif sub["lint_status"] == "SYSTEM_ERROR" %}
+                                <span class="badge bg-secondary">
+                                    Lint: ошибка настройки
+                                </span>
                             {% else %}
                                 <span class="badge bg-danger">
-                                    Качество HDL: {{ sub["lint_score"] }} / 100
+                                    Lint: {{ sub["lint_status"] }}
                                 </span>
                             {% endif %}
                         </div>
@@ -647,7 +662,13 @@ endmodule{% endif %}</textarea>
                             </p>
 
                             <p class="mb-1">
-                                <b>Оценка качества:</b> {{ sub["lint_score"] }} / 100
+                                <b>Оценка качества:</b>
+
+                                {% if sub["lint_status"] not in ["UNAVAILABLE", "SYSTEM_ERROR"] %}
+                                    {{ sub["lint_score"] }} / 100
+                                {% else %}
+                                    Lint-проверка не учитывается
+                                {% endif %}
                             </p>
 
                             <p class="mb-1">
@@ -666,7 +687,9 @@ endmodule{% endif %}</textarea>
                         {% elif sub["lint_status"] == "WARNING" %}
                             <span class="badge bg-warning text-dark">WARNING</span>
                         {% elif sub["lint_status"] == "UNAVAILABLE" %}
-                            <span class="badge bg-secondary">Lint недоступен</span>
+                            <span class="badge bg-secondary">Недоступно</span>
+                        {% elif sub["lint_status"] == "SYSTEM_ERROR" %}
+                            <span class="badge bg-secondary">Ошибка настройки</span>
                         {% else %}
                             <span class="badge bg-danger">{{ sub["lint_status"] }}</span>
                         {% endif %}

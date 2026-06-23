@@ -164,6 +164,19 @@ PYTHON_DOCKER_IMAGE = "fpga-python-checker:latest"
 # Максимальний час перевірки Python-коду 
 PYTHON_CHECK_TIMEOUT_SECONDS = 15
 
+HDL_CHECK_MODE = os.getenv("HDL_CHECK_MODE", "docker").strip().lower()
+HDL_LINT_MODE = os.getenv("HDL_LINT_MODE", "docker").strip().lower()
+HDL_DOCKER_IMAGE = os.getenv("HDL_DOCKER_IMAGE", "fpga-hdl-checker:latest").strip()
+
+def get_int_env(name, default):
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+HDL_COMPILE_TIMEOUT_SECONDS = get_int_env("HDL_COMPILE_TIMEOUT_SECONDS", 10)
+HDL_SIM_TIMEOUT_SECONDS = get_int_env("HDL_SIM_TIMEOUT_SECONDS", 10)
 
 # Створюємо папку uploads, якщо її ще немає
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -1536,7 +1549,7 @@ def strip_verilog_comments(code):
     return code
 
 
-def run_hdl_lint_check(solution_path):
+def run_hdl_lint_check_local(solution_path):
     if not is_verilator_available():
         return {
             "lint_status": "UNAVAILABLE",
@@ -1573,6 +1586,27 @@ def run_hdl_lint_check(solution_path):
         )
 
         raw_output = (result.stdout or "") + "\n" + (result.stderr or "")
+
+        if (
+            "Cannot find verilated_std_waiver.vlt" in raw_output
+            or "Cannot find verilated_std.sv" in raw_output
+        ):
+            return {
+                "lint_status": "UNAVAILABLE",
+                "lint_score": 0,
+                "lint_issues_count": 0,
+                "lint_output": (
+                    "Verilator найден, но его системные файлы MSYS2 недоступны.\n\n"
+                    "Это не ошибка HDL-кода студента, а ошибка настройки локального Verilator.\n\n"
+                    "--- Вывод Verilator ---\n"
+                    + raw_output.strip()
+                ),
+                "lint_recommendation": (
+                    "Lint-проверка временно недоступна из-за проблемы конфигурации Verilator. "
+                    "Функциональная HDL-проверка выполнена в Docker-песочнице."
+                ),
+                "lint_issues": []
+            }
 
         verilator_issues = parse_verilator_lint_output(raw_output)
 
@@ -1647,6 +1681,162 @@ def run_hdl_lint_check(solution_path):
         }
 
 
+def run_hdl_lint_check_docker(solution_path):
+    if not is_docker_available():
+        return {
+            "lint_status": "UNAVAILABLE",
+            "lint_score": 0,
+            "lint_issues_count": 0,
+            "lint_output": (
+                "Docker недоступен.\n\n"
+                "Lint-проверка HDL-кода не выполнена, так как Docker Desktop не запущен."
+            ),
+            "lint_recommendation": "Запустите Docker Desktop и повторите проверку.",
+            "lint_issues": []
+        }
+
+    if not is_hdl_docker_image_available():
+        return {
+            "lint_status": "UNAVAILABLE",
+            "lint_score": 0,
+            "lint_issues_count": 0,
+            "lint_output": (
+                f"Docker-образ {HDL_DOCKER_IMAGE} не найден.\n\n"
+                "Соберите его командой:\n"
+                "docker build -t fpga-hdl-checker:latest docker/hdl-checker"
+            ),
+            "lint_recommendation": "Соберите Docker-образ HDL-проверки.",
+            "lint_issues": []
+        }
+
+    with tempfile.TemporaryDirectory(prefix="hdl_lint_docker_") as temp_dir:
+        temp_solution_path = os.path.join(temp_dir, "solution.v")
+
+        with open(solution_path, "r", encoding="utf-8", errors="replace") as file:
+            code = file.read()
+
+        # Убираем предупреждение Verilator о том, что в конце файла нет новой строки.
+        if not code.endswith("\n"):
+            code += "\n"
+
+        with open(temp_solution_path, "w", encoding="utf-8") as file:
+            file.write(code)
+
+        custom_issues = run_custom_hdl_style_checks(code)
+
+        command = build_hdl_docker_command(
+            workspace_path=temp_dir,
+            container_command=[
+                "verilator",
+                "--lint-only",
+                "-Wall",
+                "-Wno-fatal",
+                "-Wno-DECLFILENAME",
+                "-sv",
+                "solution.v"
+            ]
+        )
+
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+        except subprocess.TimeoutExpired:
+            return {
+                "lint_status": "TIMEOUT",
+                "lint_score": 0,
+                "lint_issues_count": 0,
+                "lint_output": "Lint-проверка HDL-кода в Docker выполнялась слишком долго и была остановлена.",
+                "lint_recommendation": "Проверьте сложность HDL-кода.",
+                "lint_issues": []
+            }
+
+        except Exception as error:
+            return {
+                "lint_status": "SYSTEM_ERROR",
+                "lint_score": 0,
+                "lint_issues_count": 0,
+                "lint_output": f"Ошибка Docker lint-проверки HDL-кода: {str(error)}",
+                "lint_recommendation": "Проверьте Docker-образ HDL-проверки.",
+                "lint_issues": []
+            }
+
+        raw_output = get_process_output(result)
+
+        verilator_issues = parse_verilator_lint_output(raw_output)
+
+        if result.returncode != 0 and not verilator_issues:
+            verilator_issues.append({
+                "severity": "error",
+                "code": "VERILATOR_ERROR",
+                "message": raw_output or "Verilator завершился с ошибкой.",
+                "source": "verilator"
+            })
+
+        all_issues = custom_issues + verilator_issues
+
+        lint_score = calculate_hdl_lint_score(all_issues)
+        lint_recommendation = build_hdl_lint_recommendation(all_issues)
+
+        if any(issue.get("severity") == "error" for issue in all_issues):
+            lint_status = "ERROR"
+        elif all_issues:
+            lint_status = "WARNING"
+        else:
+            lint_status = "OK"
+
+        if not raw_output.strip():
+            raw_output = "Verilator не выявил предупреждений."
+
+        report_lines = []
+        report_lines.append("Среда lint-проверки: Docker-песочница HDL.")
+        report_lines.append("")
+        report_lines.append(f"Статус lint-проверки: {lint_status}")
+        report_lines.append(f"Качество HDL-кода: {lint_score} / 100")
+        report_lines.append(f"Количество замечаний: {len(all_issues)}")
+        report_lines.append("")
+        report_lines.append("Рекомендация:")
+        report_lines.append(lint_recommendation)
+        report_lines.append("")
+
+        if all_issues:
+            report_lines.append("Список замечаний:")
+
+            for index, issue in enumerate(all_issues, start=1):
+                source = issue.get("source", "unknown")
+                code_value = issue.get("code", "UNKNOWN")
+                message = issue.get("message", "")
+
+                report_lines.append(
+                    f"{index}. [{source}] {code_value}: {message}"
+                )
+
+            report_lines.append("")
+
+        report_lines.append("--- Вывод Verilator ---")
+        report_lines.append(raw_output.strip())
+
+        return {
+            "lint_status": lint_status,
+            "lint_score": lint_score,
+            "lint_issues_count": len(all_issues),
+            "lint_output": "\n".join(report_lines),
+            "lint_recommendation": lint_recommendation,
+            "lint_issues": all_issues
+        }
+
+
+def run_hdl_lint_check(solution_path):
+    if HDL_LINT_MODE == "local":
+        return run_hdl_lint_check_local(solution_path)
+
+    return run_hdl_lint_check_docker(solution_path)
+
+
 def get_yosys_base_command():
     if os.name == "nt":
         if os.path.exists(YOSYS_EXE_PATH):
@@ -1689,11 +1879,27 @@ def is_yosys_available():
 
 
 def extract_yosys_number(output, label):
-    pattern = rf"{re.escape(label)}:\s+(\d+)"
-    match = re.search(pattern, output)
+    output = str(output or "")
 
-    if match:
-        return int(match.group(1))
+    old_pattern = rf"{re.escape(label)}:\s+(\d+)"
+    old_match = re.search(old_pattern, output)
+
+    if old_match:
+        return int(old_match.group(1))
+
+    new_patterns = {
+        "Number of wires": r"^\s*(\d+)\s+wires\s*$",
+        "Number of wire bits": r"^\s*(\d+)\s+wire bits\s*$",
+        "Number of cells": r"^\s*(\d+)\s+cells\s*$"
+    }
+
+    pattern = new_patterns.get(label)
+
+    if pattern:
+        match = re.search(pattern, output, flags=re.MULTILINE)
+
+        if match:
+            return int(match.group(1))
 
     return 0
 
@@ -1712,7 +1918,7 @@ def parse_yosys_warnings(output):
 
 def parse_yosys_cells(output):
     cells = {}
-    lines = output.splitlines()
+    lines = str(output or "").splitlines()
     after_cells_header = False
 
     for line in lines:
@@ -1722,19 +1928,37 @@ def parse_yosys_cells(output):
             after_cells_header = True
             continue
 
+        if re.match(r"^\d+\s+cells\s*$", stripped):
+            after_cells_header = True
+            continue
+
         if after_cells_header:
             if not stripped:
                 continue
 
-            match = re.match(r"([A-Za-z0-9_$.\-]+)\s+(\d+)$", stripped)
+            old_match = re.match(r"^([A-Za-z0-9_$.\-]+)\s+(\d+)$", stripped)
 
-            if match:
-                cell_name = match.group(1)
-                cell_count = int(match.group(2))
+            if old_match:
+                cell_name = old_match.group(1)
+                cell_count = int(old_match.group(2))
                 cells[cell_name] = cell_count
-            else:
-                if stripped.startswith("===") or stripped.startswith("Warnings:"):
-                    break
+                continue
+
+            new_match = re.match(r"^(\d+)\s+([A-Za-z0-9_$.\-]+)$", stripped)
+
+            if new_match:
+                cell_count = int(new_match.group(1))
+                cell_name = new_match.group(2)
+                cells[cell_name] = cell_count
+                continue
+
+            if (
+                stripped.startswith("End of script")
+                or stripped.startswith("Warnings:")
+                or stripped.startswith("===")
+                or stripped.startswith("Time spent")
+            ):
+                break
 
     return cells
 
@@ -2014,7 +2238,7 @@ def format_hdl_report(raw_output):
 
 
 # Функція для автоматичної перевірки HDL-коду студента за допомогою Icarus Verilog та тестбенча викладача.
-def run_hdl_check(user_code_path, testbench_text, waveform_save_path=None):
+def run_hdl_check_local(user_code_path, testbench_text, waveform_save_path=None):
 # Створюємо тимчасову папку для зберігання файлу рішення студента, тестбенча та результатів симуляції.
     with tempfile.TemporaryDirectory() as temp_dir:
         solution_path = os.path.join(temp_dir, "solution.v")
@@ -2093,7 +2317,8 @@ def run_hdl_check(user_code_path, testbench_text, waveform_save_path=None):
                 "Ошибка: симуляция выполнялась слишком долго.",
                 0,
                 0,
-                0
+                0,
+                False
             )
 
         full_output = run_result.stdout + run_result.stderr
@@ -2161,6 +2386,279 @@ def run_hdl_check(user_code_path, testbench_text, waveform_save_path=None):
             0,
             waveform_created
         )
+
+
+def is_hdl_docker_image_available():
+    try:
+        result = subprocess.run(
+            [
+                "docker",
+                "image",
+                "inspect",
+                HDL_DOCKER_IMAGE
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        return result.returncode == 0
+
+    except Exception:
+        return False
+
+
+def build_hdl_docker_command(workspace_path, container_command):
+    host_workspace = os.path.abspath(workspace_path)
+
+    return [
+        "docker",
+        "run",
+        "--rm",
+
+        # Полностью отключаем сеть внутри контейнера.
+        "--network",
+        "none",
+
+        # Ограничиваем CPU и память.
+        "--cpus",
+        "0.5",
+
+        "--memory",
+        "128m",
+
+        # Ограничиваем количество процессов.
+        "--pids-limit",
+        "64",
+
+        # Корневая файловая система контейнера только для чтения.
+        "--read-only",
+
+        # Даём временную папку только внутри контейнера.
+        "--tmpfs",
+        "/tmp:rw,nosuid,nodev,size=64m",
+
+        # Запрещаем получение дополнительных привилегий.
+        "--security-opt",
+        "no-new-privileges",
+
+        # Убираем Linux capabilities.
+        "--cap-drop",
+        "ALL",
+
+        # Монтируем только временную рабочую папку.
+        "-v",
+        f"{host_workspace}:/workspace:rw",
+
+        "-w",
+        "/workspace",
+
+        HDL_DOCKER_IMAGE
+    ] + container_command
+
+
+def get_process_output(result):
+    return ((result.stdout or "") + "\n" + (result.stderr or "")).strip()
+
+
+def run_hdl_check_docker(user_code_path, testbench_text, waveform_save_path=None):
+    if not is_docker_available():
+        return (
+            "SYSTEM_ERROR",
+            (
+                "Docker недоступен.\n\n"
+                "Проверьте, что Docker Desktop установлен и запущен."
+            ),
+            0,
+            0,
+            0,
+            False
+        )
+
+    if not is_hdl_docker_image_available():
+        return (
+            "SYSTEM_ERROR",
+            (
+                f"Docker-образ {HDL_DOCKER_IMAGE} не найден.\n\n"
+                "Соберите его командой:\n"
+                "docker build -t fpga-hdl-checker:latest checks/docker/hdl-checker"
+            ),
+            0,
+            0,
+            0,
+            False
+        )
+
+    with tempfile.TemporaryDirectory(prefix="hdl_docker_check_") as temp_dir:
+        solution_path = os.path.join(temp_dir, "solution.v")
+        testbench_path = os.path.join(temp_dir, "testbench.v")
+
+        shutil.copy(user_code_path, solution_path)
+
+        with open(testbench_path, "w", encoding="utf-8") as file:
+            file.write(testbench_text)
+
+        compile_command = build_hdl_docker_command(
+            workspace_path=temp_dir,
+            container_command=[
+                "iverilog",
+                "-o",
+                "simulation.out",
+                "solution.v",
+                "testbench.v"
+            ]
+        )
+
+        try:
+            compile_result = subprocess.run(
+                compile_command,
+                capture_output=True,
+                text=True,
+                timeout=HDL_COMPILE_TIMEOUT_SECONDS
+            )
+
+        except FileNotFoundError:
+            return (
+                "SYSTEM_ERROR",
+                "Ошибка: Docker не установлен или команда docker не добавлена в PATH.",
+                0,
+                0,
+                0,
+                False
+            )
+
+        except subprocess.TimeoutExpired:
+            return (
+                "TIMEOUT",
+                "Ошибка: компиляция HDL-кода в Docker выполнялась слишком долго.",
+                0,
+                0,
+                0,
+                False
+            )
+
+        if compile_result.returncode != 0:
+            return (
+                "COMPILE_ERROR",
+                get_process_output(compile_result),
+                0,
+                0,
+                0,
+                False
+            )
+
+        run_command = build_hdl_docker_command(
+            workspace_path=temp_dir,
+            container_command=[
+                "vvp",
+                "simulation.out"
+            ]
+        )
+
+        try:
+            run_result = subprocess.run(
+                run_command,
+                capture_output=True,
+                text=True,
+                timeout=HDL_SIM_TIMEOUT_SECONDS
+            )
+
+        except subprocess.TimeoutExpired:
+            return (
+                "TIMEOUT",
+                "Ошибка: HDL-симуляция в Docker выполнялась слишком долго.",
+                0,
+                0,
+                0,
+                False
+            )
+
+        full_output = get_process_output(run_result)
+
+        waveform_created = False
+
+        if waveform_save_path:
+            vcd_files = [
+                file_name
+                for file_name in os.listdir(temp_dir)
+                if file_name.lower().endswith(".vcd")
+            ]
+
+            if vcd_files:
+                source_vcd_path = os.path.join(temp_dir, vcd_files[0])
+                shutil.copy(source_vcd_path, waveform_save_path)
+                waveform_created = True
+
+        if run_result.returncode != 0:
+            return (
+                "SIMULATION_ERROR",
+                full_output,
+                0,
+                0,
+                0,
+                waveform_created
+            )
+
+        if "CASE|" in full_output:
+            formatted_report, score, passed_tests, total_tests = format_hdl_report(full_output)
+
+            formatted_report = (
+                "Среда проверки: Docker-песочница HDL.\n\n"
+                + formatted_report
+            )
+
+            if passed_tests == total_tests:
+                status = "PASSED"
+            elif passed_tests > 0:
+                status = "PARTIAL"
+            else:
+                status = "FAILED"
+
+            return (
+                status,
+                formatted_report,
+                score,
+                passed_tests,
+                total_tests,
+                waveform_created
+            )
+
+        if "ALL_TESTS_PASSED" in full_output:
+            return (
+                "PASSED",
+                "Среда проверки: Docker-песочница HDL.\n\n" + full_output,
+                100,
+                1,
+                1,
+                waveform_created
+            )
+
+        return (
+            "FAILED",
+            (
+                "Среда проверки: Docker-песочница HDL.\n\n"
+                + (full_output or "Тесты не пройдены или testbench не вывел результат проверки.")
+            ),
+            0,
+            0,
+            0,
+            waveform_created
+        )
+
+
+def run_hdl_check(user_code_path, testbench_text, waveform_save_path=None):
+    if HDL_CHECK_MODE == "local":
+        return run_hdl_check_local(
+            user_code_path=user_code_path,
+            testbench_text=testbench_text,
+            waveform_save_path=waveform_save_path
+        )
+
+    return run_hdl_check_docker(
+        user_code_path=user_code_path,
+        testbench_text=testbench_text,
+        waveform_save_path=waveform_save_path
+    )
 
 
 def normalize_vcd_value(value):
@@ -5056,8 +5554,6 @@ def register():
         full_name = request.form.get("full_name", "").strip()
         student_group = request.form.get("student_group", "").strip()
         email = request.form.get("email", "").strip()
-        
-        password_hash = hash_password(password)
 
         if role not in ["student", "teacher"]:
             flash("Можно зарегистрироваться только как студент или преподаватель.")
@@ -5089,7 +5585,7 @@ def register():
                 """
                 INSERT INTO users (
                     username,
-                    password_hash,
+                    password,
                     role,
                     full_name,
                     student_group,
@@ -8612,6 +9108,17 @@ def submit_solution(lab_id):
     saved_path = os.path.join(UPLOAD_DIR, saved_filename)
     file.save(saved_path)
 
+    with open(saved_path, "r", encoding="utf-8", errors="replace") as saved_file:
+        uploaded_code = saved_file.read()
+
+    uploaded_code = uploaded_code.replace("\r\n", "\n").replace("\r", "\n")
+
+    if not uploaded_code.endswith("\n"):
+        uploaded_code += "\n"
+
+    with open(saved_path, "w", encoding="utf-8") as saved_file:
+        saved_file.write(uploaded_code)
+
     waveform_filename = build_waveform_filename(saved_filename)
     waveform_save_path = os.path.join(WAVEFORM_DIR, waveform_filename)
 
@@ -8820,12 +9327,17 @@ def submit_code_from_editor(lab_id):
         flash("HDL-редактор доступен только для Verilog-заданий.")
         return redirect(url_for("lab_detail", lab_id=lab_id))
 
-    code_text = request.form.get("code_text", "").strip()
+    code_text = request.form.get("code_text", "")
 
-    if not code_text:
+    if not code_text.strip():
         conn.close()
         flash("Код решения не может быть пустым.")
         return redirect(url_for("lab_detail", lab_id=lab_id))
+
+    code_text = code_text.replace("\r\n", "\n").replace("\r", "\n")
+
+    if not code_text.endswith("\n"):
+        code_text += "\n"
 
     attempts_count = conn.execute(
         """

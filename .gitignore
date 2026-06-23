@@ -57,3 +57,11 @@ htmlcov/
 *.7z
 
 static/img/university-logo.png
+
+.env
+database.db
+uploads/
+waveforms/
+__pycache__/
+*.pyc
+venv/
