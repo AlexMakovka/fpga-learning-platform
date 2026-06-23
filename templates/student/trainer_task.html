@@ -1,0 +1,70 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Мини-задание{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="mb-1">{{ task["title"] }}</h1>
+            <p class="text-muted mb-0">
+                {{ task["topic_slug"] }} · {{ task["difficulty"] }} · {{ task["source_mode"] }}
+            </p>
+        </div>
+
+        <a href="{{ url_for('student_trainer') }}" class="btn btn-outline-secondary">
+            Назад в тренажёр
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body">
+            <h4 class="mb-3">Задание</h4>
+
+            <p>{{ task["prompt"] }}</p>
+
+            {% if task["code_snippet"] %}
+                <pre class="result-box">{{ task["code_snippet"] }}</pre>
+            {% endif %}
+
+            <form method="post"
+                  action="{{ url_for('student_trainer_task_submit', task_id=task['id']) }}">
+
+                {% for option in options %}
+                    <div class="form-check mb-2">
+                        <input class="form-check-input"
+                               type="radio"
+                               name="selected_option"
+                               id="option_{{ loop.index }}"
+                               value="{{ option }}"
+                               required>
+
+                        <label class="form-check-label" for="option_{{ loop.index }}">
+                            {{ option }}
+                        </label>
+                    </div>
+                {% endfor %}
+
+                <button class="btn btn-primary mt-3" type="submit">
+                    Проверить ответ
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {% if task["source_url"] %}
+        <div class="alert alert-light border rounded-4">
+            <b>Источник для повторения темы:</b>
+            <a href="{{ task['source_url'] }}"
+               target="_blank"
+               rel="noopener noreferrer">
+                {{ task["source_title"] or task["source_url"] }}
+            </a>
+        </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}

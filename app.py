@@ -22,9 +22,11 @@ import shutil
 import re
 
 import json
+import random
 import hashlib
 import requests
 from openai import OpenAI
+
 
 # sys дозволяє працювати з параметрами та налаштуваннями Python-інтерпретатора
 # Наприклад, можна отримувати аргументи запуску програми або завершувати програму
@@ -52,6 +54,8 @@ load_dotenv()
 # Включає OAuth-авторизацію у Flask
 # Потрібна для входу через зовнішні сервіси, наприклад Google
 from authlib.integrations.flask_client import OAuth
+
+from bs4 import BeautifulSoup
 
 
 # Імпортуємо основні інструменти Flask
@@ -116,6 +120,9 @@ YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 
 LEARNING_PATH_MODE = os.getenv("LEARNING_PATH_MODE", "free").strip().lower()
 
+TRAINER_AI_MODE = os.getenv("TRAINER_AI_MODE", "template").strip().lower()
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b").strip()
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate").strip()
 
 VERILATOR_PERL_PATH = os.getenv(
     "VERILATOR_PERL_PATH",
@@ -437,6 +444,115 @@ def init_db():
             cache_key TEXT NOT NULL,
             result_json TEXT NOT NULL,
             created_at TEXT NOT NULL
+        )
+    """)
+
+# Таблица заданий тренажёра
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS trainer_tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT DEFAULT '',
+            source_mode TEXT DEFAULT 'template',
+
+            topic_slug TEXT NOT NULL,
+            competency TEXT DEFAULT '',
+            error_type TEXT DEFAULT '',
+
+            title TEXT NOT NULL,
+            task_type TEXT NOT NULL,
+            difficulty TEXT DEFAULT 'basic',
+
+            prompt TEXT NOT NULL,
+            code_snippet TEXT DEFAULT '',
+            options_json TEXT DEFAULT '[]',
+            correct_answer_json TEXT DEFAULT '{}',
+            explanation TEXT DEFAULT '',
+
+            source_title TEXT DEFAULT '',
+            source_url TEXT DEFAULT '',
+
+            ai_prompt TEXT DEFAULT '',
+            ai_raw_output TEXT DEFAULT '',
+
+            status TEXT DEFAULT 'active',
+            created_at TEXT NOT NULL
+        )
+    """)
+
+# Таблица попыток по заданиям тренажёра
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS trainer_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            task_id INTEGER NOT NULL,
+
+            answer_text TEXT DEFAULT '',
+            selected_option TEXT DEFAULT '',
+
+            is_correct INTEGER DEFAULT 0,
+            score INTEGER DEFAULT 0,
+            feedback TEXT DEFAULT '',
+
+            created_at TEXT NOT NULL
+        )
+    """)
+
+    # Таблица тренировочных тестов
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS trainer_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+
+            topic_slug TEXT DEFAULT '',
+            competency TEXT DEFAULT '',
+            error_type TEXT DEFAULT '',
+            error_title TEXT DEFAULT '',
+
+            title TEXT NOT NULL,
+            source_mode TEXT DEFAULT 'template',
+
+            status TEXT DEFAULT 'active',
+            total_questions INTEGER DEFAULT 0,
+            correct_count INTEGER DEFAULT 0,
+            score INTEGER DEFAULT 0,
+            passed INTEGER DEFAULT 0,
+
+            created_at TEXT NOT NULL,
+            submitted_at TEXT DEFAULT ''
+        )
+    """)
+
+    # Связь теста с вопросами
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS trainer_session_questions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            task_id INTEGER NOT NULL,
+            order_number INTEGER DEFAULT 1,
+
+            FOREIGN KEY (session_id) REFERENCES trainer_sessions(id),
+            FOREIGN KEY (task_id) REFERENCES trainer_tasks(id)
+        )
+    """)
+
+    # Ответы студента внутри тренировочного теста
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS trainer_session_answers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            task_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+
+            selected_option TEXT DEFAULT '',
+            is_correct INTEGER DEFAULT 0,
+            correct_answer TEXT DEFAULT '',
+            feedback TEXT DEFAULT '',
+
+            created_at TEXT NOT NULL,
+
+            UNIQUE(session_id, task_id),
+            FOREIGN KEY (session_id) REFERENCES trainer_sessions(id),
+            FOREIGN KEY (task_id) REFERENCES trainer_tasks(id)
         )
     """)
 
@@ -6718,6 +6834,1229 @@ def build_live_learning_path(username, current_lab_id=None, refresh=False):
 
     return result
 
+# ============================================================
+# Тренажёр / определение темы задания
+# ============================================================
+
+def get_trainer_topic_by_error(error_type, lab_topic="", lab_title=""):
+    error_type = str(error_type or "")
+    lab_topic = str(lab_topic or "").lower()
+    lab_title = str(lab_title or "").lower()
+
+    text = lab_topic + " " + lab_title
+
+    if error_type in ["CONTROL_SIGNAL_ERROR", "WRONG_COMBINATIONAL_LOGIC", "BOUNDARY_TEST_FAILED"]:
+        return "mux"
+
+    if error_type in ["MODULE_NAME_MISMATCH"]:
+        return "module_name"
+
+    if error_type in ["PORT_MISMATCH"]:
+        return "ports"
+
+    if error_type in ["INCOMPLETE_CONDITION", "CASE_WITHOUT_DEFAULT"]:
+        return "case_default"
+
+    if error_type in ["RESET_CLOCK_ERROR"]:
+        return "reset_clock"
+
+    if error_type in ["BLOCKING_IN_SEQ"]:
+        return "sequential_assignment"
+
+    if error_type in ["FSM_STATE_ERROR", "FSM_TRANSITION_ERROR"]:
+        return "fsm"
+
+    if "mux" in text or "мультиплексор" in text:
+        return "mux"
+
+    if "counter" in text or "счётчик" in text or "счетчик" in text:
+        return "reset_clock"
+
+    if "register" in text or "регистр" in text:
+        return "reset_clock"
+
+    if "fsm" in text or "state" in text or "автомат" in text:
+        return "fsm"
+
+    return "verilog_basics"
+
+
+def get_trainer_source_catalog(topic_slug):
+    catalog = {
+        "mux": [
+            {
+                "title": "HDLBits: Combinational Logic",
+                "url": "https://hdlbits.01xz.net/wiki/Problem_sets"
+            },
+            {
+                "title": "Nandland: Learn Verilog",
+                "url": "https://nandland.com/learn-verilog/"
+            },
+            {
+                "title": "Project F: Verilog Library",
+                "url": "https://projectf.io/verilog-lib/"
+            }
+        ],
+
+        "module_name": [
+            {
+                "title": "HDLBits: Getting Started",
+                "url": "https://hdlbits.01xz.net/wiki/Step_one"
+            },
+            {
+                "title": "Nandland: Learn Verilog",
+                "url": "https://nandland.com/learn-verilog/"
+            }
+        ],
+
+        "ports": [
+            {
+                "title": "HDLBits: Getting Started",
+                "url": "https://hdlbits.01xz.net/wiki/Step_one"
+            },
+            {
+                "title": "Nandland: Verilog Tutorials",
+                "url": "https://nandland.com/category/verilog-tutorials-and-examples/verilog-tutorials/"
+            }
+        ],
+
+        "case_default": [
+            {
+                "title": "HDLBits: Always blocks",
+                "url": "https://hdlbits.01xz.net/wiki/Alwaysblock1"
+            },
+            {
+                "title": "Nandland: Learn Verilog",
+                "url": "https://nandland.com/learn-verilog/"
+            }
+        ],
+
+        "reset_clock": [
+            {
+                "title": "HDLBits: Always blocks clocked",
+                "url": "https://hdlbits.01xz.net/wiki/Alwaysff"
+            },
+            {
+                "title": "HDLBits: D flip-flop",
+                "url": "https://hdlbits.01xz.net/wiki/Dff"
+            },
+            {
+                "title": "Nandland: Learn Verilog",
+                "url": "https://nandland.com/learn-verilog/"
+            }
+        ],
+
+        "sequential_assignment": [
+            {
+                "title": "HDLBits: Sequential Logic",
+                "url": "https://hdlbits.01xz.net/wiki/Problem_sets"
+            },
+            {
+                "title": "Nandland: Learn Verilog",
+                "url": "https://nandland.com/learn-verilog/"
+            }
+        ],
+
+        "fsm": [
+            {
+                "title": "HDLBits: Finite State Machines",
+                "url": "https://hdlbits.01xz.net/wiki/Problem_sets"
+            },
+            {
+                "title": "Nandland: Learn Verilog",
+                "url": "https://nandland.com/learn-verilog/"
+            }
+        ],
+
+        "verilog_basics": [
+            {
+                "title": "HDLBits: Problem Sets",
+                "url": "https://hdlbits.01xz.net/wiki/Problem_sets"
+            },
+            {
+                "title": "Nandland: Learn Verilog",
+                "url": "https://nandland.com/learn-verilog/"
+            }
+        ]
+    }
+
+    return catalog.get(topic_slug, catalog["verilog_basics"])
+
+
+def fetch_web_source_metadata(url):
+    try:
+        response = requests.get(
+            url,
+            timeout=8,
+            headers={
+                "User-Agent": "Mozilla/5.0 FPGA Learning System Educational Bot"
+            }
+        )
+
+        if response.status_code != 200:
+            return {
+                "url": url,
+                "title": "",
+                "description": "",
+                "ok": False
+            }
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        title = ""
+
+        if soup.title and soup.title.string:
+            title = soup.title.string.strip()
+
+        description = ""
+
+        meta_description = soup.find("meta", attrs={"name": "description"})
+
+        if meta_description and meta_description.get("content"):
+            description = meta_description.get("content").strip()
+
+        # Ограничиваем длину, чтобы не тащить чужой материал целиком.
+        title = title[:200]
+        description = description[:500]
+
+        return {
+            "url": url,
+            "title": title,
+            "description": description,
+            "ok": True
+        }
+
+    except Exception:
+        return {
+            "url": url,
+            "title": "",
+            "description": "",
+            "ok": False
+        }
+
+
+def collect_trainer_web_context(topic_slug, limit=3):
+    sources = get_trainer_source_catalog(topic_slug)
+    collected = []
+
+    for source in sources[:limit]:
+        metadata = fetch_web_source_metadata(source["url"])
+
+        collected.append({
+            "source_title": source["title"],
+            "source_url": source["url"],
+            "page_title": metadata.get("title") or source["title"],
+            "page_description": metadata.get("description") or "",
+            "ok": metadata.get("ok", False)
+        })
+
+    return collected
+
+
+def get_student_trainer_context(username):
+    conn = get_db()
+
+    rows = conn.execute(
+        """
+        SELECT
+            submissions.id,
+            submissions.lab_id,
+            submissions.status,
+            submissions.score,
+            submissions.attempt_number,
+            submissions.error_type,
+            submissions.error_title,
+            submissions.error_details,
+            submissions.recommendation,
+            submissions.created_at,
+
+            labs.title AS lab_title,
+            labs.topic AS lab_topic,
+            labs.difficulty AS lab_difficulty,
+            labs.discipline AS lab_discipline
+        FROM submissions
+        JOIN labs ON labs.id = submissions.lab_id
+        WHERE submissions.username = ?
+        ORDER BY submissions.created_at DESC, submissions.id DESC
+        LIMIT 30
+        """,
+        (username,)
+    ).fetchall()
+
+    conn.close()
+
+    attempts = [dict(row) for row in rows]
+
+    error_counter = {}
+
+    for row in attempts:
+        error_type = row.get("error_type") or ""
+
+        if not error_type or error_type == "NO_ERROR":
+            continue
+
+        if error_type not in error_counter:
+            error_counter[error_type] = {
+                "error_type": error_type,
+                "error_title": row.get("error_title") or error_type,
+                "count": 0,
+                "lab_title": row.get("lab_title") or "",
+                "lab_topic": row.get("lab_topic") or "",
+                "recommendation": row.get("recommendation") or ""
+            }
+
+        error_counter[error_type]["count"] += 1
+
+    repeated_errors = sorted(
+        error_counter.values(),
+        key=lambda item: item["count"],
+        reverse=True
+    )
+
+    if repeated_errors:
+        main_error = repeated_errors[0]
+        topic_slug = get_trainer_topic_by_error(
+            error_type=main_error["error_type"],
+            lab_topic=main_error["lab_topic"],
+            lab_title=main_error["lab_title"]
+        )
+    else:
+        main_error = None
+        topic_slug = "verilog_basics"
+
+    return {
+        "username": username,
+        "main_error": main_error,
+        "repeated_errors": repeated_errors[:5],
+        "topic_slug": topic_slug,
+        "recent_attempts": attempts[:10]
+    }
+
+
+def generate_template_trainer_tasks(context, web_context, count=5):
+    topic_slug = context["topic_slug"]
+    main_error = context.get("main_error") or {}
+    error_type = main_error.get("error_type", "")
+
+    source = web_context[0] if web_context else {
+        "source_title": "",
+        "source_url": ""
+    }
+
+    tasks = []
+
+    if topic_slug == "mux":
+        tasks.extend([
+            {
+                "title": "Выбор выхода при sel = 0",
+                "task_type": "single_choice",
+                "difficulty": "basic",
+                "prompt": "Дан мультиплексор 2 к 1: y = sel ? d1 : d0. Что будет на выходе при sel = 0?",
+                "code_snippet": "assign y = sel ? d1 : d0;",
+                "options": ["d0", "d1", "sel", "0"],
+                "correct_answer": "d0",
+                "explanation": "При sel = 0 мультиплексор выбирает первый вход d0."
+            },
+            {
+                "title": "Выбор выхода при sel = 1",
+                "task_type": "single_choice",
+                "difficulty": "basic",
+                "prompt": "Дан мультиплексор 2 к 1: y = sel ? d1 : d0. Что будет на выходе при sel = 1?",
+                "code_snippet": "assign y = sel ? d1 : d0;",
+                "options": ["d0", "d1", "sel", "x"],
+                "correct_answer": "d1",
+                "explanation": "При sel = 1 мультиплексор выбирает второй вход d1."
+            },
+            {
+                "title": "Определить значение y",
+                "task_type": "single_choice",
+                "difficulty": "basic",
+                "prompt": "Чему равен y при d0 = 1, d1 = 0, sel = 0?",
+                "code_snippet": "assign y = sel ? d1 : d0;",
+                "options": ["0", "1", "x", "z"],
+                "correct_answer": "1",
+                "explanation": "При sel = 0 выбирается d0. Так как d0 = 1, выход y = 1."
+            },
+            {
+                "title": "Определить значение y при sel = 1",
+                "task_type": "single_choice",
+                "difficulty": "basic",
+                "prompt": "Чему равен y при d0 = 1, d1 = 0, sel = 1?",
+                "code_snippet": "assign y = sel ? d1 : d0;",
+                "options": ["0", "1", "d0", "sel"],
+                "correct_answer": "0",
+                "explanation": "При sel = 1 выбирается d1. Так как d1 = 0, выход y = 0."
+            },
+            {
+                "title": "Найти правильное описание мультиплексора",
+                "task_type": "single_choice",
+                "difficulty": "medium",
+                "prompt": "Какой вариант правильно описывает мультиплексор 2 к 1, если при sel = 0 выбирается d0, а при sel = 1 выбирается d1?",
+                "code_snippet": "",
+                "options": [
+                    "assign y = sel ? d1 : d0;",
+                    "assign y = sel ? d0 : d1;",
+                    "assign y = d0 & d1;",
+                    "assign y = sel;"
+                ],
+                "correct_answer": "assign y = sel ? d1 : d0;",
+                "explanation": "Тернарный оператор работает так: условие ? значение_если_истина : значение_если_ложь."
+            },
+            {
+                "title": "Найти ошибку в коде",
+                "task_type": "single_choice",
+                "difficulty": "medium",
+                "prompt": "Что не так в этом описании мультиплексора?",
+                "code_snippet": "assign y = sel ? d0 : d1;",
+                "options": [
+                    "Перепутаны d0 и d1",
+                    "Не хватает endmodule",
+                    "Нельзя использовать assign",
+                    "sel должен быть output"
+                ],
+                "correct_answer": "Перепутаны d0 и d1",
+                "explanation": "Если по условию при sel = 0 должен выбираться d0, а при sel = 1 d1, то правильное выражение: assign y = sel ? d1 : d0."
+            },
+            {
+                "title": "Роль управляющего сигнала",
+                "task_type": "single_choice",
+                "difficulty": "basic",
+                "prompt": "Какой сигнал управляет выбором входа в мультиплексоре 2 к 1?",
+                "code_snippet": "module mux2to1(input wire d0, input wire d1, input wire sel, output wire y);",
+                "options": ["d0", "d1", "sel", "y"],
+                "correct_answer": "sel",
+                "explanation": "Сигнал sel определяет, какой из входов попадёт на выход y."
+            }
+        ])
+
+    elif topic_slug == "module_name":
+        tasks.append({
+            "title": "Исправить имя модуля",
+            "task_type": "single_choice",
+            "difficulty": "basic",
+            "prompt": "Testbench создаёт экземпляр mux2to1 uut (...). Как должно называться начало модуля?",
+            "code_snippet": "module ??? (input wire d0, input wire d1, input wire sel, output wire y);",
+            "options": [
+                "module mux2to1",
+                "module mux",
+                "module testbench",
+                "module uut"
+            ],
+            "correct_answer": "module mux2to1",
+            "explanation": "Имя модуля должно совпадать с тем, что ожидает testbench."
+        })
+
+    elif topic_slug == "ports":
+        tasks.append({
+            "title": "Выбрать правильный порт",
+            "task_type": "single_choice",
+            "difficulty": "basic",
+            "prompt": "Какой порт должен быть выходом в модуле мультиплексора?",
+            "code_snippet": "module mux2to1(input wire d0, input wire d1, input wire sel, output wire y);",
+            "options": [
+                "d0",
+                "d1",
+                "sel",
+                "y"
+            ],
+            "correct_answer": "y",
+            "explanation": "d0, d1 и sel — входы, а y — результат работы схемы."
+        })
+
+    elif topic_slug == "case_default":
+        tasks.append({
+            "title": "Дописать default в case",
+            "task_type": "single_choice",
+            "difficulty": "medium",
+            "prompt": "Что лучше добавить в case-конструкцию, чтобы избежать неполного описания логики?",
+            "code_snippet": "case(sel)\n  1'b0: y = d0;\n  1'b1: y = d1;\nendcase",
+            "options": [
+                "default: y = 1'b0;",
+                "initial y = 0;",
+                "#10 y = d0;",
+                "assign sel = y;"
+            ],
+            "correct_answer": "default: y = 1'b0;",
+            "explanation": "default задаёт поведение схемы для непредусмотренных значений."
+        })
+
+    elif topic_slug == "reset_clock":
+        tasks.append({
+            "title": "Выбрать правильный always-блок",
+            "task_type": "single_choice",
+            "difficulty": "medium",
+            "prompt": "Какой always-блок корректно описывает регистр с асинхронным reset?",
+            "code_snippet": "",
+            "options": [
+                "always @(posedge clk or posedge reset)",
+                "always @(*)",
+                "always @(reset)",
+                "always @(posedge y)"
+            ],
+            "correct_answer": "always @(posedge clk or posedge reset)",
+            "explanation": "Асинхронный reset указывается в списке чувствительности вместе с clock."
+        })
+
+        tasks.append({
+            "title": "Найти правильное присваивание в регистре",
+            "task_type": "single_choice",
+            "difficulty": "medium",
+            "prompt": "Какое присваивание обычно используют внутри always @(posedge clk)?",
+            "code_snippet": "always @(posedge clk) begin\n    q <= d;\nend",
+            "options": [
+                "<=",
+                "=",
+                "assign",
+                "=="
+            ],
+            "correct_answer": "<=",
+            "explanation": "В последовательностной логике обычно используют неблокирующее присваивание <=."
+        })
+
+    elif topic_slug == "fsm":
+        tasks.append({
+            "title": "Определить назначение next_state",
+            "task_type": "single_choice",
+            "difficulty": "medium",
+            "prompt": "Для чего в FSM обычно используется сигнал next_state?",
+            "code_snippet": "",
+            "options": [
+                "Для хранения следующего состояния автомата",
+                "Для хранения входного clock",
+                "Для замены reset",
+                "Для вывода результата testbench"
+            ],
+            "correct_answer": "Для хранения следующего состояния автомата",
+            "explanation": "next_state определяет, в какое состояние автомат перейдёт на следующем такте."
+        })
+
+    else:
+        tasks.append({
+            "title": "Определить структуру Verilog-модуля",
+            "task_type": "single_choice",
+            "difficulty": "basic",
+            "prompt": "Какой ключевой блок обязательно завершает описание модуля Verilog?",
+            "code_snippet": "module example(input wire a, output wire y);\nassign y = a;\n???",
+            "options": [
+                "endmodule",
+                "end",
+                "finish",
+                "stop"
+            ],
+            "correct_answer": "endmodule",
+            "explanation": "Описание Verilog-модуля завершается ключевым словом endmodule."
+        })
+
+    prepared = []
+
+    random.shuffle(tasks)
+
+    for task in tasks[:count]:
+        prepared.append({
+            "topic_slug": topic_slug,
+            "competency": topic_slug,
+            "error_type": error_type,
+            "title": task["title"],
+            "task_type": task["task_type"],
+            "difficulty": task["difficulty"],
+            "prompt": task["prompt"],
+            "code_snippet": task.get("code_snippet", ""),
+            "options": task.get("options", []),
+            "correct_answer": task.get("correct_answer", ""),
+            "explanation": task.get("explanation", ""),
+            "source_title": source.get("source_title", ""),
+            "source_url": source.get("source_url", ""),
+            "source_mode": "template",
+            "ai_prompt": "",
+            "ai_raw_output": ""
+        })
+
+    return prepared
+
+
+def generate_trainer_tasks_with_ollama(context, web_context, count=5):
+    prompt = {
+        "role": "FPGA Verilog trainer task generator",
+        "language": "ru",
+        "student_context": context,
+        "web_sources": web_context,
+        "task": (
+            "Сгенерируй оригинальные мини-задания по Verilog/FPGA для тренажёра. "
+            "Не копируй задания из источников дословно. Используй источники только как тему и направление. "
+            "Задания должны быть короткими, проверяемыми автоматически, с одним правильным ответом."
+        ),
+        "allowed_task_types": [
+            "single_choice"
+        ],
+        "json_format": {
+            "tasks": [
+                {
+                    "title": "string",
+                    "task_type": "single_choice",
+                    "difficulty": "basic|medium|advanced",
+                    "prompt": "string",
+                    "code_snippet": "string",
+                    "options": ["string", "string", "string", "string"],
+                    "correct_answer": "string",
+                    "explanation": "string"
+                }
+            ]
+        }
+    }
+
+    try:
+        response = requests.post(
+            OLLAMA_URL,
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": json.dumps(prompt, ensure_ascii=False),
+                "stream": False,
+                "format": "json"
+            },
+            timeout=60
+        )
+
+        if response.status_code != 200:
+            return []
+
+        data = response.json()
+        raw_output = data.get("response", "")
+
+        parsed = json.loads(raw_output)
+
+        tasks = parsed.get("tasks", [])
+
+        return normalize_ai_trainer_tasks(
+            tasks=tasks,
+            context=context,
+            web_context=web_context,
+            source_mode="local_ai",
+            ai_prompt=json.dumps(prompt, ensure_ascii=False),
+            ai_raw_output=raw_output
+        )
+
+    except Exception:
+        return []
+    
+
+def normalize_ai_trainer_tasks(tasks, context, web_context, source_mode, ai_prompt="", ai_raw_output=""):
+    prepared = []
+
+    topic_slug = context.get("topic_slug", "verilog_basics")
+    main_error = context.get("main_error") or {}
+    error_type = main_error.get("error_type", "")
+
+    source = web_context[0] if web_context else {
+        "source_title": "",
+        "source_url": ""
+    }
+
+    for task in tasks:
+        title = str(task.get("title", "")).strip()
+        prompt = str(task.get("prompt", "")).strip()
+        task_type = str(task.get("task_type", "single_choice")).strip()
+        difficulty = str(task.get("difficulty", "basic")).strip()
+        code_snippet = str(task.get("code_snippet", "")).strip()
+        explanation = str(task.get("explanation", "")).strip()
+
+        options = task.get("options", [])
+        correct_answer = str(task.get("correct_answer", "")).strip()
+
+        if task_type != "single_choice":
+            continue
+
+        if not title or not prompt:
+            continue
+
+        if not isinstance(options, list):
+            continue
+
+        options = [str(option).strip() for option in options if str(option).strip()]
+
+        if len(options) < 2:
+            continue
+
+        if correct_answer not in options:
+            continue
+
+        if difficulty not in ["basic", "medium", "advanced"]:
+            difficulty = "basic"
+
+        # Ограничения длины, чтобы AI не вывел огромный текст.
+        title = title[:160]
+        prompt = prompt[:1000]
+        code_snippet = code_snippet[:1500]
+        explanation = explanation[:1000]
+        options = options[:6]
+
+        prepared.append({
+            "topic_slug": topic_slug,
+            "competency": topic_slug,
+            "error_type": error_type,
+            "title": title,
+            "task_type": task_type,
+            "difficulty": difficulty,
+            "prompt": prompt,
+            "code_snippet": code_snippet,
+            "options": options,
+            "correct_answer": correct_answer,
+            "explanation": explanation,
+            "source_title": source.get("source_title", ""),
+            "source_url": source.get("source_url", ""),
+            "source_mode": source_mode,
+            "ai_prompt": ai_prompt,
+            "ai_raw_output": ai_raw_output
+        })
+
+    return prepared[:5]
+
+def generate_personal_trainer_tasks(username, count=5):
+    context = get_student_trainer_context(username)
+    web_context = collect_trainer_web_context(context["topic_slug"], limit=3)
+
+    generated_tasks = []
+
+    if TRAINER_AI_MODE == "local":
+        generated_tasks = generate_trainer_tasks_with_ollama(
+            context=context,
+            web_context=web_context,
+            count=count
+        )
+
+    # Позже сюда можно добавить openai-режим.
+    # elif TRAINER_AI_MODE == "openai":
+    #     generated_tasks = generate_trainer_tasks_with_openai(...)
+
+    if not generated_tasks:
+        generated_tasks = generate_template_trainer_tasks(
+            context=context,
+            web_context=web_context,
+            count=count
+        )
+
+    return generated_tasks
+
+
+def save_trainer_tasks(username, tasks):
+    conn = get_db()
+
+    saved_ids = []
+
+    for task in tasks:
+        cursor = conn.execute(
+            """
+            INSERT INTO trainer_tasks
+            (username, source_mode, topic_slug, competency, error_type,
+             title, task_type, difficulty, prompt, code_snippet,
+             options_json, correct_answer_json, explanation,
+             source_title, source_url, ai_prompt, ai_raw_output,
+             status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                task.get("source_mode", "template"),
+                task.get("topic_slug", ""),
+                task.get("competency", ""),
+                task.get("error_type", ""),
+                task.get("title", ""),
+                task.get("task_type", "single_choice"),
+                task.get("difficulty", "basic"),
+                task.get("prompt", ""),
+                task.get("code_snippet", ""),
+                json.dumps(task.get("options", []), ensure_ascii=False),
+                json.dumps(
+                    {
+                        "answer": task.get("correct_answer", "")
+                    },
+                    ensure_ascii=False
+                ),
+                task.get("explanation", ""),
+                task.get("source_title", ""),
+                task.get("source_url", ""),
+                task.get("ai_prompt", ""),
+                task.get("ai_raw_output", ""),
+                "active",
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
+        )
+
+        saved_ids.append(cursor.lastrowid)
+
+    conn.commit()
+    conn.close()
+
+    return saved_ids
+
+
+def create_trainer_session(username, tasks, context):
+    conn = get_db()
+
+    main_error = context.get("main_error") or {}
+
+    topic_slug = context.get("topic_slug", "verilog_basics")
+    error_type = main_error.get("error_type", "")
+    error_title = main_error.get("error_title", "")
+
+    if error_title:
+        title = f"Тренировочный тест: {error_title}"
+    else:
+        title = "Тренировочный тест по Verilog/FPGA"
+
+    source_mode = tasks[0].get("source_mode", "template") if tasks else "template"
+
+    cursor = conn.execute(
+        """
+        INSERT INTO trainer_sessions
+        (username, topic_slug, competency, error_type, error_title,
+         title, source_mode, status, total_questions, correct_count,
+         score, passed, created_at, submitted_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            username,
+            topic_slug,
+            topic_slug,
+            error_type,
+            error_title,
+            title,
+            source_mode,
+            "active",
+            len(tasks),
+            0,
+            0,
+            0,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            ""
+        )
+    )
+
+    session_id = cursor.lastrowid
+
+    for index, task in enumerate(tasks, start=1):
+        task_cursor = conn.execute(
+            """
+            INSERT INTO trainer_tasks
+            (username, source_mode, topic_slug, competency, error_type,
+             title, task_type, difficulty, prompt, code_snippet,
+             options_json, correct_answer_json, explanation,
+             source_title, source_url, ai_prompt, ai_raw_output,
+             status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                task.get("source_mode", "template"),
+                task.get("topic_slug", ""),
+                task.get("competency", ""),
+                task.get("error_type", ""),
+                task.get("title", ""),
+                task.get("task_type", "single_choice"),
+                task.get("difficulty", "basic"),
+                task.get("prompt", ""),
+                task.get("code_snippet", ""),
+                json.dumps(task.get("options", []), ensure_ascii=False),
+                json.dumps(
+                    {"answer": task.get("correct_answer", "")},
+                    ensure_ascii=False
+                ),
+                task.get("explanation", ""),
+                task.get("source_title", ""),
+                task.get("source_url", ""),
+                task.get("ai_prompt", ""),
+                task.get("ai_raw_output", ""),
+                "active",
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
+        )
+
+        task_id = task_cursor.lastrowid
+
+        conn.execute(
+            """
+            INSERT INTO trainer_session_questions
+            (session_id, task_id, order_number)
+            VALUES (?, ?, ?)
+            """,
+            (
+                session_id,
+                task_id,
+                index
+            )
+        )
+
+    conn.commit()
+    conn.close()
+
+    return session_id
+
+
+@app.route("/student/trainer/generate", methods=["POST"])
+@login_required
+def student_trainer_generate():
+    if session.get("role") != "student":
+        flash("Тренажёр доступен только студенту.")
+        return redirect(url_for("index"))
+
+    username = session["username"]
+
+    conn = get_db()
+
+    active_session = conn.execute(
+        """
+        SELECT *
+        FROM trainer_sessions
+        WHERE username = ?
+          AND status = 'active'
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (username,)
+    ).fetchone()
+
+    conn.close()
+
+    if active_session:
+        flash("У вас уже есть незавершённый тренировочный тест. Сначала завершите его.")
+        return redirect(url_for("student_trainer_session", session_id=active_session["id"]))
+
+    context = get_student_trainer_context(username)
+
+    tasks = generate_personal_trainer_tasks(
+        username=username,
+        count=7
+    )
+
+    if not tasks:
+        flash("Не удалось сгенерировать тренировочный тест.")
+        return redirect(url_for("student_trainer"))
+
+    session_id = create_trainer_session(
+        username=username,
+        tasks=tasks,
+        context=context
+    )
+
+    flash("Сгенерирован тренировочный тест.")
+    return redirect(url_for("student_trainer_session", session_id=session_id))
+
+
+@app.route("/student/trainer/session/<int:session_id>")
+@login_required
+def student_trainer_session(session_id):
+    if session.get("role") != "student":
+        flash("Тренажёр доступен только студенту.")
+        return redirect(url_for("index"))
+
+    username = session["username"]
+
+    conn = get_db()
+
+    trainer_session = conn.execute(
+        """
+        SELECT *
+        FROM trainer_sessions
+        WHERE id = ?
+          AND username = ?
+        """,
+        (
+            session_id,
+            username
+        )
+    ).fetchone()
+
+    if not trainer_session:
+        conn.close()
+        abort(404)
+
+    questions = conn.execute(
+        """
+        SELECT
+            trainer_tasks.*,
+            trainer_session_questions.order_number
+        FROM trainer_session_questions
+        JOIN trainer_tasks ON trainer_tasks.id = trainer_session_questions.task_id
+        WHERE trainer_session_questions.session_id = ?
+        ORDER BY trainer_session_questions.order_number ASC
+        """,
+        (session_id,)
+    ).fetchall()
+
+    answers = conn.execute(
+        """
+        SELECT *
+        FROM trainer_session_answers
+        WHERE session_id = ?
+          AND username = ?
+        """,
+        (
+            session_id,
+            username
+        )
+    ).fetchall()
+
+    conn.close()
+
+    answers_map = {
+        answer["task_id"]: answer
+        for answer in answers
+    }
+
+    prepared_questions = []
+
+    for question in questions:
+        prepared_questions.append({
+            "task": question,
+            "options": json.loads(question["options_json"] or "[]"),
+            "answer": answers_map.get(question["id"])
+        })
+
+    return render_template(
+        "student/trainer_session.html",
+        trainer_session=trainer_session,
+        questions=prepared_questions
+    )
+
+
+@app.route("/student/trainer/task/<int:task_id>")
+@login_required
+def student_trainer_task(task_id):
+    if session.get("role") != "student":
+        flash("Тренажёр доступен только студенту.")
+        return redirect(url_for("index"))
+
+    username = session["username"]
+
+    conn = get_db()
+
+    task = conn.execute(
+        """
+        SELECT *
+        FROM trainer_tasks
+        WHERE id = ?
+          AND username = ?
+        """,
+        (
+            task_id,
+            username
+        )
+    ).fetchone()
+
+    conn.close()
+
+    if not task:
+        abort(404)
+
+    options = json.loads(task["options_json"] or "[]")
+
+    return render_template(
+        "student/trainer_task.html",
+        task=task,
+        options=options
+    )
+
+
+@app.route("/student/trainer/task/<int:task_id>/submit", methods=["POST"])
+@login_required
+def student_trainer_task_submit(task_id):
+    if session.get("role") != "student":
+        flash("Тренажёр доступен только студенту.")
+        return redirect(url_for("index"))
+
+    username = session["username"]
+    selected_option = request.form.get("selected_option", "").strip()
+
+    conn = get_db()
+
+    task = conn.execute(
+        """
+        SELECT *
+        FROM trainer_tasks
+        WHERE id = ?
+          AND username = ?
+        """,
+        (
+            task_id,
+            username
+        )
+    ).fetchone()
+
+    if not task:
+        conn.close()
+        abort(404)
+
+    correct_data = json.loads(task["correct_answer_json"] or "{}")
+    correct_answer = str(correct_data.get("answer", "")).strip()
+
+    is_correct = 1 if selected_option == correct_answer else 0
+    score = 100 if is_correct else 0
+
+    if is_correct:
+        feedback = "Верно. " + (task["explanation"] or "")
+    else:
+        feedback = (
+            "Неверно. Правильный ответ: "
+            + correct_answer
+            + ". "
+            + (task["explanation"] or "")
+        )
+
+    conn.execute(
+        """
+        INSERT INTO trainer_attempts
+        (username, task_id, answer_text, selected_option,
+         is_correct, score, feedback, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            username,
+            task_id,
+            selected_option,
+            selected_option,
+            is_correct,
+            score,
+            feedback,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    flash(feedback)
+
+    return redirect(url_for("student_trainer_task", task_id=task_id))
+
+
+@app.route("/student/trainer/session/<int:session_id>/submit", methods=["POST"])
+@login_required
+def student_trainer_session_submit(session_id):
+    if session.get("role") != "student":
+        flash("Тренажёр доступен только студенту.")
+        return redirect(url_for("index"))
+
+    username = session["username"]
+
+    conn = get_db()
+
+    trainer_session = conn.execute(
+        """
+        SELECT *
+        FROM trainer_sessions
+        WHERE id = ?
+          AND username = ?
+        """,
+        (
+            session_id,
+            username
+        )
+    ).fetchone()
+
+    if not trainer_session:
+        conn.close()
+        abort(404)
+
+    if trainer_session["status"] == "completed":
+        conn.close()
+        flash("Этот тренировочный тест уже завершён. Ответы изменить нельзя.")
+        return redirect(url_for("student_trainer_session", session_id=session_id))
+
+    questions = conn.execute(
+        """
+        SELECT
+            trainer_tasks.*,
+            trainer_session_questions.order_number
+        FROM trainer_session_questions
+        JOIN trainer_tasks ON trainer_tasks.id = trainer_session_questions.task_id
+        WHERE trainer_session_questions.session_id = ?
+        ORDER BY trainer_session_questions.order_number ASC
+        """,
+        (session_id,)
+    ).fetchall()
+
+    correct_count = 0
+    total_questions = len(questions)
+
+    for question in questions:
+        task_id = question["id"]
+        selected_option = request.form.get(f"answer_{task_id}", "").strip()
+
+        correct_data = json.loads(question["correct_answer_json"] or "{}")
+        correct_answer = str(correct_data.get("answer", "")).strip()
+
+        is_correct = 1 if selected_option == correct_answer else 0
+
+        if is_correct:
+            correct_count += 1
+            feedback = "Верно. " + (question["explanation"] or "")
+        else:
+            feedback = (
+                "Неверно. Правильный ответ: "
+                + correct_answer
+                + ". "
+                + (question["explanation"] or "")
+            )
+
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO trainer_session_answers
+            (session_id, task_id, username, selected_option,
+             is_correct, correct_answer, feedback, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                session_id,
+                task_id,
+                username,
+                selected_option,
+                is_correct,
+                correct_answer,
+                feedback,
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
+        )
+
+    if total_questions > 0:
+        score = round(correct_count * 100 / total_questions)
+    else:
+        score = 0
+
+    passed = 1 if score >= 70 else 0
+
+    conn.execute(
+        """
+        UPDATE trainer_sessions
+        SET status = 'completed',
+            total_questions = ?,
+            correct_count = ?,
+            score = ?,
+            passed = ?,
+            submitted_at = ?
+        WHERE id = ?
+          AND username = ?
+        """,
+        (
+            total_questions,
+            correct_count,
+            score,
+            passed,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            session_id,
+            username
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    if passed:
+        flash(f"Тест завершён. Результат: {score}/100. Тест пройден.")
+    else:
+        flash(f"Тест завершён. Результат: {score}/100. Рекомендуется пройти новый тест.")
+
+    return redirect(url_for("student_trainer_session", session_id=session_id))
+
+
 
 # =========================
 # 12. Student routes - студент
@@ -6948,6 +8287,65 @@ def student_learning_path_live():
         current_lab_id=current_lab_id
     )
 
+
+@app.route("/student/trainer")
+@login_required
+def student_trainer():
+    if session.get("role") != "student":
+        flash("Тренажёр доступен только студенту.")
+        return redirect(url_for("index"))
+
+    username = session["username"]
+
+    conn = get_db()
+
+    sessions = conn.execute(
+        """
+        SELECT *
+        FROM trainer_sessions
+        WHERE username = ?
+        ORDER BY id DESC
+        LIMIT 20
+        """,
+        (username,)
+    ).fetchall()
+
+    stats = conn.execute(
+        """
+        SELECT
+            COUNT(*) AS total_sessions,
+            SUM(passed) AS passed_sessions,
+            AVG(score) AS avg_score
+        FROM trainer_sessions
+        WHERE username = ?
+          AND status = 'completed'
+        """,
+        (username,)
+    ).fetchone()
+
+    active_session = conn.execute(
+        """
+        SELECT *
+        FROM trainer_sessions
+        WHERE username = ?
+          AND status = 'active'
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (username,)
+    ).fetchone()
+
+    conn.close()
+
+    context = get_student_trainer_context(username)
+
+    return render_template(
+        "student/trainer.html",
+        sessions=sessions,
+        stats=stats,
+        active_session=active_session,
+        context=context
+    )
 
 # Роут для сторінки з історією відправок студента по конкретній лабораторній роботі, який відображає всі відправки студента та їх результати.
 @app.route("/lab/<int:lab_id>/history")

@@ -238,6 +238,21 @@ endmodule{% endif %}</textarea>
                         </div>
                     {% endif %}
 
+                    {% if last_submission and last_submission["error_type"] and last_submission["error_type"] != "NO_ERROR" %}
+                        <div class="alert alert-warning rounded-4 mt-3">
+                            <h5 class="mb-2">Тренировка по ошибке</h5>
+
+                            <p class="mb-2">
+                                По этой ошибке можно сгенерировать короткие тренировочные задания.
+                            </p>
+
+                            <a href="{{ url_for('student_trainer') }}"
+                            class="btn btn-warning btn-sm">
+                                Открыть тренажёр FPGA
+                            </a>
+                        </div>
+                    {% endif %}
+
                     <details class="mt-2">
                         <summary class="text-primary" style="cursor: pointer;">
                             Показать полный отчёт проверки

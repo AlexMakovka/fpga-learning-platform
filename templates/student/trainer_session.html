@@ -1,0 +1,144 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Тренировочный тест{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="mb-1">{{ trainer_session["title"] }}</h1>
+            <p class="text-muted mb-0">
+                {{ trainer_session["topic_slug"] }} · {{ trainer_session["source_mode"] }}
+            </p>
+        </div>
+
+        <a href="{{ url_for('student_trainer') }}" class="btn btn-outline-secondary">
+            Назад в тренажёр
+        </a>
+    </div>
+
+    {% if trainer_session["status"] == "completed" %}
+        <div class="alert {% if trainer_session['passed'] %}alert-success{% else %}alert-danger{% endif %} rounded-4 shadow-sm">
+            <h4 class="mb-2">
+                {% if trainer_session["passed"] %}
+                    Тест пройден
+                {% else %}
+                    Тест не пройден
+                {% endif %}
+            </h4>
+
+            <p class="mb-0">
+                Результат:
+                <b>{{ trainer_session["score"] }} / 100</b>,
+                правильных ответов:
+                <b>{{ trainer_session["correct_count"] }} из {{ trainer_session["total_questions"] }}</b>.
+            </p>
+        </div>
+    {% else %}
+        <div class="alert alert-info rounded-4 shadow-sm">
+            Ответьте на все вопросы и нажмите «Завершить тест».
+            После завершения изменить ответы нельзя.
+        </div>
+    {% endif %}
+
+    <form method="post"
+          action="{{ url_for('student_trainer_session_submit', session_id=trainer_session['id']) }}">
+
+        {% for item in questions %}
+            {% set task = item.task %}
+            {% set answer = item.answer %}
+
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body">
+
+                    <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+                        <h4 class="mb-0">
+                            {{ loop.index }}. {{ task["title"] }}
+                        </h4>
+
+                        <span class="badge bg-primary">
+                            {{ task["difficulty"] }}
+                        </span>
+                    </div>
+
+                    <p class="mb-3">
+                        {{ task["prompt"] }}
+                    </p>
+
+                    {% if task["code_snippet"] %}
+                        <pre class="result-box">{{ task["code_snippet"] }}</pre>
+                    {% endif %}
+
+                    {% for option in item.options %}
+                        <div class="form-check mb-2">
+                            <input class="form-check-input"
+                                   type="radio"
+                                   name="answer_{{ task['id'] }}"
+                                   id="answer_{{ task['id'] }}_{{ loop.index }}"
+                                   value="{{ option }}"
+                                   {% if answer and answer["selected_option"] == option %}checked{% endif %}
+                                   {% if trainer_session["status"] == "completed" %}disabled{% endif %}
+                                   required>
+
+                            <label class="form-check-label" for="answer_{{ task['id'] }}_{{ loop.index }}">
+                                {{ option }}
+                            </label>
+                        </div>
+                    {% endfor %}
+
+                    {% if trainer_session["status"] == "completed" and answer %}
+                        <div class="mt-3 p-3 rounded-4 border
+                                    {% if answer['is_correct'] %}
+                                        bg-success-subtle
+                                    {% else %}
+                                        bg-danger-subtle
+                                    {% endif %}">
+                            {% if answer["is_correct"] %}
+                                <b>Верно.</b>
+                            {% else %}
+                                <b>Неверно.</b>
+                                Правильный ответ: <b>{{ answer["correct_answer"] }}</b>.
+                            {% endif %}
+
+                            <div class="small mt-1">
+                                {{ answer["feedback"] }}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if task["source_url"] %}
+                        <div class="small text-muted mt-3">
+                            Источник для повторения:
+                            <a href="{{ task['source_url'] }}"
+                               target="_blank"
+                               rel="noopener noreferrer">
+                                {{ task["source_title"] or task["source_url"] }}
+                            </a>
+                        </div>
+                    {% endif %}
+
+                </div>
+            </div>
+        {% endfor %}
+
+        {% if trainer_session["status"] != "completed" %}
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body d-flex justify-content-between align-items-center gap-3">
+                    <div class="text-muted">
+                        Проверьте ответы перед отправкой. После завершения тест будет зафиксирован.
+                    </div>
+
+                    <button class="btn btn-primary btn-lg" type="submit">
+                        Завершить тест
+                    </button>
+                </div>
+            </div>
+        {% endif %}
+
+    </form>
+
+</div>
+
+{% endblock %}

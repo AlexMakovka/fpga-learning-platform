@@ -1,0 +1,144 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Тренажёр FPGA{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="mb-1">Тренажёр FPGA</h1>
+            <p class="text-muted mb-0">
+                Персональный тренировочный тест по вашим ошибкам в Verilog/FPGA.
+            </p>
+        </div>
+
+        {% if active_session %}
+            <a href="{{ url_for('student_trainer_session', session_id=active_session['id']) }}"
+               class="btn btn-warning">
+                Продолжить активный тест
+            </a>
+        {% else %}
+            <form method="post" action="{{ url_for('student_trainer_generate') }}">
+                <button class="btn btn-primary" type="submit">
+                    Сгенерировать тренировочный тест
+                </button>
+            </form>
+        {% endif %}
+    </div>
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Текущая тема тренировки</div>
+                    <h4 class="mb-0">{{ context.topic_slug }}</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Завершённых тестов</div>
+                    <h4 class="mb-0">{{ stats["total_sessions"] or 0 }}</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Средний результат</div>
+                    <h4 class="mb-0">
+                        {% if stats["avg_score"] %}
+                            {{ "%.1f"|format(stats["avg_score"]) }} / 100
+                        {% else %}
+                            —
+                        {% endif %}
+                    </h4>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {% if context.main_error %}
+        <div class="alert alert-warning rounded-4 border-0 shadow-sm">
+            <b>Основа тренировки:</b>
+            {{ context.main_error.error_title }}
+            <span class="badge bg-danger ms-2">
+                {{ context.main_error.count }}
+            </span>
+        </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-body">
+            <h4 class="mb-3">История тренировочных тестов</h4>
+
+            {% if sessions %}
+                <div class="list-group">
+                    {% for item in sessions %}
+                        <a href="{{ url_for('student_trainer_session', session_id=item['id']) }}"
+                           class="list-group-item list-group-item-action">
+
+                            <div class="d-flex justify-content-between align-items-start gap-3">
+                                <div>
+                                    <b>{{ item["title"] }}</b>
+
+                                    <div class="small text-muted mt-1">
+                                        {{ item["topic_slug"] }} · {{ item["source_mode"] }} ·
+                                        {{ item["created_at"] }}
+                                    </div>
+
+                                    {% if item["error_title"] %}
+                                        <div class="small text-muted mt-1">
+                                            Ошибка: {{ item["error_title"] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="text-end">
+                                    {% if item["status"] == "active" %}
+                                        <span class="badge bg-warning text-dark">
+                                            Не завершён
+                                        </span>
+                                    {% else %}
+                                        {% if item["passed"] %}
+                                            <span class="badge bg-success">
+                                                Пройден
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                Не пройден
+                                            </span>
+                                        {% endif %}
+
+                                        <div class="fw-bold mt-2">
+                                            {{ item["score"] }} / 100
+                                        </div>
+
+                                        <div class="small text-muted">
+                                            {{ item["correct_count"] }} из {{ item["total_questions"] }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted mb-0">
+                    Пока нет тренировочных тестов. Нажмите «Сгенерировать тренировочный тест».
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
