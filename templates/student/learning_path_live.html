@@ -1,0 +1,271 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}AI-траектория обучения{% endblock %}
+
+{% block content %}
+
+<div class="container py-4">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="mb-1">AI-траектория обучения</h1>
+            <p class="text-muted mb-0">
+                Персональный подбор материалов из интернета на основе ваших ошибок.
+            </p>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('student_learning_path_live', lab_id=current_lab_id, refresh=1) }}"
+               class="btn btn-primary">
+                Обновить интернет-подбор
+            </a>
+
+            <a href="{{ url_for('student_competencies') }}"
+               class="btn btn-outline-secondary">
+                Карта компетенций
+            </a>
+        </div>
+    </div>
+
+    {% if learning_path.from_cache %}
+        <div class="alert alert-light border rounded-4">
+            Используется сохранённый подбор материалов. Нажмите «Обновить интернет-подбор», чтобы выполнить новый поиск.
+        </div>
+    {% endif %}
+
+    <div class="alert alert-primary rounded-4 border-0 shadow-sm">
+        <h5 class="mb-2">Рекомендация AI-наставника</h5>
+        <p class="mb-0">{{ learning_path.summary }}</p>
+    </div>
+
+    <div class="row g-4">
+
+        <div class="col-lg-8">
+
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body">
+                    <h4 class="mb-3">Тема для повторения</h4>
+
+                    <h5>{{ learning_path.topic_title }}</h5>
+
+                    {% if learning_path.mini_theory %}
+                        <p class="text-muted">
+                            {{ learning_path.mini_theory }}
+                        </p>
+                    {% endif %}
+
+                    {% if learning_path.what_to_repeat %}
+                        <h6 class="mt-3">Что повторить</h6>
+
+                        <div class="row g-2">
+                            {% for item in learning_path.what_to_repeat %}
+                                <div class="col-md-6">
+                                    <div class="border rounded-4 p-3 h-100">
+                                        {{ item }}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body">
+                    <h4 class="mb-3">Материалы из интернета</h4>
+
+                    <h5 class="mb-2">Лекции</h5>
+
+                    {% if learning_path.lectures %}
+                        <div class="list-group mb-4">
+                            {% for lecture in learning_path.lectures %}
+                                <a href="{{ lecture.url }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="list-group-item list-group-item-action">
+                                    <b>{{ lecture.title }}</b>
+
+                                    {% if lecture.description %}
+                                        <div class="small text-muted mt-1">
+                                            {{ lecture.description }}
+                                        </div>
+                                    {% endif %}
+
+                                    {% if lecture.why_useful %}
+                                        <div class="small mt-1">
+                                            <b>Почему полезно:</b> {{ lecture.why_useful }}
+                                        </div>
+                                    {% endif %}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Лекции не найдены.</p>
+                    {% endif %}
+
+                    <h5 class="mb-2">Статьи и учебные темы</h5>
+
+                    {% if learning_path.articles %}
+                        <div class="list-group mb-4">
+                            {% for article in learning_path.articles %}
+                                <a href="{{ article.url }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="list-group-item list-group-item-action">
+                                    <b>{{ article.title }}</b>
+
+                                    {% if article.description %}
+                                        <div class="small text-muted mt-1">
+                                            {{ article.description }}
+                                        </div>
+                                    {% endif %}
+
+                                    {% if article.why_useful %}
+                                        <div class="small mt-1">
+                                            <b>Почему полезно:</b> {{ article.why_useful }}
+                                        </div>
+                                    {% endif %}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Статьи не найдены.</p>
+                    {% endif %}
+
+                    <h5 class="mb-2">Практические задания</h5>
+
+                    {% if learning_path.practice %}
+                        <div class="list-group mb-4">
+                            {% for task in learning_path.practice %}
+                                <a href="{{ task.url }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="list-group-item list-group-item-action">
+                                    <b>{{ task.title }}</b>
+
+                                    {% if task.description %}
+                                        <div class="small text-muted mt-1">
+                                            {{ task.description }}
+                                        </div>
+                                    {% endif %}
+
+                                    {% if task.why_useful %}
+                                        <div class="small mt-1">
+                                            <b>Почему полезно:</b> {{ task.why_useful }}
+                                        </div>
+                                    {% endif %}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Практические задания не найдены.</p>
+                    {% endif %}
+
+                    <h5 class="mb-2">Видео</h5>
+
+                    {% if learning_path.videos %}
+                        <div class="list-group">
+                            {% for video in learning_path.videos %}
+                                <a href="{{ video.url }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="list-group-item list-group-item-action">
+                                    <b>{{ video.title }}</b>
+
+                                    {% if video.description %}
+                                        <div class="small text-muted mt-1">
+                                            {{ video.description }}
+                                        </div>
+                                    {% endif %}
+
+                                    {% if video.why_useful %}
+                                        <div class="small mt-1">
+                                            <b>Почему полезно:</b> {{ video.why_useful }}
+                                        </div>
+                                    {% endif %}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Видео не найдены.</p>
+                    {% endif %}
+
+            {% if learning_path.control_question %}
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-body">
+                        <h4 class="mb-3">Контрольный вопрос</h4>
+
+                        <div class="alert alert-light border rounded-4 mb-0">
+                            {{ learning_path.control_question }}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+        </div>
+
+        <div class="col-lg-4">
+
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body">
+                    <h4 class="mb-3">Повторяющиеся ошибки</h4>
+
+                    {% set repeated_errors = learning_path.context.repeated_errors %}
+
+                    {% if repeated_errors %}
+                        <div class="list-group list-group-flush">
+                            {% for error in repeated_errors %}
+                                <div class="list-group-item px-0">
+                                    <div class="d-flex justify-content-between gap-3">
+                                        <div>
+                                            <b>{{ error.error_title }}</b>
+                                            <div class="small text-muted">
+                                                {{ error.error_type }}
+                                            </div>
+                                        </div>
+
+                                        <span class="badge bg-danger rounded-pill align-self-start">
+                                            {{ error.count }}
+                                        </span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">
+                            Повторяющиеся ошибки пока не выявлены.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if learning_path.next_topic %}
+                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                    <div class="card-body">
+                        <h4 class="mb-3">Следующая тема</h4>
+
+                        <div class="alert alert-success rounded-4 mb-0">
+                            {{ learning_path.next_topic }}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if learning_path.ai_note %}
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-body">
+                        <h4 class="mb-3">Примечание</h4>
+                        <p class="text-muted mb-0">
+                            {{ learning_path.ai_note }}
+                        </p>
+                    </div>
+                </div>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

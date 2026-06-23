@@ -222,6 +222,22 @@ endmodule{% endif %}</textarea>
                         </div>
                     {% endif %}
 
+                    {% if last_submission and last_submission["error_type"] and last_submission["error_type"] != "NO_ERROR" %}
+                        <div class="alert alert-primary rounded-4 mt-3">
+                            <h5 class="mb-2">AI-рекомендация по ошибке</h5>
+
+                            <p class="mb-2">
+                                Система может подобрать материалы из интернета по ошибке:
+                                <b>{{ last_submission["error_title"] or last_submission["error_type"] }}</b>.
+                            </p>
+
+                            <a href="{{ url_for('student_learning_path_live', lab_id=lab['id'], refresh=1) }}"
+                            class="btn btn-primary btn-sm">
+                                Подобрать материалы из интернета
+                            </a>
+                        </div>
+                    {% endif %}
+
                     <details class="mt-2">
                         <summary class="text-primary" style="cursor: pointer;">
                             Показать полный отчёт проверки

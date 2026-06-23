@@ -22,6 +22,9 @@ import shutil
 import re
 
 import json
+import hashlib
+import requests
+from openai import OpenAI
 
 # sys дозволяє працювати з параметрами та налаштуваннями Python-інтерпретатора
 # Наприклад, можна отримувати аргументи запуску програми або завершувати програму
@@ -31,6 +34,7 @@ import sys
 # Може застосовуватись для безпечної перевірки коду без його прямого виконання
 import ast
 
+from urllib.parse import quote_plus
 # datetime потрібен для роботи з датою та часом
 # Наприклад, щоб зберегти дату спроби, дату завантаження файлу або час перевірки
 from datetime import datetime
@@ -42,6 +46,8 @@ from functools import wraps
 # Завантажує змінні оточення з файлу .env
 # Наприклад, секретні ключі та налаштування, які не варто зберігати прямо в коді
 from dotenv import load_dotenv
+
+load_dotenv()
 
 # Включає OAuth-авторизацію у Flask
 # Потрібна для входу через зовнішні сервіси, наприклад Google
@@ -98,6 +104,18 @@ UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 WAVEFORM_DIR = os.path.join(BASE_DIR, "waveforms")
 # Завантажує налаштування з файлу .env, який знаходиться в папці проекту
 load_dotenv(os.path.join(BASE_DIR, ".env"))
+
+
+# =========================
+# API-настройки
+# =========================
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
+
+LEARNING_PATH_MODE = os.getenv("LEARNING_PATH_MODE", "free").strip().lower()
+
 
 VERILATOR_PERL_PATH = os.getenv(
     "VERILATOR_PERL_PATH",
@@ -406,6 +424,19 @@ def init_db():
             feedback TEXT NOT NULL,
             created_at TEXT NOT NULL,
             FOREIGN KEY (submission_id) REFERENCES submissions(id)
+        )
+    """)
+
+# Таблица кэша для интернет-рекомендаций индивидуальной траектории обучения.
+# Нужна, чтобы не выполнять внешний поиск при каждом открытии страницы.
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS learning_path_cache (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            lab_id INTEGER DEFAULT 0,
+            cache_key TEXT NOT NULL,
+            result_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
         )
     """)
 
@@ -5758,6 +5789,936 @@ def calculate_student_competency_map(username):
     }
 
 
+# ============================================================
+# AI-траектория обучения с открытым интернет-поиском
+# ============================================================
+
+def get_openai_client():
+    if not OPENAI_API_KEY:
+        return None
+
+    return OpenAI(api_key=OPENAI_API_KEY)
+
+
+def make_learning_cache_key(username, lab_id, error_type, topic_key):
+    raw = f"{username}|{lab_id}|{error_type}|{topic_key}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def get_learning_topic_from_error(error_type, lab_topic="", lab_title=""):
+    error_type = str(error_type or "")
+    lab_topic = str(lab_topic or "").lower()
+    lab_title = str(lab_title or "").lower()
+
+    if error_type in ["RESET_CLOCK_ERROR"]:
+        return "reset clock sequential logic Verilog FPGA"
+
+    if error_type in ["CONTROL_SIGNAL_ERROR", "WRONG_COMBINATIONAL_LOGIC", "BOUNDARY_TEST_FAILED"]:
+        return "combinational logic Verilog mux adder FPGA"
+
+    if error_type in ["MODULE_NAME_MISMATCH", "PORT_MISMATCH", "COMPILE_ERROR"]:
+        return "Verilog module ports testbench beginner"
+
+    if error_type in ["INCOMPLETE_CONDITION", "CASE_WITHOUT_DEFAULT"]:
+        return "Verilog case default if else latch combinational logic"
+
+    if error_type in ["FSM_STATE_ERROR", "FSM_TRANSITION_ERROR"]:
+        return "Verilog finite state machine FSM states transitions"
+
+    if error_type in ["DELAY_IN_DESIGN", "INITIAL_IN_DESIGN", "SYNTHESIS_ERROR"]:
+        return "synthesizable Verilog FPGA Yosys synthesis"
+
+    text = lab_topic + " " + lab_title
+
+    if "mux" in text or "мультиплексор" in text:
+        return "Verilog multiplexer combinational logic"
+
+    if "adder" in text or "сумматор" in text:
+        return "Verilog adder carry combinational logic"
+
+    if "counter" in text or "счетчик" in text or "счётчик" in text:
+        return "Verilog counter reset clock sequential logic"
+
+    if "register" in text or "регистр" in text:
+        return "Verilog register reset clock sequential logic"
+
+    if "fsm" in text or "автомат" in text or "state" in text:
+        return "Verilog FSM finite state machine"
+
+    return "Verilog FPGA beginner HDL testbench"
+
+
+def get_recent_student_error_context(username, current_lab_id=None):
+    conn = get_db()
+
+    params = [username]
+
+    sql = """
+        SELECT
+            submissions.id,
+            submissions.lab_id,
+            submissions.status,
+            submissions.score,
+            submissions.attempt_number,
+            submissions.error_type,
+            submissions.error_title,
+            submissions.error_details,
+            submissions.recommendation,
+            submissions.created_at,
+
+            labs.title AS lab_title,
+            labs.topic AS lab_topic,
+            labs.difficulty AS lab_difficulty,
+            labs.discipline AS lab_discipline
+        FROM submissions
+        JOIN labs ON labs.id = submissions.lab_id
+        WHERE submissions.username = ?
+        ORDER BY submissions.created_at DESC, submissions.id DESC
+        LIMIT 30
+    """
+
+    rows = conn.execute(sql, params).fetchall()
+
+    current_lab = None
+
+    if current_lab_id:
+        current_lab = conn.execute(
+            """
+            SELECT id, title, topic, difficulty, discipline
+            FROM labs
+            WHERE id = ?
+            """,
+            (current_lab_id,)
+        ).fetchone()
+
+    conn.close()
+
+    attempts = [dict(row) for row in rows]
+
+    error_counter = {}
+
+    for row in attempts:
+        error_type = row.get("error_type") or ""
+
+        if not error_type or error_type == "NO_ERROR":
+            continue
+
+        if error_type not in error_counter:
+            error_counter[error_type] = {
+                "error_type": error_type,
+                "error_title": row.get("error_title") or error_type,
+                "count": 0,
+                "last_lab_title": row.get("lab_title") or "",
+                "last_recommendation": row.get("recommendation") or "",
+                "last_error_details": row.get("error_details") or ""
+            }
+
+        error_counter[error_type]["count"] += 1
+
+    repeated_errors = sorted(
+        error_counter.values(),
+        key=lambda item: item["count"],
+        reverse=True
+    )
+
+    main_error = repeated_errors[0] if repeated_errors else None
+
+    if main_error:
+        error_type = main_error["error_type"]
+        error_title = main_error["error_title"]
+    else:
+        error_type = ""
+        error_title = ""
+
+    if current_lab:
+        topic_key = get_learning_topic_from_error(
+            error_type=error_type,
+            lab_topic=current_lab["topic"],
+            lab_title=current_lab["title"]
+        )
+    elif attempts:
+        topic_key = get_learning_topic_from_error(
+            error_type=error_type,
+            lab_topic=attempts[0].get("lab_topic"),
+            lab_title=attempts[0].get("lab_title")
+        )
+    else:
+        topic_key = "Verilog FPGA beginner HDL"
+
+    context = {
+        "username": username,
+        "current_lab_id": current_lab_id or 0,
+        "current_lab": dict(current_lab) if current_lab else None,
+        "main_error": main_error,
+        "repeated_errors": repeated_errors[:5],
+        "topic_key": topic_key,
+        "recent_attempts": [
+            {
+                "lab_title": row.get("lab_title"),
+                "status": row.get("status"),
+                "score": row.get("score"),
+                "attempt_number": row.get("attempt_number"),
+                "error_type": row.get("error_type"),
+                "error_title": row.get("error_title")
+            }
+            for row in attempts[:10]
+        ]
+    }
+
+    return context
+
+# ============================================================
+# Интернет-рекомендации / YouTube / OpenAI
+# ============================================================
+
+def search_youtube_videos(query, max_results=3):
+    if not YOUTUBE_API_KEY:
+        return []
+
+    try:
+        response = requests.get(
+            "https://www.googleapis.com/youtube/v3/search",
+            params={
+                "part": "snippet",
+                "q": query,
+                "type": "video",
+                "maxResults": max_results,
+                "key": YOUTUBE_API_KEY,
+                "relevanceLanguage": "en"
+            },
+            timeout=10
+        )
+
+        if response.status_code != 200:
+            return []
+
+        data = response.json()
+        videos = []
+
+        for item in data.get("items", []):
+            video_id = item.get("id", {}).get("videoId")
+            snippet = item.get("snippet", {})
+
+            if not video_id:
+                continue
+
+            videos.append({
+                "title": snippet.get("title", "Видео"),
+                "url": f"https://www.youtube.com/watch?v={video_id}",
+                "description": snippet.get("description", ""),
+                "source": "YouTube"
+            })
+
+        return videos
+
+    except Exception:
+        return []
+    
+
+def extract_json_from_text(text):
+    text = str(text or "").strip()
+
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+
+    start = text.find("{")
+    end = text.rfind("}")
+
+    if start != -1 and end != -1 and end > start:
+        candidate = text[start:end + 1]
+
+        try:
+            return json.loads(candidate)
+        except Exception:
+            return None
+
+    return None
+
+
+def get_direct_learning_resources(topic_slug):
+    catalog = {
+        "combinational_logic": {
+            "lectures": [
+                {
+                    "title": "MIT OCW: Introduction to Verilog — Combinational Logic",
+                    "url": "https://ocw.mit.edu/courses/6-111-introductory-digital-systems-laboratory-spring-2006/pages/lecture-notes/",
+                    "description": "Лекции MIT по цифровым системам, включая комбинационную логику и Verilog.",
+                    "why_useful": "Полезно для понимания mux, assign, if/else, case и таблиц истинности."
+                }
+            ],
+            "articles": [
+                {
+                    "title": "Nandland: Learn Verilog",
+                    "url": "https://nandland.com/learn-verilog/",
+                    "description": "Подборка уроков по Verilog для начинающих.",
+                    "why_useful": "Подходит для повторения assign, always-блоков и структуры Verilog-модуля."
+                },
+                {
+                    "title": "Nandland: Verilog Tutorials",
+                    "url": "https://nandland.com/category/verilog-tutorials-and-examples/verilog-tutorials/",
+                    "description": "Раздел с Verilog-туториалами и примерами.",
+                    "why_useful": "Можно быстро повторить базовый синтаксис и стиль описания схем."
+                },
+                {
+                    "title": "Project F: Verilog Library",
+                    "url": "https://projectf.io/verilog-lib/",
+                    "description": "Практические Verilog-модули, документация и testbench-примеры.",
+                    "why_useful": "Помогает увидеть, как небольшие цифровые блоки оформляются в реальном Verilog-коде."
+                }
+            ],
+            "practice": [
+                {
+                    "title": "HDLBits: Problem Sets",
+                    "url": "https://hdlbits.01xz.net/wiki/Problem_sets",
+                    "description": "Практические задания по Verilog, включая комбинационную логику.",
+                    "why_useful": "Можно закрепить mux, gates, adders, if/case и другие базовые схемы."
+                }
+            ],
+            "videos": [
+                {
+                    "title": "Nandland YouTube: FPGA, Verilog and VHDL Tutorials",
+                    "url": "https://www.youtube.com/@Nandland",
+                    "description": "Канал с видеоуроками по FPGA, Verilog и VHDL.",
+                    "why_useful": "Подходит для визуального объяснения базовых тем Verilog."
+                },
+                {
+                    "title": "YouTube: Verilog Multiplexer Tutorial",
+                    "url": "https://www.youtube.com/results?search_query=verilog+multiplexer+tutorial",
+                    "description": "Подборка видео по мультиплексорам на Verilog.",
+                    "why_useful": "Полезно при ошибках выбора управляющего сигнала sel."
+                }
+            ]
+        },
+
+        "sequential_logic": {
+            "lectures": [
+                {
+                    "title": "MIT OCW: Sequential Building Blocks",
+                    "url": "https://ocw.mit.edu/courses/6-111-introductory-digital-systems-laboratory-spring-2006/pages/lecture-notes/",
+                    "description": "Лекции MIT по последовательностной логике, регистрам и простым последовательностным схемам.",
+                    "why_useful": "Помогает понять, почему схема зависит от clock и предыдущего состояния."
+                }
+            ],
+            "articles": [
+                {
+                    "title": "Nandland: Learn Verilog",
+                    "url": "https://nandland.com/learn-verilog/",
+                    "description": "Уроки по Verilog, включая always-блоки и базовую структуру кода.",
+                    "why_useful": "Подходит для повторения always @(posedge clk) и различия между = и <=."
+                },
+                {
+                    "title": "Project F: FPGA Tutorials",
+                    "url": "https://projectf.io/tutorials/",
+                    "description": "Практические FPGA-туториалы.",
+                    "why_useful": "Помогает увидеть практическую FPGA-разработку на примерах."
+                }
+            ],
+            "practice": [
+                {
+                    "title": "HDLBits: Sequential Logic Practice",
+                    "url": "https://hdlbits.01xz.net/wiki/Problem_sets",
+                    "description": "Разделы HDLBits с заданиями по последовательностной логике.",
+                    "why_useful": "Можно потренировать регистры, счётчики, always-блоки и FSM."
+                }
+            ],
+            "videos": [
+                {
+                    "title": "YouTube: Verilog Sequential Logic Register Counter",
+                    "url": "https://www.youtube.com/results?search_query=verilog+sequential+logic+register+counter",
+                    "description": "Видео по регистрам, счётчикам и последовательностной логике.",
+                    "why_useful": "Полезно при ошибках в counter/register-задачах."
+                },
+                {
+                    "title": "Nandland YouTube",
+                    "url": "https://www.youtube.com/@Nandland",
+                    "description": "Видео по FPGA, Verilog и VHDL.",
+                    "why_useful": "Хороший источник базовых FPGA-видеоуроков."
+                }
+            ]
+        },
+
+        "reset_clock": {
+            "lectures": [
+                {
+                    "title": "MIT OCW: Sequential Circuits and Verilog",
+                    "url": "https://ocw.mit.edu/courses/6-111-introductory-digital-systems-laboratory-spring-2006/pages/lecture-notes/",
+                    "description": "Лекции по последовательностным схемам, clock, состояниям и синхронизации.",
+                    "why_useful": "Полезно для понимания reset/clock и обновления состояния схемы."
+                }
+            ],
+            "articles": [
+                {
+                    "title": "HDLBits: Always blocks — clocked",
+                    "url": "https://hdlbits.01xz.net/wiki/Alwaysff",
+                    "description": "Задание и объяснение clocked always-блоков.",
+                    "why_useful": "Подходит для повторения always @(posedge clk)."
+                },
+                {
+                    "title": "HDLBits: D flip-flop",
+                    "url": "https://hdlbits.01xz.net/wiki/Dff",
+                    "description": "Практика по D-триггерам.",
+                    "why_useful": "Помогает понять основу регистров и обновления по clock."
+                },
+                {
+                    "title": "Nandland: Learn Verilog",
+                    "url": "https://nandland.com/learn-verilog/",
+                    "description": "Уроки по Verilog и always-блокам.",
+                    "why_useful": "Полезно для повторения синтаксиса sequential always-блоков."
+                }
+            ],
+            "practice": [
+                {
+                    "title": "HDLBits: Sequential Logic",
+                    "url": "https://hdlbits.01xz.net/wiki/Problem_sets",
+                    "description": "Практика по триггерам, регистрам, счётчикам и FSM.",
+                    "why_useful": "Помогает закрепить reset/clock через короткие задания."
+                }
+            ],
+            "videos": [
+                {
+                    "title": "YouTube: Verilog reset clock posedge",
+                    "url": "https://www.youtube.com/results?search_query=verilog+reset+clock+posedge",
+                    "description": "Видео по reset, clock и posedge в Verilog.",
+                    "why_useful": "Полезно при ошибках RESET_CLOCK_ERROR."
+                }
+            ]
+        },
+
+        "fsm": {
+            "lectures": [
+                {
+                    "title": "MIT OCW: Finite-State Machines and Synchronization",
+                    "url": "https://ocw.mit.edu/courses/6-111-introductory-digital-systems-laboratory-spring-2006/pages/lecture-notes/",
+                    "description": "Лекция MIT по конечным автоматам и синхронизации.",
+                    "why_useful": "Помогает понять state, next_state, переходы и синхронизацию."
+                }
+            ],
+            "articles": [
+                {
+                    "title": "HDLBits: Finite State Machines",
+                    "url": "https://hdlbits.01xz.net/wiki/Problem_sets",
+                    "description": "Практические задания по FSM.",
+                    "why_useful": "Можно потренировать автоматы Мили/Мура и переходы между состояниями."
+                },
+                {
+                    "title": "Nandland: Learn Verilog",
+                    "url": "https://nandland.com/learn-verilog/",
+                    "description": "Verilog-уроки для закрепления always/case и структуры модулей.",
+                    "why_useful": "Полезно для правильного оформления FSM-кода."
+                }
+            ],
+            "practice": [
+                {
+                    "title": "HDLBits: Problem Sets",
+                    "url": "https://hdlbits.01xz.net/wiki/Problem_sets",
+                    "description": "Набор практических задач по Verilog, включая FSM.",
+                    "why_useful": "Позволяет отработать описание состояний и переходов."
+                }
+            ],
+            "videos": [
+                {
+                    "title": "YouTube: Verilog FSM Tutorial",
+                    "url": "https://www.youtube.com/results?search_query=verilog+fsm+tutorial",
+                    "description": "Видео по конечным автоматам на Verilog.",
+                    "why_useful": "Полезно для понимания state/next_state и case по состояниям."
+                }
+            ]
+        },
+
+        "testbench_work": {
+            "lectures": [
+                {
+                    "title": "MIT OCW: Introduction to Verilog",
+                    "url": "https://ocw.mit.edu/courses/6-111-introductory-digital-systems-laboratory-spring-2006/pages/lecture-notes/",
+                    "description": "Лекции MIT по Verilog и лабораторному FPGA-проектированию.",
+                    "why_useful": "Помогает понять, как Verilog используется в лабораторных работах."
+                }
+            ],
+            "articles": [
+                {
+                    "title": "HDLBits: Getting Started",
+                    "url": "https://hdlbits.01xz.net/wiki/Step_one",
+                    "description": "Начальная страница HDLBits с первым Verilog-заданием.",
+                    "why_useful": "Полезно для понимания формата проверки и структуры решения."
+                },
+                {
+                    "title": "Nandland: Learn Verilog",
+                    "url": "https://nandland.com/learn-verilog/",
+                    "description": "Базовые Verilog-уроки.",
+                    "why_useful": "Помогает повторить module, input/output и синтаксис."
+                }
+            ],
+            "practice": [
+                {
+                    "title": "HDLBits: Verilog Practice",
+                    "url": "https://hdlbits.01xz.net/wiki/Problem_sets",
+                    "description": "Практические задания с автоматической проверкой.",
+                    "why_useful": "Формат похож на твою систему: студент пишет Verilog и получает результат проверки."
+                }
+            ],
+            "videos": [
+                {
+                    "title": "YouTube: Verilog testbench tutorial",
+                    "url": "https://www.youtube.com/results?search_query=verilog+testbench+tutorial",
+                    "description": "Видео по testbench в Verilog.",
+                    "why_useful": "Полезно при ошибках имени модуля, портов и проверки."
+                }
+            ]
+        },
+
+        "synthesis": {
+            "lectures": [
+                {
+                    "title": "MIT OCW: Digital Systems Laboratory Lecture Notes",
+                    "url": "https://ocw.mit.edu/courses/6-111-introductory-digital-systems-laboratory-spring-2006/pages/lecture-notes/",
+                    "description": "Лекции по цифровым системам, Verilog и FPGA-проектированию.",
+                    "why_useful": "Даёт теоретическую базу для понимания FPGA-реализации."
+                }
+            ],
+            "articles": [
+                {
+                    "title": "Yosys Documentation",
+                    "url": "https://yosyshq.net/yosys/documentation.html",
+                    "description": "Официальная документация Yosys.",
+                    "why_useful": "Полезно для понимания этапа синтеза Verilog-кода."
+                },
+                {
+                    "title": "Yosys GitHub",
+                    "url": "https://github.com/YosysHQ/yosys",
+                    "description": "Репозиторий Yosys.",
+                    "why_useful": "Можно изучить возможности инструмента и примеры использования."
+                },
+                {
+                    "title": "Project F: FPGA Tutorials",
+                    "url": "https://projectf.io/tutorials/",
+                    "description": "Практические FPGA-туториалы.",
+                    "why_useful": "Помогает понять FPGA-разработку не только на уровне симуляции, но и реализации."
+                }
+            ],
+            "practice": [
+                {
+                    "title": "Project F: Verilog Library",
+                    "url": "https://projectf.io/verilog-lib/",
+                    "description": "Практические Verilog-модули с документацией.",
+                    "why_useful": "Полезно для анализа синтезируемых Verilog-конструкций."
+                }
+            ],
+            "videos": [
+                {
+                    "title": "YouTube: Yosys Verilog synthesis",
+                    "url": "https://www.youtube.com/results?search_query=yosys+verilog+synthesis",
+                    "description": "Видео по синтезу Verilog через Yosys.",
+                    "why_useful": "Полезно для понимания проверки синтезируемости."
+                }
+            ]
+        }
+    }
+
+    return catalog.get(topic_slug, catalog["combinational_logic"])
+
+
+def detect_direct_resource_topic(context):
+    topic_key = str(context.get("topic_key") or "").lower()
+    main_error = context.get("main_error") or {}
+    error_type = str(main_error.get("error_type") or "")
+
+    if error_type in ["RESET_CLOCK_ERROR"]:
+        return "reset_clock"
+
+    if error_type in ["FSM_STATE_ERROR", "FSM_TRANSITION_ERROR"]:
+        return "fsm"
+
+    if error_type in ["MODULE_NAME_MISMATCH", "PORT_MISMATCH", "COMPILE_ERROR"]:
+        return "testbench_work"
+
+    if error_type in ["DELAY_IN_DESIGN", "INITIAL_IN_DESIGN", "SYNTHESIS_ERROR"]:
+        return "synthesis"
+
+    if error_type in ["CONTROL_SIGNAL_ERROR", "WRONG_COMBINATIONAL_LOGIC", "BOUNDARY_TEST_FAILED", "INCOMPLETE_CONDITION", "HIDDEN_TEST_FAILED"]:
+        return "combinational_logic"
+
+    if "reset" in topic_key or "clock" in topic_key:
+        return "reset_clock"
+
+    if "fsm" in topic_key or "state" in topic_key:
+        return "fsm"
+
+    if "counter" in topic_key or "register" in topic_key or "sequential" in topic_key:
+        return "sequential_logic"
+
+    if "yosys" in topic_key or "synthesis" in topic_key:
+        return "synthesis"
+
+    if "testbench" in topic_key or "module" in topic_key or "port" in topic_key:
+        return "testbench_work"
+
+    return "combinational_logic"
+
+
+def build_open_search_fallback_learning_path(context, reason=""):
+    topic_key = context.get("topic_key", "Verilog FPGA beginner HDL")
+    main_error = context.get("main_error") or {}
+
+    error_type = main_error.get("error_type", "")
+    error_title = main_error.get("error_title", error_type)
+
+    query_base = topic_key
+
+    if error_type:
+        query_base = f"{topic_key} {error_type}"
+
+    google_query = quote_plus(query_base)
+    youtube_query = quote_plus(query_base + " tutorial")
+    hdlbits_query = quote_plus(query_base + " site:hdlbits.01xz.net")
+    nandland_query = quote_plus(query_base + " site:nandland.com")
+    projectf_query = quote_plus(query_base + " site:projectf.io")
+
+    if "reset" in query_base.lower() or "clock" in query_base.lower():
+        topic_title = "Reset/clock и последовательностная логика"
+        mini_theory = (
+            "Ошибка связана с обновлением состояния схемы во времени. "
+            "Проверьте always-блоки, posedge clk, обработку reset и использование неблокирующих присваиваний <=."
+        )
+        what_to_repeat = [
+            "always @(posedge clk)",
+            "синхронный и асинхронный reset",
+            "неблокирующее присваивание <=",
+            "регистры и счётчики"
+        ]
+        control_question = "Чем синхронный reset отличается от асинхронного reset?"
+        next_topic = "Счётчики и FSM"
+
+    elif "fsm" in query_base.lower() or "state" in query_base.lower():
+        topic_title = "Конечные автоматы FSM"
+        mini_theory = (
+            "Ошибка связана с описанием состояний и переходов. "
+            "Проверьте state, next_state, case по состояниям и обработку всех возможных входных условий."
+        )
+        what_to_repeat = [
+            "state и next_state",
+            "case по состояниям",
+            "default-переход",
+            "обработка всех входных условий"
+        ]
+        control_question = "Зачем в FSM нужна ветка default?"
+        next_topic = "Управляющие автоматы повышенной сложности"
+
+    elif "testbench" in query_base.lower() or "module" in query_base.lower() or "port" in query_base.lower():
+        topic_title = "Работа с testbench и структурой Verilog-модуля"
+        mini_theory = (
+            "Ошибка может быть связана с тем, что testbench ожидает конкретное имя модуля, набор портов "
+            "и корректное описание input/output. Даже правильная логика не пройдёт проверку, если интерфейс модуля не совпадает."
+        )
+        what_to_repeat = [
+            "module и endmodule",
+            "input/output",
+            "совпадение имён портов",
+            "анализ сообщения компилятора"
+        ]
+        control_question = "Что произойдёт, если имя модуля не совпадает с тем, которое ожидает testbench?"
+        next_topic = "Отладка HDL-кода через waveform"
+
+    elif "synthesis" in query_base.lower() or "yosys" in query_base.lower():
+        topic_title = "Синтезируемость HDL-кода"
+        mini_theory = (
+            "Синтезируемость означает, что Verilog-код может быть преобразован в аппаратную схему. "
+            "Некоторые конструкции допустимы в симуляции, но не подходят для FPGA-синтеза."
+        )
+        what_to_repeat = [
+            "синтезируемый Verilog",
+            "разница между testbench и design-кодом",
+            "задержки #",
+            "Yosys synthesis"
+        ]
+        control_question = "Почему задержка #10 допустима в testbench, но нежелательна в синтезируемом модуле?"
+        next_topic = "Оптимизация HDL-кода"
+
+    else:
+        topic_title = "Комбинационная логика Verilog"
+        mini_theory = (
+            "Комбинационная логика описывает схему, выход которой зависит только от текущих входных сигналов. "
+            "Для таких схем важно полностью описывать все возможные комбинации входов."
+        )
+        what_to_repeat = [
+            "таблицы истинности",
+            "assign и тернарный оператор",
+            "if/else",
+            "case/default",
+            "мультиплексоры и сумматоры"
+        ]
+        control_question = "Почему в комбинационной логике важно описывать все ветки условий?"
+        next_topic = "Последовательностная логика"
+
+    if error_title:
+        summary = (
+            f"По вашей ошибке «{error_title}» сформирована бесплатная открытая траектория: "
+            f"повторите тему «{topic_title}»."
+        )
+    else:
+        summary = (
+            f"Сформирована бесплатная открытая траектория по теме «{topic_title}»."
+        )
+
+    topic_slug = detect_direct_resource_topic(context)
+    direct_resources = get_direct_learning_resources(topic_slug)
+
+    lectures = direct_resources.get("lectures", [])
+    articles = direct_resources.get("articles", [])
+    practice = direct_resources.get("practice", [])
+    videos = direct_resources.get("videos", [])
+
+    return {
+        "status": "FREE_DIRECT_LINKS",
+        "summary": summary,
+        "topic_title": topic_title,
+        "mini_theory": mini_theory,
+        "what_to_repeat": what_to_repeat,
+        "lectures": lectures,
+        "articles": articles,
+        "practice": practice,
+        "videos": videos,
+        "control_question": control_question,
+        "next_topic": next_topic,
+        "ai_note": reason or "Используется бесплатный режим с прямыми учебными ссылками.",
+        "from_cache": False,
+        "context": context
+    }
+
+
+def generate_live_learning_path_with_openai(context):
+    client = get_openai_client()
+
+    if client is None:
+        return build_open_search_fallback_learning_path(
+            context,
+            reason="OpenAI API key не настроен. Используется бесплатный режим с открытым поиском."
+        )
+
+    system_prompt = """
+Ты являешься AI-наставником по FPGA-проектированию и Verilog HDL.
+
+Твоя задача:
+1. Проанализировать ошибку студента.
+2. Найти в интернете актуальные учебные материалы.
+3. Подобрать статьи, практические задания и видео.
+4. Сформировать индивидуальную траекторию обучения.
+
+Важно:
+- Не придумывай несуществующие ссылки.
+- Предпочитай открытые учебные материалы: HDLBits, Nandland, Project F, официальную документацию Yosys, университетские страницы, качественные видеоуроки.
+- Не отправляй студента на случайные рекламные сайты.
+- Ответ верни строго в JSON.
+- Язык ответа: русский.
+- Ссылки могут быть на английские материалы, но пояснения должны быть на русском.
+
+JSON-структура:
+{
+  "status": "OK",
+  "summary": "...",
+  "topic_title": "...",
+  "mini_theory": "...",
+  "what_to_repeat": ["...", "..."],
+  "articles": [
+    {
+      "title": "...",
+      "url": "...",
+      "description": "...",
+      "why_useful": "..."
+    }
+  ],
+  "videos": [
+    {
+      "title": "...",
+      "url": "...",
+      "description": "...",
+      "why_useful": "..."
+    }
+  ],
+  "control_question": "...",
+  "next_topic": "...",
+  "ai_note": "..."
+}
+"""
+
+    user_prompt = {
+        "task": "Сформируй индивидуальную траекторию обучения по Verilog/FPGA с интернет-источниками.",
+        "student_context": context
+    }
+
+    try:
+        response = client.responses.create(
+            model=OPENAI_MODEL,
+            tools=[
+                {
+                    "type": "web_search"
+                }
+            ],
+            input=[
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": json.dumps(user_prompt, ensure_ascii=False)
+                }
+            ],
+            temperature=0.2
+        )
+
+        output_text = getattr(response, "output_text", "")
+
+        parsed = extract_json_from_text(output_text)
+
+        if not parsed:
+            return {
+                "status": "PARSE_ERROR",
+                "summary": "AI подобрал материалы, но ответ не удалось разобрать как JSON.",
+                "topic_title": context.get("topic_key", "Verilog FPGA"),
+                "mini_theory": output_text,
+                "what_to_repeat": [],
+                "articles": [],
+                "videos": [],
+                "control_question": "",
+                "next_topic": "",
+                "ai_note": "Ошибка разбора JSON."
+            }
+
+        parsed.setdefault("status", "OK")
+        parsed.setdefault("summary", "")
+        parsed.setdefault("topic_title", "")
+        parsed.setdefault("mini_theory", "")
+        parsed.setdefault("what_to_repeat", [])
+        parsed.setdefault("articles", [])
+        parsed.setdefault("videos", [])
+        parsed.setdefault("control_question", "")
+        parsed.setdefault("next_topic", "")
+        parsed.setdefault("ai_note", "")
+
+        return parsed
+
+    except Exception as error:
+        return build_open_search_fallback_learning_path(
+            context,
+            reason=f"OpenAI API временно недоступен: {str(error)}. Используется бесплатный режим с открытым поиском."
+        )
+    
+
+def get_cached_learning_path(username, lab_id, cache_key):
+    conn = get_db()
+
+    row = conn.execute(
+        """
+        SELECT *
+        FROM learning_path_cache
+        WHERE username = ?
+          AND lab_id = ?
+          AND cache_key = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (
+            username,
+            lab_id or 0,
+            cache_key
+        )
+    ).fetchone()
+
+    conn.close()
+
+    if not row:
+        return None
+
+    try:
+        return json.loads(row["result_json"])
+    except Exception:
+        return None
+
+
+def save_cached_learning_path(username, lab_id, cache_key, result):
+    conn = get_db()
+
+    conn.execute(
+        """
+        INSERT INTO learning_path_cache
+        (username, lab_id, cache_key, result_json, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            username,
+            lab_id or 0,
+            cache_key,
+            json.dumps(result, ensure_ascii=False),
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+def build_live_learning_path(username, current_lab_id=None, refresh=False):
+    context = get_recent_student_error_context(
+        username=username,
+        current_lab_id=current_lab_id
+    )
+
+    main_error = context.get("main_error") or {}
+    error_type = main_error.get("error_type", "")
+    topic_key = context.get("topic_key", "Verilog FPGA")
+
+    cache_key = make_learning_cache_key(
+        username=username,
+        lab_id=current_lab_id or 0,
+        error_type=error_type,
+        topic_key=topic_key
+    )
+
+    if not refresh:
+        cached = get_cached_learning_path(
+            username=username,
+            lab_id=current_lab_id or 0,
+            cache_key=cache_key
+        )
+
+        if cached:
+            cached["from_cache"] = True
+            cached["context"] = context
+            return cached
+
+    if LEARNING_PATH_MODE == "openai":
+        result = generate_live_learning_path_with_openai(context)
+    else:
+        result = build_open_search_fallback_learning_path(
+            context=context,
+            reason="Используется бесплатный режим: открытые поисковые ссылки без платного OpenAI API."
+        )
+
+    youtube_query = f"{topic_key} tutorial Verilog FPGA"
+
+    youtube_videos = search_youtube_videos(
+        query=youtube_query,
+        max_results=3
+    )
+
+    if youtube_videos:
+        result["videos"] = youtube_videos + result.get("videos", [])
+
+    result["from_cache"] = False
+    result["context"] = context
+    result["generated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    save_cached_learning_path(
+        username=username,
+        lab_id=current_lab_id or 0,
+        cache_key=cache_key,
+        result=result
+    )
+
+    return result
+
+
 # =========================
 # 12. Student routes - студент
 # =========================
@@ -5955,6 +6916,36 @@ def student_competencies():
         "student/competencies.html",
         student=student,
         competency_map=competency_map
+    )
+
+
+@app.route("/student/learning-path-live")
+@login_required
+def student_learning_path_live():
+    if session.get("role") != "student":
+        flash("AI-траектория доступна только студенту.")
+        return redirect(url_for("index"))
+
+    username = session["username"]
+
+    lab_id = request.args.get("lab_id", "").strip()
+    refresh = request.args.get("refresh", "") == "1"
+
+    current_lab_id = None
+
+    if lab_id.isdigit():
+        current_lab_id = int(lab_id)
+
+    learning_path = build_live_learning_path(
+        username=username,
+        current_lab_id=current_lab_id,
+        refresh=refresh
+    )
+
+    return render_template(
+        "student/learning_path_live.html",
+        learning_path=learning_path,
+        current_lab_id=current_lab_id
     )
 
 

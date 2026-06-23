@@ -71,6 +71,10 @@
                         <a href="{{ url_for('student_competencies') }}" class="topbar-btn topbar-btn-outline">
                             Компетенции
                         </a>
+
+                        <a href="{{ url_for('student_learning_path_live') }}" class="topbar-btn topbar-btn-outline">
+                            AI-траектория
+                        </a>
                     {% endif %}
 
                     {% if session.get("role") == "teacher" %}
