@@ -14,6 +14,7 @@
         <h3 class="mb-3">Добавить студента</h3>
 
         <form method="post" action="{{ url_for('manage_students') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="row">
                 <div class="col-md-6 mb-3">

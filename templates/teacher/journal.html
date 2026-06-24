@@ -202,7 +202,11 @@
                                                                 data-bs-content="
                                                                     <div><b>Оценка:</b> {{ cell['display_score'] }}</div>
                                                                     <div><b>Статус:</b> {{ cell['last_status'] or '—' }}</div>
-                                                                    <div><b>Попыток:</b> {{ cell['attempts_count'] }}</div>
+                                                                    <div><b>Попыток:</b> {{ cell['used_attempts'] }} из {{ cell['total_limit'] }}</div>
+                                                                    {% if cell['extra_attempts'] > 0 %}
+                                                                        <div><b>Доп. попыток:</b> +{{ cell['extra_attempts'] }}</div>
+                                                                    {% endif %}
+                                                                    <div><b>Осталось:</b> {{ cell['attempts_left'] }}</div>
                                                                     <div><b>Источник:</b> {% if cell['grade_source'] == 'manual' %}вручную{% else %}автоматически{% endif %}</div>
                                                                     {% if cell['auto_score'] is not none and cell['grade_source'] == 'manual' %}
                                                                         <div><b>Автооценка:</b> {{ cell['auto_score'] }}</div>
@@ -236,13 +240,63 @@
 
                                                     <div class="mt-1">
                                                         <a class="journal-history-link"
-                                                           href="{{ url_for('teacher_submissions_history',
+                                                        href="{{ url_for('teacher_submissions_history',
                                                                             q=row['student']['username'],
                                                                             lab_id=cell['lab_id']) }}">
                                                             история
                                                         </a>
                                                     </div>
-                                                </div>
+
+                                                    <div class="mt-1 small">
+                                                        <b>Попытки:</b>
+                                                        {{ cell["used_attempts"] }} / {{ cell["total_limit"] }}
+
+                                                        {% if cell["extra_attempts"] > 0 %}
+                                                            <span class="badge bg-info text-dark">
+                                                                +{{ cell["extra_attempts"] }}
+                                                            </span>
+                                                        {% endif %}
+
+                                                        {% if cell["is_limit_reached"] %}
+                                                            <div class="small text-danger">
+                                                                лимит исчерпан
+                                                            </div>
+                                                        {% else %}
+                                                            <div class="small text-muted">
+                                                                осталось: {{ cell["attempts_left"] }}
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+
+                                                    {% if session.get("role") in ["teacher", "admin"] %}
+                                                        <div class="mt-1">
+                                                            {% if cell["is_limit_reached"] %}
+                                                                <button type="submit"
+                                                                        class="btn btn-sm btn-outline-primary"
+                                                                        formmethod="post"
+                                                                        formaction="{{ url_for(
+                                                                            'teacher_grant_extra_attempt',
+                                                                            lab_id=cell['lab_id'],
+                                                                            username=row['student']['username'],
+                                                                            reason='Лимит попыток исчерпан'
+                                                                        ) }}"
+                                                                        onclick="return confirm('Разрешить студенту ещё одну попытку по этой лабораторной?')">
+                                                                    +1 попытка
+                                                                </button>
+                                                            {% else %}
+                                                                <span class="text-muted small">
+                                                                    не требуется
+                                                                </span>
+                                                            {% endif %}
+
+                                                            {% if cell["extra_attempts"] > 0 %}
+                                                                <div class="small text-muted mt-1">
+                                                                    Выдано доп. попыток: {{ cell["extra_attempts"] }}
+                                                                </div>
+                                                            {% endif %}
+                                                        </div>
+                                                    {% endif %}
+                                                    </div>
 
                                                 <div class="journal-cell-edit d-none mt-2">
                                                     <input type="number"

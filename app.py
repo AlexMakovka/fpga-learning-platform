@@ -25,7 +25,13 @@ import json
 import random
 import hashlib
 import requests
-from openai import OpenAI
+import secrets
+import hmac
+
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 
 
 # sys дозволяє працювати з параметрами та налаштуваннями Python-інтерпретатора
@@ -84,6 +90,13 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # Створюємо екземпляр Flask-додатки
 app = Flask(__name__)
+
+# Ограничение размера входящих запросов.
+# 256 КБ достаточно для учебных HDL/Python-файлов.
+app.config["MAX_CONTENT_LENGTH"] = 256 * 1024
+
+# Дополнительный лимит для кода, отправленного через встроенный редактор.
+MAX_EDITOR_CODE_LENGTH = 100_000
 
 # Секретный ключ Flask берётся только из .env
 app.secret_key = os.getenv("SECRET_KEY", "").strip()
@@ -191,6 +204,112 @@ def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+# ============================================================
+# CSRF-защита POST-форм
+# ============================================================
+
+def generate_csrf_token():
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_urlsafe(32)
+
+    return session["csrf_token"]
+
+
+@app.context_processor
+def inject_csrf_token():
+    return {
+        "csrf_token": generate_csrf_token
+    }
+
+
+@app.before_request
+def csrf_protect():
+    if request.method != "POST":
+        return None
+
+    session_token = session.get("csrf_token", "")
+    form_token = request.form.get("csrf_token", "")
+    header_token = request.headers.get("X-CSRFToken", "")
+
+    submitted_token = form_token or header_token
+
+    if not session_token or not submitted_token:
+        abort(400, description="CSRF token is missing.")
+
+    if not hmac.compare_digest(session_token, submitted_token):
+        abort(400, description="Invalid CSRF token.")
+
+    return None
+
+
+# ============================================================
+# Попытки выполнения лабораторных работ
+# ============================================================
+
+def get_extra_attempts_count(conn, lab_id, username):
+    row = conn.execute(
+        """
+        SELECT COALESCE(SUM(extra_attempts), 0) AS extra_attempts
+        FROM attempt_overrides
+        WHERE lab_id = ?
+          AND username = ?
+        """,
+        (
+            lab_id,
+            username
+        )
+    ).fetchone()
+
+    if not row:
+        return 0
+
+    return int(row["extra_attempts"] or 0)
+
+
+def get_used_attempts_count(conn, lab_id, username):
+    row = conn.execute(
+        """
+        SELECT COUNT(*) AS attempts_count
+        FROM submissions
+        WHERE lab_id = ?
+          AND username = ?
+        """,
+        (
+            lab_id,
+            username
+        )
+    ).fetchone()
+
+    if not row:
+        return 0
+
+    return int(row["attempts_count"] or 0)
+
+
+def get_attempts_info(conn, lab, username):
+    lab_id = lab["id"]
+    base_limit = int(lab["max_attempts"] or 0)
+
+    used_attempts = get_used_attempts_count(conn, lab_id, username)
+    extra_attempts = get_extra_attempts_count(conn, lab_id, username)
+
+    total_limit = base_limit + extra_attempts
+
+    if total_limit <= 0:
+        attempts_left = 0
+    else:
+        attempts_left = max(total_limit - used_attempts, 0)
+
+    return {
+        "base_limit": base_limit,
+        "extra_attempts": extra_attempts,
+        "total_limit": total_limit,
+        "used_attempts": used_attempts,
+        "attempts_left": attempts_left,
+        "is_limit_reached": total_limit > 0 and used_attempts >= total_limit
+    }
 
 
 def password_is_hashed(password_value):
@@ -974,6 +1093,25 @@ def init_db():
         )
     """)
 
+    # Индивидуальные дополнительные попытки по лабораторным работам
+    # Таблица хранит не саму попытку, а разрешение преподавателя
+    # на дополнительные отправки по конкретной лабораторной работе.
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS attempt_overrides (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lab_id INTEGER NOT NULL,
+            username TEXT NOT NULL,
+
+            extra_attempts INTEGER DEFAULT 1,
+            reason TEXT DEFAULT '',
+
+            granted_by TEXT DEFAULT '',
+            created_at TEXT NOT NULL,
+
+            FOREIGN KEY (lab_id) REFERENCES labs(id)
+        )
+    """)
+
 # Щоб уже існуючі групи та предмети не загубилися
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -1117,6 +1255,45 @@ def init_db():
             )
 
 
+    # ============================================================
+    # Индексы для ускорения журнала, аналитики и истории попыток
+    # ============================================================
+
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_submissions_lab_username
+        ON submissions(lab_id, username)
+    """)
+
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_submissions_username_created
+        ON submissions(username, created_at)
+    """)
+
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_users_role_group
+        ON users(role, student_group)
+    """)
+
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_labs_discipline
+        ON labs(discipline)
+    """)
+
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_attempt_overrides_lab_username
+        ON attempt_overrides(lab_id, username)
+    """)
+
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_extra_task_attempts_submission
+        ON extra_task_attempts(submission_id)
+    """)
+
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_teacher_subject_groups_access
+        ON teacher_subject_groups(teacher_username, discipline, student_group)
+    """)
+
 # Якщо лабораторних робіт немає, створюємо тестову лабораторну роботу з базовим описом та тестбенчем.
     conn.commit()
     conn.close()
@@ -1135,6 +1312,12 @@ def login_required(func):
             return redirect(url_for("login"))
         return func(*args, **kwargs)
     return wrapper
+
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    flash("Файл или отправленные данные слишком большие. Максимальный размер — 256 КБ.")
+    return redirect(request.referrer or url_for("index"))
 
 
 # Декоратор для захисту маршрутів, які вимагають ролі викладача.
@@ -1423,6 +1606,15 @@ def delete_uploaded_file(filename):
     if os.path.exists(file_path):
         os.remove(file_path)
 
+def delete_waveform_file(filename):
+    if not filename:
+        return
+
+    file_path = os.path.join(WAVEFORM_DIR, filename)
+
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
 
 # Функція для позначення файлу спроби як видаленого. Файл фізично видаляється з сервера, 
 # а в базі даних встановлюється прапорець file_deleted, щоб викладач знав, що файл більше недоступний.
@@ -1641,6 +1833,34 @@ def can_edit_lab_grade(conn, current_username, current_role, student_username, l
             lab_id,
             current_username,
             current_username
+        )
+    ).fetchone()
+
+    return access is not None
+
+def teacher_can_access_submission(conn, teacher_username, submission_id):
+    access = conn.execute(
+        """
+        SELECT 1
+        FROM submissions
+        JOIN labs ON labs.id = submissions.lab_id
+        LEFT JOIN users AS student ON student.username = submissions.username
+        WHERE submissions.id = ?
+          AND (
+              labs.created_by = ?
+              OR EXISTS (
+                  SELECT 1
+                  FROM teacher_subject_groups tsg
+                  WHERE tsg.teacher_username = ?
+                    AND tsg.discipline = labs.discipline
+                    AND tsg.student_group = student.student_group
+              )
+          )
+        """,
+        (
+            submission_id,
+            teacher_username,
+            teacher_username
         )
     ).fetchone()
 
@@ -5620,18 +5840,6 @@ def build_adaptive_learning_plan(submission, code):
         error_type=submission["error_type"]
     )
 
-    if submission["status"] == "PASSED":
-        max_bonus = 0
-        bonus_cap = int(submission["score"] or 100)
-    elif hint_level == 1:
-        max_bonus = 20
-        bonus_cap = 80
-    elif hint_level == 2:
-        max_bonus = 15
-        bonus_cap = 75
-    else:
-        max_bonus = 10
-        bonus_cap = 70
 
     return {
         "topic": topic,
@@ -5642,8 +5850,6 @@ def build_adaptive_learning_plan(submission, code):
         "hint_text": hint_text,
         "questions": questions,
         "repeat_topics": repeat_topics,
-        "max_bonus": max_bonus,
-        "bonus_cap": bonus_cap,
         "failed_tests": failed_tests,
         "error_history": error_history
     }
@@ -6075,6 +6281,15 @@ def lab_detail(lab_id):
         conn.close()
         return "Лабораторная работа не найдена", 404
 
+    attempts_info = None
+
+    if session.get("role") == "student":
+        attempts_info = get_attempts_info(
+            conn=conn,
+            lab=lab,
+            username=session["username"]
+        )
+
     if session.get("role") == "teacher":
         access = conn.execute(
             """
@@ -6196,14 +6411,7 @@ def lab_detail(lab_id):
 
         student_results = []
 
-        attempts_count = conn.execute(
-            """
-            SELECT COUNT(*) AS count
-            FROM submissions
-            WHERE lab_id = ? AND username = ?
-            """,
-            (lab_id, session["username"])
-        ).fetchone()["count"]
+        attempts_count = attempts_info["used_attempts"] if attempts_info else 0
 
     conn.close()
 
@@ -6212,7 +6420,8 @@ def lab_detail(lab_id):
         lab=lab,
         submissions=submissions,
         student_results=student_results,
-        attempts_count=attempts_count
+        attempts_count=attempts_count,
+        attempts_info=attempts_info
     )
 
 
@@ -6226,14 +6435,41 @@ def download_submission(submission_id):
     conn = get_db()
 
     submission = conn.execute(
-        "SELECT * FROM submissions WHERE id = ?",
+        """
+        SELECT *
+        FROM submissions
+        WHERE id = ?
+        """,
         (submission_id,)
     ).fetchone()
 
+    if not submission:
+        conn.close()
+        abort(404)
+
+    current_role = session.get("role")
+    current_username = session.get("username")
+
+    if current_role == "admin":
+        allow = True
+
+    elif current_role == "teacher":
+        allow = teacher_can_access_submission(
+            conn=conn,
+            teacher_username=current_username,
+            submission_id=submission_id
+        )
+
+    elif submission["username"] == current_username:
+        allow = True
+
+    else:
+        allow = False
+
     conn.close()
 
-    if not submission:
-        abort(404)
+    if not allow:
+        abort(403)
 
     if submission["file_deleted"]:
         flash("Файл этой попытки недоступен.")
@@ -6245,17 +6481,7 @@ def download_submission(submission_id):
         flash("Файл отсутствует в папке загрузок.")
         return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
 
-    if session.get("role") == "teacher":
-        return send_from_directory(
-            UPLOAD_DIR,
-            submission["filename"],
-            as_attachment=True
-        )
-
-    if submission["username"] != session["username"]:
-        abort(403)
-
-    if submission["file_hidden_for_student"]:
+    if current_role == "student" and submission["file_hidden_for_student"]:
         flash("Файл этой попытки скрыт после повторной отправки.")
         return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
 
@@ -6271,14 +6497,41 @@ def download_waveform(submission_id):
     conn = get_db()
 
     submission = conn.execute(
-        "SELECT * FROM submissions WHERE id = ?",
+        """
+        SELECT *
+        FROM submissions
+        WHERE id = ?
+        """,
         (submission_id,)
     ).fetchone()
 
+    if not submission:
+        conn.close()
+        abort(404)
+
+    current_role = session.get("role")
+    current_username = session.get("username")
+
+    if current_role == "admin":
+        allow = True
+
+    elif current_role == "teacher":
+        allow = teacher_can_access_submission(
+            conn=conn,
+            teacher_username=current_username,
+            submission_id=submission_id
+        )
+
+    elif submission["username"] == current_username:
+        allow = True
+
+    else:
+        allow = False
+
     conn.close()
 
-    if not submission:
-        abort(404)
+    if not allow:
+        abort(403)
 
     if not submission["waveform_filename"]:
         flash("Для этой попытки временная диаграмма недоступна.")
@@ -6290,22 +6543,11 @@ def download_waveform(submission_id):
         flash("Файл временной диаграммы отсутствует на сервере.")
         return redirect(url_for("lab_detail", lab_id=submission["lab_id"]))
 
-    if session.get("role") == "teacher":
-        return send_from_directory(
-            WAVEFORM_DIR,
-            submission["waveform_filename"],
-            as_attachment=True
-        )
-
-    if submission["username"] != session["username"]:
-        abort(403)
-
     return send_from_directory(
         WAVEFORM_DIR,
         submission["waveform_filename"],
         as_attachment=True
     )
-
 
 # ============================================================
 # Карта компетенций студента
@@ -6712,10 +6954,13 @@ def calculate_student_competency_map(username):
 # ============================================================
 
 def get_openai_client():
-    if not OPENAI_API_KEY:
+    if not OPENAI_API_KEY or OpenAI is None:
         return None
 
-    return OpenAI(api_key=OPENAI_API_KEY)
+    try:
+        return OpenAI(api_key=OPENAI_API_KEY)
+    except Exception:
+        return None
 
 
 def make_learning_cache_key(username, lab_id, error_type, topic_key):
@@ -9210,6 +9455,15 @@ def submit_solution(lab_id):
 
     file = request.files.get("solution")
 
+    if file:
+        file.stream.seek(0, os.SEEK_END)
+        file_size = file.stream.tell()
+        file.stream.seek(0)
+
+        if file_size > 256 * 1024:
+            flash("Файл слишком большой. Максимальный размер файла — 256 КБ.")
+            return redirect(url_for("lab_detail", lab_id=lab_id))
+
 # Якщо файл не вибрано або його ім'я порожнє, закриваємо з'єднання та показуємо повідомлення про помилку.
     if not file or file.filename.strip() == "":
         conn.close()
@@ -9225,21 +9479,18 @@ def submit_solution(lab_id):
 
 
 # Перевіряємо кількість спроб студента по цій лабораторній роботі. Якщо кількість спроб досягла максимуму, закриваємо з'єднання та показуємо повідомлення про те, що ліміт спроб вичерпано.
-    attempts_count = conn.execute(
-        """
-        SELECT COUNT(*) AS count
-        FROM submissions
-        WHERE lab_id = ? AND username = ?
-        """,
-        (lab_id, session["username"])
-    ).fetchone()["count"]
+    attempts_info = get_attempts_info(
+        conn=conn,
+        lab=lab,
+        username=session["username"]
+    )
 
-    max_attempts = lab["max_attempts"] or 3
-
-# Якщо кількість спроб студента по цій лабораторній роботі досягла максимуму, закриваємо з'єднання та показуємо повідомлення про те, що ліміт спроб вичерпано.
-    if attempts_count >= max_attempts:
+    if attempts_info["is_limit_reached"]:
+        flash(
+            "Вы исчерпали количество попыток. "
+            "Для дополнительной попытки обратитесь к преподавателю."
+        )
         conn.close()
-        flash("Лимит попыток по этой лабораторной работе исчерпан.")
         return redirect(url_for("lab_detail", lab_id=lab_id))
 
 # Якщо студент вже має попередні відправки по цій лабораторній роботі, позначаємо їх як приховані для студента, щоб він бачив лише свою останню відправку та не міг плутатися в історії відправок.
@@ -9265,7 +9516,7 @@ def submit_solution(lab_id):
             (previous_submission["id"],)
         )
 
-    attempt_number = attempts_count + 1
+    attempt_number = attempts_info["used_attempts"] + 1
 
     student = conn.execute(
         """
@@ -9554,6 +9805,10 @@ def submit_code_from_editor(lab_id):
 
     code_text = request.form.get("code_text", "")
 
+    if len(code_text.encode("utf-8")) > MAX_EDITOR_CODE_LENGTH:
+        flash("Код слишком большой. Максимальный размер кода в редакторе — 100 КБ.")
+        return redirect(url_for("lab_detail", lab_id=lab_id))
+
     if not code_text.strip():
         conn.close()
         flash("Код решения не может быть пустым.")
@@ -9564,20 +9819,18 @@ def submit_code_from_editor(lab_id):
     if not code_text.endswith("\n"):
         code_text += "\n"
 
-    attempts_count = conn.execute(
-        """
-        SELECT COUNT(*) AS count
-        FROM submissions
-        WHERE lab_id = ? AND username = ?
-        """,
-        (lab_id, session["username"])
-    ).fetchone()["count"]
+    attempts_info = get_attempts_info(
+        conn=conn,
+        lab=lab,
+        username=session["username"]
+    )
 
-    max_attempts = lab["max_attempts"] or 3
-
-    if attempts_count >= max_attempts:
+    if attempts_info["is_limit_reached"]:
+        flash(
+            "Вы исчерпали количество попыток. "
+            "Для дополнительной попытки обратитесь к преподавателю."
+        )
         conn.close()
-        flash("Лимит попыток по этой лабораторной работе исчерпан.")
         return redirect(url_for("lab_detail", lab_id=lab_id))
 
     previous_submission = conn.execute(
@@ -9601,7 +9854,7 @@ def submit_code_from_editor(lab_id):
             (previous_submission["id"],)
         )
 
-    attempt_number = attempts_count + 1
+    attempt_number = attempts_info["used_attempts"] + 1
 
     student = conn.execute(
         """
@@ -9883,6 +10136,17 @@ def ai_help(submission_id):
 
     code = read_submission_code(submission["filename"])
     adaptive_plan = build_adaptive_learning_plan(submission, code)
+
+    requested_level = request.args.get("level", type=int)
+
+    if requested_level in [1, 2, 3]:
+        adaptive_plan["hint_level"] = requested_level
+        adaptive_plan["hint_text"] = generate_adaptive_hint(
+            submission=submission,
+            topic=adaptive_plan["topic"],
+            failed_tests=adaptive_plan["failed_tests"],
+            hint_level=requested_level
+        )
 
     return render_template(
         "student/ai_help.html",
@@ -11589,19 +11853,33 @@ def teacher_journal():
                 total_score += int(display_score)
                 completed_count += 1
 
-            cells.append({
-                "lab_id": lab["id"],
-                "display_score": display_score,
-                "auto_score": auto_score,
-                "manual_score": manual_score,
-                "grade_source": grade_source,
-                "manual_comment": manual_comment,
-                "edited_by": edited_by,
-                "edited_at": edited_at,
-                "attempts_count": attempts_count,
-                "last_status": last_status,
-                "last_created_at": last_created_at
-            })
+        attempts_info = get_attempts_info(
+            conn=conn,
+            lab=lab,
+            username=student["username"]
+        )
+
+        cells.append({
+            "lab_id": lab["id"],
+            "display_score": display_score,
+            "auto_score": auto_score,
+            "manual_score": manual_score,
+            "grade_source": grade_source,
+            "manual_comment": manual_comment,
+            "edited_by": edited_by,
+            "edited_at": edited_at,
+
+            "attempts_count": attempts_info["used_attempts"],
+            "last_status": last_status,
+            "last_created_at": last_created_at,
+
+            "used_attempts": attempts_info["used_attempts"],
+            "base_limit": attempts_info["base_limit"],
+            "extra_attempts": attempts_info["extra_attempts"],
+            "total_limit": attempts_info["total_limit"],
+            "attempts_left": attempts_info["attempts_left"],
+            "is_limit_reached": attempts_info["is_limit_reached"],
+        })
 
         average_score = round(total_score / completed_count, 1) if completed_count > 0 else None
 
@@ -11625,6 +11903,74 @@ def teacher_journal():
         selected_lab_id=selected_lab_id,
         selected_group=selected_group
     )
+
+
+@app.route("/teacher/attempts/grant", methods=["POST"])
+@teacher_required
+def teacher_grant_extra_attempt():
+
+    if session.get("role") not in ["teacher", "admin"]:
+        flash("Выдавать дополнительные попытки может только преподаватель или администратор.")
+        return redirect(url_for("index"))
+    
+    lab_id = request.values.get("lab_id", type=int)
+    username = request.values.get("username", "").strip()
+    reason = request.values.get("reason", "").strip()
+
+    if not lab_id or not username:
+        flash("Не удалось определить лабораторную работу или студента.")
+        return redirect(request.referrer or url_for("teacher_journal"))
+
+    if not reason:
+        reason = "Дополнительная попытка выдана преподавателем."
+
+    conn = get_db()
+
+    lab = conn.execute(
+        """
+        SELECT *
+        FROM labs
+        WHERE id = ?
+        """,
+        (lab_id,)
+    ).fetchone()
+
+    student = conn.execute(
+        """
+        SELECT *
+        FROM users
+        WHERE username = ?
+          AND role = 'student'
+        """,
+        (username,)
+    ).fetchone()
+
+    if not lab or not student:
+        conn.close()
+        flash("Лабораторная работа или студент не найдены.")
+        return redirect(request.referrer or url_for("teacher_journal"))
+
+    conn.execute(
+        """
+        INSERT INTO attempt_overrides
+        (lab_id, username, extra_attempts, reason, granted_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            lab_id,
+            username,
+            1,
+            reason,
+            session["username"],
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    flash(f"Студенту {username} добавлена 1 дополнительная попытка.")
+    return redirect(request.referrer or url_for("teacher_journal"))
 
 
 # Роут для вчителя, який відображає список лабораторних робіт з інформацією про кількість відправок, середній бал та кількість успішних рішень,
@@ -12101,20 +12447,13 @@ def edit_student(user_id):
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
-        password = request.form.get("password", "")
+        new_password = request.form.get("password", "").strip()
         full_name = request.form.get("full_name", "").strip()
         student_group = request.form.get("student_group", "").strip()
 
-        if not username or not password or not full_name or not student_group:
+        if not username or not full_name or not student_group:
             conn.close()
-            flash("Нужно заполнить все поля.")
-            return redirect(url_for("edit_student", user_id=user_id))
-
-        password_ok, password_error = validate_password_strength(password, username)
-
-        if not password_ok:
-            conn.close()
-            flash(password_error)
+            flash("Нужно заполнить логин, ФИО и группу.")
             return redirect(url_for("edit_student", user_id=user_id))
 
         old_username = student["username"]
@@ -12133,16 +12472,53 @@ def edit_student(user_id):
             flash("Пользователь с таким логином уже существует.")
             return redirect(url_for("edit_student", user_id=user_id))
 
-        password_hash = hash_password(password)
+        if new_password:
+            password_ok, password_error = validate_password_strength(
+                new_password,
+                username
+            )
 
-        conn.execute(
-            """
-            UPDATE users
-            SET username = ?, password = ?, full_name = ?, student_group = ?
-            WHERE id = ? AND role = 'student'
-            """,
-            (username, password_hash, full_name, student_group, user_id)
-        )
+            if not password_ok:
+                conn.close()
+                flash(password_error)
+                return redirect(url_for("edit_student", user_id=user_id))
+
+            password_hash = hash_password(new_password)
+
+            conn.execute(
+                """
+                UPDATE users
+                SET username = ?,
+                    password = ?,
+                    full_name = ?,
+                    student_group = ?
+                WHERE id = ? AND role = 'student'
+                """,
+                (
+                    username,
+                    password_hash,
+                    full_name,
+                    student_group,
+                    user_id
+                )
+            )
+
+        else:
+            conn.execute(
+                """
+                UPDATE users
+                SET username = ?,
+                    full_name = ?,
+                    student_group = ?
+                WHERE id = ? AND role = 'student'
+                """,
+                (
+                    username,
+                    full_name,
+                    student_group,
+                    user_id
+                )
+            )
 
         if old_username != username:
             conn.execute(
@@ -12154,15 +12530,47 @@ def edit_student(user_id):
                 (username, old_username)
             )
 
+            conn.execute(
+                """
+                UPDATE extra_task_attempts
+                SET username = ?
+                WHERE username = ?
+                """,
+                (username, old_username)
+            )
+
+            conn.execute(
+                """
+                UPDATE grade_overrides
+                SET username = ?
+                WHERE username = ?
+                """,
+                (username, old_username)
+            )
+
+            conn.execute(
+                """
+                UPDATE subject_final_grades
+                SET username = ?
+                WHERE username = ?
+                """,
+                (username, old_username)
+            )
+
+            conn.execute(
+                """
+                UPDATE attempt_overrides
+                SET username = ?
+                WHERE username = ?
+                """,
+                (username, old_username)
+            )
+
         conn.commit()
         conn.close()
 
         flash("Данные студента обновлены.")
         return redirect(url_for("manage_students"))
-
-    conn.close()
-
-    return render_template("admin/edit_student.html", student=student)
 
 
 # Роут для вчителя, який дозволяє видалити студента з системи разом з усіма його відправками та файлами рішень
@@ -12495,20 +12903,84 @@ def edit_lab(lab_id):
 def delete_lab(lab_id):
     conn = get_db()
 
+    lab = conn.execute(
+        """
+        SELECT *
+        FROM labs
+        WHERE id = ?
+        """,
+        (lab_id,)
+    ).fetchone()
+
+    if not lab:
+        conn.close()
+        flash("Лабораторная работа не найдена.")
+        return redirect(url_for("teacher_panel"))
+
+    submissions = conn.execute(
+        """
+        SELECT id, filename, waveform_filename
+        FROM submissions
+        WHERE lab_id = ?
+        """,
+        (lab_id,)
+    ).fetchall()
+
+    # 1. Сначала удаляем физические файлы решений и временных диаграмм.
+    for submission in submissions:
+        delete_uploaded_file(submission["filename"])
+        delete_waveform_file(submission["waveform_filename"])
+
+    # 2. Удаляем дополнительные ответы, связанные с попытками этой лабораторной.
+    for submission in submissions:
+        conn.execute(
+            """
+            DELETE FROM extra_task_attempts
+            WHERE submission_id = ?
+            """,
+            (submission["id"],)
+        )
+
+    # 3. Удаляем ручные оценки по этой лабораторной.
     conn.execute(
-        "DELETE FROM submissions WHERE lab_id = ?",
+        """
+        DELETE FROM grade_overrides
+        WHERE lab_id = ?
+        """,
         (lab_id,)
     )
 
+    # 4. Удаляем выданные дополнительные попытки по этой лабораторной.
     conn.execute(
-        "DELETE FROM labs WHERE id = ?",
+        """
+        DELETE FROM attempt_overrides
+        WHERE lab_id = ?
+        """,
+        (lab_id,)
+    )
+
+    # 5. Удаляем сами попытки студентов.
+    conn.execute(
+        """
+        DELETE FROM submissions
+        WHERE lab_id = ?
+        """,
+        (lab_id,)
+    )
+
+    # 6. Удаляем лабораторную работу.
+    conn.execute(
+        """
+        DELETE FROM labs
+        WHERE id = ?
+        """,
         (lab_id,)
     )
 
     conn.commit()
     conn.close()
 
-    flash("Лабораторная работа удалена.")
+    flash("Лабораторная работа удалена вместе с попытками, файлами решений и временными диаграммами.")
     return redirect(url_for("teacher_panel"))
 
 
@@ -12518,4 +12990,4 @@ def delete_lab(lab_id):
 
 if __name__ == "__main__":
     init_db()
-    app.run(debug=True)
+    app.run(debug=os.getenv("FLASK_DEBUG", "0") == "1")

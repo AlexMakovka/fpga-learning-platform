@@ -19,7 +19,9 @@
 
         <div class="mb-3">
             <span class="badge bg-secondary">Попытка #{{ submission["id"] }}</span>
-            <span class="badge bg-dark">Текущий результат: {{ submission["score"] }} / 100</span>
+            <span class="badge bg-dark">
+                Текущий результат: {{ submission["final_score"] or submission["score"] }} / 100
+            </span>
             <span class="badge bg-light text-dark border">
                 Тесты: {{ submission["passed_tests"] }} из {{ submission["total_tests"] }}
             </span>
@@ -40,10 +42,12 @@
                 <b>Уровень подсказки:</b> {{ adaptive_plan["hint_level"] }}
             </p>
 
-            <p class="mb-0">
-                <b>Максимальный бонус:</b> {{ adaptive_plan["max_bonus"] }} баллов,
-                максимум после улучшения — {{ adaptive_plan["bonus_cap"] }} / 100.
-            </p>
+            <div class="alert alert-info rounded-4">
+                Дополнительные вопросы учитываются как отдельный компонент итоговой оценки.
+                После отправки ответов система пересчитает итоговый балл по общей формуле:
+                функциональная проверка, качество HDL-кода, синтезируемость и дополнительные вопросы.
+            </div>
+
         </div>
 
         <div class="card shadow-sm border-0 rounded-4 mb-3">
@@ -104,9 +108,10 @@
             {% endfor %}
 
             <div class="alert alert-primary rounded-4">
-                За 2 правильных ответа можно получить до +10 баллов, за 3 правильных ответа — до +20 баллов.
-                Максимальный балл после дополнительных заданий ограничен 80/100, потому что итоговая проверка HDL-кода
-                всё равно должна выполняться через testbench.
+                Дополнительные вопросы оцениваются как отдельный компонент итоговой оценки.
+                За 2 правильных ответа компонент дополнительных вопросов будет засчитан частично,
+                за 3 правильных ответа — полностью.
+                После проверки система пересчитает итоговый балл по общей формуле.
             </div>
 
             <div class="d-flex flex-wrap gap-2">

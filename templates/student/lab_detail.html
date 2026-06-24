@@ -37,32 +37,51 @@
         {% endif %}
 
         {% if session.get("role") == "student" %}
-            <div class="alert alert-light border rounded-4 mt-3 mb-0">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <div>
-                        <b>Попытки:</b> {{ attempts_count or 0 }} из {{ lab["max_attempts"] or 3 }}
+            {% if attempts_info %}
+                <div class="alert {% if attempts_info.is_limit_reached %}alert-danger{% else %}alert-light{% endif %} border rounded-4 mt-3 mb-0">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div>
+                            <b>Попытки:</b>
+                            {{ attempts_info.used_attempts }} из {{ attempts_info.total_limit }}
 
-                        {% if submissions and submissions[0]["status"] == "PASSED" %}
-                            <span class="badge bg-success ms-2">
-                                Доп. вопросы не требуются
-                            </span>
-                        {% elif lab["allow_extra_questions"] %}
-                            <span class="badge bg-info text-dark ms-2">
-                                Доп. вопросы доступны
-                            </span>
-                        {% else %}
-                            <span class="badge bg-secondary ms-2">
-                                Доп. вопросы отключены
-                            </span>
-                        {% endif %}
+                            {% if attempts_info.extra_attempts > 0 %}
+                                <span class="badge bg-info text-dark ms-2">
+                                    +{{ attempts_info.extra_attempts }} доп. попытка
+                                </span>
+                            {% endif %}
+
+                            {% if submissions and submissions[0]["status"] == "PASSED" %}
+                                <span class="badge bg-success ms-2">
+                                    Доп. вопросы не требуются
+                                </span>
+                            {% elif lab["allow_extra_questions"] %}
+                                <span class="badge bg-info text-dark ms-2">
+                                    Доп. вопросы доступны
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary ms-2">
+                                    Доп. вопросы отключены
+                                </span>
+                            {% endif %}
+
+                            {% if attempts_info.is_limit_reached %}
+                                <div class="small mt-1">
+                                    Лимит попыток исчерпан. Для продолжения обратитесь к преподавателю.
+                                </div>
+                            {% else %}
+                                <div class="small text-muted mt-1">
+                                    Осталось попыток: {{ attempts_info.attempts_left }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <a href="{{ url_for('student_lab_history', lab_id=lab['id']) }}"
+                        class="btn btn-outline-primary btn-sm">
+                            История попыток
+                        </a>
                     </div>
-
-                    <a href="{{ url_for('student_lab_history', lab_id=lab['id']) }}"
-                       class="btn btn-outline-primary btn-sm">
-                        История попыток
-                    </a>
                 </div>
-            </div>
+            {% endif %}
         {% endif %}
 
         <div class="card border-0 bg-light rounded-4 mt-3">
@@ -115,7 +134,7 @@
 
         {% if session.get("role") == "student" %}
 
-            {% if (attempts_count or 0) < (lab["max_attempts"] or 3) %}
+            {% if attempts_info and not attempts_info.is_limit_reached %}
 
                 <h4>{{ upload_title }}</h4>
 
@@ -882,9 +901,9 @@ endmodule{% endif %}</textarea>
                         </span>
                     {% endif %}
 
-                    {% if (attempts_count or 0) < (lab["max_attempts"] or 3) %}
+                    {% if attempts_info and not attempts_info.is_limit_reached %}
                         <form method="post"
-                              action="{{ url_for('retry_submission', submission_id=sub['id']) }}">
+                            action="{{ url_for('retry_submission', submission_id=sub['id']) }}">
                             <button type="submit" class="btn btn-outline-secondary btn-sm">
                                 Попробовать снова
                             </button>
