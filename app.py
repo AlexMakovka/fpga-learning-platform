@@ -254,6 +254,162 @@ def validate_password_strength(password, username=""):
 
     return True, ""
 
+
+# ============================================================
+# Расчёт итоговой оценки по лабораторной работе
+# ============================================================
+
+def clamp_score(value):
+    try:
+        value = int(round(float(value or 0)))
+    except (TypeError, ValueError):
+        value = 0
+
+    return max(0, min(100, value))
+
+
+def map_score_to_ukrainian_ects(score):
+    score = clamp_score(score)
+
+    if score >= 90:
+        return {
+            "ects_grade": "A",
+            "national_grade": "отлично",
+            "final_status": "Зачтено"
+        }
+
+    if score >= 82:
+        return {
+            "ects_grade": "B",
+            "national_grade": "хорошо",
+            "final_status": "Зачтено"
+        }
+
+    if score >= 74:
+        return {
+            "ects_grade": "C",
+            "national_grade": "хорошо",
+            "final_status": "Зачтено"
+        }
+
+    if score >= 64:
+        return {
+            "ects_grade": "D",
+            "national_grade": "удовлетворительно",
+            "final_status": "Зачтено"
+        }
+
+    if score >= 60:
+        return {
+            "ects_grade": "E",
+            "national_grade": "удовлетворительно",
+            "final_status": "Зачтено"
+        }
+
+    if score >= 35:
+        return {
+            "ects_grade": "FX",
+            "national_grade": "неудовлетворительно, требуется доработка",
+            "final_status": "Требуется доработка"
+        }
+
+    return {
+        "ects_grade": "F",
+        "national_grade": "неудовлетворительно, требуется повторное выполнение",
+        "final_status": "Не зачтено"
+    }
+
+
+def get_component_score(score, status=None):
+    score = clamp_score(score)
+
+    if status in ["UNAVAILABLE", "SYSTEM_ERROR", "TIMEOUT"]:
+        return None
+
+    return score
+
+
+def build_lab_final_grade(
+    testbench_score,
+    lint_score,
+    synth_score,
+    questions_score=0,
+    has_questions=False,
+    lint_status="OK",
+    synth_status="OK"
+):
+    testbench_score = clamp_score(testbench_score)
+    questions_score = clamp_score(questions_score)
+
+    lint_component = get_component_score(lint_score, lint_status)
+    synth_component = get_component_score(synth_score, synth_status)
+
+    if has_questions:
+        weights = {
+            "testbench": 70,
+            "lint": 10,
+            "synthesis": 10,
+            "questions": 10
+        }
+    else:
+        weights = {
+            "testbench": 70,
+            "lint": 15,
+            "synthesis": 15,
+            "questions": 0
+        }
+
+    # Если lint или synthesis недоступны по системной причине,
+    # их вес переносится в функциональную проверку, чтобы не штрафовать студента.
+    if lint_component is None:
+        weights["testbench"] += weights["lint"]
+        weights["lint"] = 0
+        lint_component = 0
+
+    if synth_component is None:
+        weights["testbench"] += weights["synthesis"]
+        weights["synthesis"] = 0
+        synth_component = 0
+
+    final_score = round(
+        testbench_score * weights["testbench"] / 100
+        + lint_component * weights["lint"] / 100
+        + synth_component * weights["synthesis"] / 100
+        + questions_score * weights["questions"] / 100
+    )
+
+    final_score = clamp_score(final_score)
+    mapped_grade = map_score_to_ukrainian_ects(final_score)
+
+    # Строгое инженерное правило:
+    # если функциональная проверка testbench ниже 60,
+    # лабораторная требует доработки независимо от итогового балла.
+    if testbench_score < 60:
+        mapped_grade["final_status"] = "Требуется доработка"
+
+    grading_breakdown = {
+        "testbench_score": testbench_score,
+        "lint_score": lint_component,
+        "synthesis_score": synth_component,
+        "questions_score": questions_score,
+        "weights": weights,
+        "final_score": final_score,
+        "ects_grade": mapped_grade["ects_grade"],
+        "national_grade": mapped_grade["national_grade"],
+        "final_status": mapped_grade["final_status"],
+        "testbench_rule_applied": testbench_score < 60
+    }
+
+    return {
+        "final_score": final_score,
+        "ects_grade": mapped_grade["ects_grade"],
+        "national_grade": mapped_grade["national_grade"],
+        "final_status": mapped_grade["final_status"],
+        "grading_breakdown": grading_breakdown
+    }
+
+
+
 # Функція для ініціалізації бази даних. Вона створює необхідні таблиці, додає відсутні стовпці та вставляє початкові дані.
 def init_db():
     conn = get_db()
@@ -487,6 +643,28 @@ def init_db():
 
     if "waveform_filename" not in column_names:
         cur.execute("ALTER TABLE submissions ADD COLUMN waveform_filename TEXT DEFAULT ''")
+
+    # Поля для комплексной итоговой оценки лабораторной работы.
+    if "testbench_score" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN testbench_score INTEGER DEFAULT 0")
+
+    if "questions_score" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN questions_score INTEGER DEFAULT 0")
+
+    if "final_score" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN final_score INTEGER DEFAULT 0")
+
+    if "final_status" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN final_status TEXT DEFAULT ''")
+
+    if "ects_grade" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN ects_grade TEXT DEFAULT ''")
+
+    if "national_grade" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN national_grade TEXT DEFAULT ''")
+
+    if "grading_breakdown" not in column_names:
+        cur.execute("ALTER TABLE submissions ADD COLUMN grading_breakdown TEXT DEFAULT ''")
 
 
 # Таблиця спроб відповідей на додаткові питання після перевірки лабораторної
@@ -9188,6 +9366,26 @@ def submit_solution(lab_id):
         ensure_ascii=False
     )
 
+    testbench_score = clamp_score(score)
+
+    lint_score = clamp_score(lint_score)
+    lint_status = lint_status or "OK"
+
+    synth_score = clamp_score(synth_result.get("synth_score", 0))
+    synth_status = synth_result.get("synth_status", "OK")
+
+    has_questions = bool(lab["allow_extra_questions"])
+
+    final_grade = build_lab_final_grade(
+        testbench_score=testbench_score,
+        lint_score=lint_score,
+        synth_score=synth_score,
+        questions_score=0,
+        has_questions=has_questions,
+        lint_status=lint_status,
+        synth_status=synth_status
+    )
+
 # Читаємо код студента з збереженого файлу, щоб передати його в функцію класифікації помилки та формування діагностики.
     with open(saved_path, "r", encoding="utf-8", errors="replace") as code_file:
         student_code = code_file.read()
@@ -9238,60 +9436,87 @@ def submit_solution(lab_id):
             )
 
 # Зберігаємо результат відправки в базі даних, включаючи діагностику помилки, щоб потім використовувати цю інформацію для формування адаптивного навчального плану та надання студенту конкретних рекомендацій щодо виправлення помилки.
+    submission_values = (
+        lab_id,
+        session["username"],
+        saved_filename,
+        waveform_filename,
+
+        status,
+        final_grade["final_score"],
+        passed_tests,
+        total_tests,
+
+        lint_status,
+        lint_score,
+        lint_issues_count,
+        lint_output,
+        lint_recommendation,
+        lint_issues_json,
+
+        synth_status,
+        synth_score,
+        synth_result.get("synth_cells_count", 0),
+        synth_result.get("synth_wires_count", 0),
+        synth_result.get("synth_wire_bits_count", 0),
+        synth_result.get("synth_warnings_count", 0),
+        synth_result.get("synth_output", ""),
+        synth_result.get("synth_recommendation", ""),
+        json.dumps(synth_result.get("synth_stats", {}), ensure_ascii=False),
+
+        public_status,
+        public_score,
+        public_passed_tests,
+        public_total_tests,
+        public_output,
+
+        hidden_status,
+        hidden_score,
+        hidden_passed_tests,
+        hidden_total_tests,
+        hidden_output,
+
+        diagnostics["error_type"],
+        diagnostics["error_title"],
+        diagnostics["error_details"],
+        diagnostics["recommendation"],
+        diagnostics["error_confidence"],
+
+        output,
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        attempt_number,
+        0,
+        0,
+
+        testbench_score,
+        0,
+        final_grade["final_score"],
+        final_grade["final_status"],
+        final_grade["ects_grade"],
+        final_grade["national_grade"],
+        json.dumps(final_grade["grading_breakdown"], ensure_ascii=False)
+    )
+
+    submission_placeholders = ", ".join(["?"] * len(submission_values))
+
     conn.execute(
-        """
+        f"""
         INSERT INTO submissions
         (lab_id, username, filename, waveform_filename,
         status, score, passed_tests, total_tests,
+        lint_status, lint_score, lint_issues_count, lint_output, lint_recommendation, lint_issues_json,
+        synth_status, synth_score, synth_cells_count, synth_wires_count,
+        synth_wire_bits_count, synth_warnings_count, synth_output,
+        synth_recommendation, synth_stats_json,
         public_status, public_score, public_passed_tests, public_total_tests, public_output,
         hidden_status, hidden_score, hidden_passed_tests, hidden_total_tests, hidden_output,
-        lint_status, lint_score, lint_issues_count, lint_output, lint_recommendation, lint_issues_json,
         error_type, error_title, error_details, recommendation, error_confidence,
-        output, created_at, attempt_number, file_deleted, file_hidden_for_student)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        output, created_at, attempt_number, file_deleted, file_hidden_for_student,
+        testbench_score, questions_score, final_score, final_status,
+        ects_grade, national_grade, grading_breakdown)
+        VALUES ({submission_placeholders})
         """,
-        (
-            lab_id,
-            session["username"],
-            saved_filename,
-            waveform_filename,
-
-            status,
-            score,
-            passed_tests,
-            total_tests,
-
-            public_status,
-            public_score,
-            public_passed_tests,
-            public_total_tests,
-            public_output,
-
-            hidden_status,
-            hidden_score,
-            hidden_passed_tests,
-            hidden_total_tests,
-            hidden_output,
-
-            lint_status,
-            lint_score,
-            lint_issues_count,
-            lint_output,
-            lint_recommendation,
-            lint_issues_json,
-
-            diagnostics["error_type"],
-            diagnostics["error_title"],
-            diagnostics["error_details"],
-            diagnostics["recommendation"],
-            diagnostics["error_confidence"],
-
-            output,
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            attempt_number,
-            0,
-            0
-        )
+        submission_values
     )
 
     conn.commit()
@@ -9469,6 +9694,26 @@ def submit_code_from_editor(lab_id):
         ensure_ascii=False
     )
 
+    testbench_score = clamp_score(score)
+
+    lint_score = clamp_score(lint_score)
+    lint_status = lint_status or "OK"
+
+    synth_score = clamp_score(synth_result.get("synth_score", 0))
+    synth_status = synth_result.get("synth_status", "OK")
+
+    has_questions = bool(lab["allow_extra_questions"])
+
+    final_grade = build_lab_final_grade(
+        testbench_score=testbench_score,
+        lint_score=lint_score,
+        synth_score=synth_score,
+        questions_score=0,
+        has_questions=has_questions,
+        lint_status=lint_status,
+        synth_status=synth_status
+    )
+
     if (
         hidden_total_tests > 0
         and hidden_passed_tests < hidden_total_tests
@@ -9502,7 +9747,7 @@ def submit_code_from_editor(lab_id):
         waveform_filename,
 
         status,
-        score,
+        final_grade["final_score"],
         passed_tests,
         total_tests,
 
@@ -9513,8 +9758,8 @@ def submit_code_from_editor(lab_id):
         lint_recommendation,
         lint_issues_json,
 
-        synth_result["synth_status"],
-        synth_result["synth_score"],
+        synth_status,
+        synth_score,
         synth_result["synth_cells_count"],
         synth_result["synth_wires_count"],
         synth_result["synth_wire_bits_count"],
@@ -9545,7 +9790,15 @@ def submit_code_from_editor(lab_id):
         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         attempt_number,
         0,
-        0
+        0,
+
+        testbench_score,
+        0,
+        final_grade["final_score"],
+        final_grade["final_status"],
+        final_grade["ects_grade"],
+        final_grade["national_grade"],
+        json.dumps(final_grade["grading_breakdown"], ensure_ascii=False)
     )
 
     submission_placeholders = ", ".join(["?"] * len(submission_values))
@@ -9562,7 +9815,9 @@ def submit_code_from_editor(lab_id):
         public_status, public_score, public_passed_tests, public_total_tests, public_output,
         hidden_status, hidden_score, hidden_passed_tests, hidden_total_tests, hidden_output,
         error_type, error_title, error_details, recommendation, error_confidence,
-        output, created_at, attempt_number, file_deleted, file_hidden_for_student)
+        output, created_at, attempt_number, file_deleted, file_hidden_for_student,
+        testbench_score, questions_score, final_score, final_status,
+        ects_grade, national_grade, grading_breakdown)
         VALUES ({submission_placeholders})
         """,
         submission_values
@@ -9704,12 +9959,28 @@ def improve_score(submission_id):
             student_answers
         )
 
-        score_before = int(submission["score"] or 0)
+        questions_score = round(correct_count * 100 / 3)
 
-        if correct_count >= 2:
-            score_after = min(adaptive_plan["bonus_cap"], score_before + bonus)
-        else:
-            score_after = score_before
+        score_before = int(submission["final_score"] or submission["score"] or 0)
+
+        testbench_score = int(submission["testbench_score"] or submission["score"] or 0)
+        lint_score = int(submission["lint_score"] or 0)
+        synth_score = int(submission["synth_score"] or 0)
+
+        lint_status = submission["lint_status"] or "OK"
+        synth_status = submission["synth_status"] or "OK"
+
+        final_grade = build_lab_final_grade(
+            testbench_score=testbench_score,
+            lint_score=lint_score,
+            synth_score=synth_score,
+            questions_score=questions_score,
+            has_questions=True,
+            lint_status=lint_status,
+            synth_status=synth_status
+        )
+
+        score_after = final_grade["final_score"]
 
         conn = get_db()
 
@@ -9717,8 +9988,8 @@ def improve_score(submission_id):
             """
             INSERT INTO extra_task_attempts
             (submission_id, username, answer_1, answer_2, answer_3,
-             correct_count, total_count, bonus, score_before, score_after,
-             feedback, created_at)
+            correct_count, total_count, bonus, score_before, score_after,
+            feedback, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
@@ -9737,28 +10008,50 @@ def improve_score(submission_id):
             )
         )
 
-        if score_after > score_before:
-            updated_output = (
-                submission["output"]
-                + "\n\n---\n"
-                + "Дополнительные задания ИИ-помощника выполнены.\n"
-                + f"Правильных ответов: {correct_count} из 3.\n"
-                + f"Бонус: +{score_after - score_before} баллов.\n"
-                + f"Итоговый учебный балл: {score_after} / 100.\n"
-            )
+        updated_output = (
+            submission["output"]
+            + "\n\n---\n"
+            + "Дополнительные вопросы учтены как компонент итоговой оценки.\n"
+            + f"Правильных ответов: {correct_count} из 3.\n"
+            + f"Оценка за дополнительные вопросы: {questions_score} / 100.\n"
+            + f"Итоговый балл по формуле: {score_after} / 100.\n"
+            + f"ECTS: {final_grade['ects_grade']}.\n"
+            + f"Национальная оценка: {final_grade['national_grade']}.\n"
+        )
 
-            conn.execute(
-                """
-                UPDATE submissions
-                SET score = ?, output = ?
-                WHERE id = ?
-                """,
-                (score_after, updated_output, submission_id)
-            )
 
-            flash("Ответы приняты. Учебный балл был повышен.")
+        conn.execute(
+            """
+            UPDATE submissions
+            SET questions_score = ?,
+                score = ?,
+                final_score = ?,
+                final_status = ?,
+                ects_grade = ?,
+                national_grade = ?,
+                grading_breakdown = ?,
+                output = ?
+            WHERE id = ?
+            AND username = ?
+            """,
+            (
+                questions_score,
+                final_grade["final_score"],
+                final_grade["final_score"],
+                final_grade["final_status"],
+                final_grade["ects_grade"],
+                final_grade["national_grade"],
+                json.dumps(final_grade["grading_breakdown"], ensure_ascii=False),
+                updated_output,
+                submission_id,
+                session["username"]
+            )
+        )
+
+        if correct_count >= 2:
+            flash("Ответы приняты. Дополнительные вопросы учтены в итоговой оценке.")
         else:
-            flash("Ответы не прошли проверку. Оценка не изменена.")
+            flash("Ответы сохранены, но оценка за дополнительные вопросы низкая.")
 
         conn.commit()
         conn.close()
@@ -9766,6 +10059,7 @@ def improve_score(submission_id):
         check_result = {
             "correct_count": correct_count,
             "bonus": bonus,
+            "questions_score": questions_score,
             "score_before": score_before,
             "score_after": score_after,
             "feedback": feedback

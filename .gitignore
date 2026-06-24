@@ -1,23 +1,27 @@
-# Віртуальне оточення
+# Виртуальное окружение
 venv/
 .venv/
 env/
 ENV/
 
-# Секрети та налаштування
+# Секреты и настройки
 .env
 .env.*
 !.env.example
 
-# База даних
+# База данных
 database.db
 *.db
 *.sqlite
 *.sqlite3
 
-# Завантажені студентами файли
-uploads/
+# Загруженные студентами файлы
+uploads/*
 !uploads/.gitkeep
+
+# Временные диаграммы
+waveforms/*
+!waveforms/.gitkeep
 
 # Python cache
 __pycache__/
@@ -32,7 +36,7 @@ instance/
 *.log
 logs/
 
-# IDE / редактори
+# IDE / редакторы
 .vscode/
 .idea/
 
@@ -43,25 +47,15 @@ desktop.ini
 # macOS
 .DS_Store
 
-# Pytest/coverage
+# Pytest / coverage
 .pytest_cache/
 .coverage
 htmlcov/
 
-# Docker тимчасові файли
+# Docker временные файлы
 *.pid
 
-# Архіви
+# Архивы
 *.zip
 *.rar
 *.7z
-
-static/img/university-logo.png
-
-.env
-database.db
-uploads/
-waveforms/
-__pycache__/
-*.pyc
-venv/

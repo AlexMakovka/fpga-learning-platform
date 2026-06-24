@@ -170,14 +170,95 @@ endmodule{% endif %}</textarea>
             {% if submissions and submissions|length > 0 %}
                 {% set last_submission = submissions[0] %}
 
-                <div class="alert alert-light border rounded-4 mt-4 mb-0">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-                        <h5 class="mb-0">Последний результат проверки</h5>
+                        <div class="card border-0 shadow-sm rounded-4 mb-4">
+                            <div class="card-body">
+                                <h4 class="mb-3">Итоговая оценка лабораторной работы</h4>
 
-                        <span class="badge bg-dark">
-                            {{ last_submission["score"] }} / 100
-                        </span>
-                    </div>
+                                <div class="display-5 fw-bold">
+                                    {{ last_submission["final_score"] or last_submission["score"] }} / 100
+                                </div>
+
+                                <div class="mt-2">
+                                    <span class="badge bg-primary">
+                                        ECTS: {{ last_submission["ects_grade"] or "—" }}
+                                    </span>
+
+                                    <span class="badge bg-secondary">
+                                        {{ last_submission["national_grade"] or "—" }}
+                                    </span>
+
+                                    {% if last_submission["final_status"] == "Зачтено" %}
+                                        <span class="badge bg-success">Зачтено</span>
+                                    {% elif last_submission["final_status"] == "Требуется доработка" %}
+                                        <span class="badge bg-warning text-dark">Требуется доработка</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">
+                                            {{ last_submission["final_status"] or "Не зачтено" }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                <hr>
+
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <div class="small text-muted">Функциональная проверка</div>
+                                        <div class="fw-bold">
+                                            {{ last_submission["testbench_score"] or last_submission["score"] or 0 }} / 100
+                                        </div>
+                                        <div class="small text-muted">Вес: 70%</div>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <div class="small text-muted">Качество HDL-кода</div>
+                                        <div class="fw-bold">
+                                            {% if last_submission["lint_status"] in ["UNAVAILABLE", "SYSTEM_ERROR", "TIMEOUT"] %}
+                                                не учитывается
+                                            {% else %}
+                                                {{ last_submission["lint_score"] or 0 }} / 100
+                                            {% endif %}
+                                        </div>
+                                        <div class="small text-muted">
+                                            Вес:
+                                            {% if lab["allow_extra_questions"] %}
+                                                10%
+                                            {% else %}
+                                                15%
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <div class="small text-muted">Синтезируемость</div>
+                                        <div class="fw-bold">
+                                            {% if last_submission["synth_status"] in ["UNAVAILABLE", "SYSTEM_ERROR", "TIMEOUT"] %}
+                                                не учитывается
+                                            {% else %}
+                                                {{ last_submission["synth_score"] or 0 }} / 100
+                                            {% endif %}
+                                        </div>
+                                        <div class="small text-muted">
+                                            Вес:
+                                            {% if lab["allow_extra_questions"] %}
+                                                10%
+                                            {% else %}
+                                                15%
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    {% if lab["allow_extra_questions"] %}
+                                        <div class="col-md-3">
+                                            <div class="small text-muted">Доп. вопросы</div>
+                                            <div class="fw-bold">
+                                                {{ last_submission["questions_score"] or 0 }} / 100
+                                            </div>
+                                            <div class="small text-muted">Вес: 10%</div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
 
                     {% if last_submission["waveform_filename"] %}
                         <div class="mt-3 d-flex flex-wrap gap-2">
@@ -271,7 +352,6 @@ endmodule{% endif %}</textarea>
 
                         <pre class="result-box mt-3 mb-0">{{ last_submission["output"] }}</pre>
                     </details>
-                </div>
             {% endif %}
 
         </div>
