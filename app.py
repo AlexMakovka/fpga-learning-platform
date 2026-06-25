@@ -582,6 +582,65 @@ def init_db():
     if "student_group" not in user_column_names:
         cur.execute("ALTER TABLE users ADD COLUMN student_group TEXT DEFAULT ''")
 
+    # Персональные настройки внешнего вида пользователя.
+    # Добавляются безопасно через PRAGMA table_info(users),
+    # чтобы не ломать уже существующую базу данных.
+    if "theme" not in user_column_names:
+        cur.execute("ALTER TABLE users ADD COLUMN theme TEXT DEFAULT 'light'")
+
+    if "palette" not in user_column_names:
+        cur.execute("ALTER TABLE users ADD COLUMN palette TEXT DEFAULT 'pastel'")
+
+    if "font_size" not in user_column_names:
+        cur.execute("ALTER TABLE users ADD COLUMN font_size TEXT DEFAULT 'normal'")
+
+    if "ui_density" not in user_column_names:
+        cur.execute("ALTER TABLE users ADD COLUMN ui_density TEXT DEFAULT 'comfortable'")
+
+    if "first_login_completed" not in user_column_names:
+        cur.execute("ALTER TABLE users ADD COLUMN first_login_completed INTEGER DEFAULT 0")
+
+    if "avatar_filename" not in user_column_names:
+        cur.execute("ALTER TABLE users ADD COLUMN avatar_filename TEXT DEFAULT ''")
+
+    # Нормализация значений для старых пользователей.
+    # Если в старой базе поле пустое или NULL, подставляем безопасное значение по умолчанию.
+    cur.execute("""
+        UPDATE users
+        SET theme = 'light'
+        WHERE theme IS NULL OR theme = ''
+    """)
+
+    cur.execute("""
+        UPDATE users
+        SET palette = 'pastel'
+        WHERE palette IS NULL OR palette = ''
+    """)
+
+    cur.execute("""
+        UPDATE users
+        SET font_size = 'normal'
+        WHERE font_size IS NULL OR font_size = ''
+    """)
+
+    cur.execute("""
+        UPDATE users
+        SET ui_density = 'comfortable'
+        WHERE ui_density IS NULL OR ui_density = ''
+    """)
+
+    cur.execute("""
+        UPDATE users
+        SET first_login_completed = 0
+        WHERE first_login_completed IS NULL
+    """)
+
+    cur.execute("""
+        UPDATE users
+        SET avatar_filename = ''
+        WHERE avatar_filename IS NULL
+    """)
+
 
 # Таблиця лабораторних робіт:
 # зберігає опис завдання, тестбенч, параметри перевірки та налаштування оцінювання
@@ -1349,6 +1408,72 @@ def admin_required(func):
 # =========================
 # 3. Допоміжні функції для користувачів
 # =========================
+
+def get_row_value(row, key, default=""):
+    if not row:
+        return default
+
+    if key in row.keys():
+        value = row[key]
+
+        if value is not None:
+            return value
+
+    return default
+
+
+def normalize_user_ui_value(value, default_value, allowed_values):
+    value = str(value or "").strip()
+
+    if not value:
+        return default_value
+
+    if value not in allowed_values:
+        return default_value
+
+    return value
+
+
+def load_user_ui_settings_to_session(user):
+    theme = normalize_user_ui_value(
+        get_row_value(user, "theme", "light"),
+        "light",
+        ["light", "dark", "system"]
+    )
+
+    palette = normalize_user_ui_value(
+        get_row_value(user, "palette", "pastel"),
+        "pastel",
+        ["pastel", "indigo", "burgundy", "green"]
+    )
+
+    font_size = normalize_user_ui_value(
+        get_row_value(user, "font_size", "normal"),
+        "normal",
+        ["small", "normal", "large"]
+    )
+
+    ui_density = normalize_user_ui_value(
+        get_row_value(user, "ui_density", "comfortable"),
+        "comfortable",
+        ["comfortable", "compact"]
+    )
+
+    avatar_filename = str(
+        get_row_value(user, "avatar_filename", "") or ""
+    ).strip()
+
+    first_login_completed = int(
+        get_row_value(user, "first_login_completed", 0) or 0
+    )
+
+    session["theme"] = theme
+    session["palette"] = palette
+    session["font_size"] = font_size
+    session["ui_density"] = ui_density
+    session["avatar_filename"] = avatar_filename
+    session["first_login_completed"] = first_login_completed
+
 
 def build_unique_username(conn, base_username):
     base_username = str(base_username or "user").strip().lower()
@@ -5915,6 +6040,8 @@ def login():
             session["username"] = user["username"]
             session["role"] = user["role"]
 
+            load_user_ui_settings_to_session(user)
+
             conn.close()
 
             if user["role"] == "admin":
@@ -6092,6 +6219,8 @@ def google_callback():
 
         session["username"] = user["username"]
         session["role"] = user["role"]
+
+        load_user_ui_settings_to_session(user)
 
         conn.close()
 
