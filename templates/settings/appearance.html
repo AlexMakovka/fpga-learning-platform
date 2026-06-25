@@ -16,8 +16,9 @@
     <div class="appearance-grid">
 
         <form method="post"
-              action="{{ url_for('appearance_settings') }}"
-              class="app-card appearance-form-card">
+            action="{{ url_for('appearance_settings') }}"
+            class="app-card appearance-form-card"
+            id="appearanceSettingsForm">
 
             {% include "includes/csrf_token.html" %}
 
@@ -250,42 +251,200 @@
 
         </form>
 
-        <aside class="app-card appearance-preview-card">
+        <aside class="app-card appearance-preview-card"
+            id="appearancePreview"
+            data-preview-theme="{{ settings.theme }}"
+            data-preview-palette="{{ settings.palette }}"
+            data-preview-font-size="{{ settings.font_size }}"
+            data-preview-density="{{ settings.ui_density }}">
 
             <div class="app-card-body">
 
                 <div class="appearance-preview-kicker">
-                    Предпросмотр
+                    Живой предпросмотр
                 </div>
 
                 <h2>FPGA Learning System</h2>
 
                 <p>
-                    Так будут выглядеть карточки, кнопки и элементы интерфейса
-                    после применения выбранных настроек.
+                    Выберите тему, палитру, размер текста и плотность интерфейса.
+                    Изменения будут показаны здесь до сохранения.
                 </p>
 
-                <div class="appearance-preview-panel">
-                    <div class="appearance-preview-line appearance-preview-line-wide"></div>
-                    <div class="appearance-preview-line"></div>
-                    <div class="appearance-preview-line appearance-preview-line-short"></div>
+                <div class="appearance-mini-layout">
+
+                    <div class="appearance-mini-sidebar">
+                        <div class="appearance-mini-logo">FPGA</div>
+
+                        <div class="appearance-mini-nav is-active">
+                            <span></span>
+                            <b>Лабораторные</b>
+                        </div>
+
+                        <div class="appearance-mini-nav">
+                            <span></span>
+                            <b>Зачётка</b>
+                        </div>
+
+                        <div class="appearance-mini-nav">
+                            <span></span>
+                            <b>Тренажёр</b>
+                        </div>
+                    </div>
+
+                    <div class="appearance-mini-main">
+
+                        <div class="appearance-mini-topbar">
+                            <div>
+                                <strong>Кабинет студента</strong>
+                                <small>цифровая учебная платформа</small>
+                            </div>
+
+                            <div class="appearance-mini-avatar">
+                                {{ (session.get("username", "U")[:2])|upper }}
+                            </div>
+                        </div>
+
+                        <div class="appearance-mini-content">
+
+                            <div class="appearance-mini-card">
+                                <div class="appearance-mini-card-title">
+                                    Лабораторная работа
+                                </div>
+
+                                <div class="appearance-preview-line appearance-preview-line-wide"></div>
+                                <div class="appearance-preview-line"></div>
+                                <div class="appearance-preview-line appearance-preview-line-short"></div>
+
+                                <div class="appearance-preview-buttons">
+                                    <span class="appearance-preview-primary">
+                                        Открыть
+                                    </span>
+
+                                    <span class="appearance-preview-secondary">
+                                        История
+                                    </span>
+                                </div>
+                            </div>
+
+                        </div>
+
+                    </div>
+
                 </div>
 
-                <div class="appearance-preview-buttons">
-                    <span class="appearance-preview-primary">Основная кнопка</span>
-                    <span class="appearance-preview-secondary">Вторичная</span>
+                <div class="appearance-preview-current">
+                    <div>
+                        <span>Тема</span>
+                        <strong data-preview-label="theme">{{ settings.theme }}</strong>
+                    </div>
+
+                    <div>
+                        <span>Палитра</span>
+                        <strong data-preview-label="palette">{{ settings.palette }}</strong>
+                    </div>
+
+                    <div>
+                        <span>Шрифт</span>
+                        <strong data-preview-label="font_size">{{ settings.font_size }}</strong>
+                    </div>
+
+                    <div>
+                        <span>Плотность</span>
+                        <strong data-preview-label="ui_density">{{ settings.ui_density }}</strong>
+                    </div>
                 </div>
 
                 <div class="appearance-preview-note">
-                    Настройки сохраняются персонально для вашего аккаунта.
+                    Это только предпросмотр. Настройки применятся ко всему интерфейсу после сохранения.
                 </div>
 
             </div>
 
-        </aside>
-
     </div>
 
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("appearanceSettingsForm");
+    const preview = document.getElementById("appearancePreview");
+
+    if (!form || !preview) {
+        return;
+    }
+
+    const labelMap = {
+        theme: {
+            light: "Светлая",
+            dark: "Тёмная",
+            system: "Системная"
+        },
+        palette: {
+            pastel: "Pastel",
+            indigo: "Indigo",
+            burgundy: "Burgundy",
+            green: "Green"
+        },
+        font_size: {
+            small: "Small",
+            normal: "Normal",
+            large: "Large"
+        },
+        ui_density: {
+            comfortable: "Comfortable",
+            compact: "Compact"
+        }
+    };
+
+    function getCheckedValue(name, fallbackValue) {
+        const checkedInput = form.querySelector(`input[name="${name}"]:checked`);
+
+        if (!checkedInput) {
+            return fallbackValue;
+        }
+
+        return checkedInput.value || fallbackValue;
+    }
+
+    function updatePreviewLabel(name, value) {
+        const label = preview.querySelector(`[data-preview-label="${name}"]`);
+
+        if (!label) {
+            return;
+        }
+
+        if (labelMap[name] && labelMap[name][value]) {
+            label.textContent = labelMap[name][value];
+        } else {
+            label.textContent = value;
+        }
+    }
+
+    function updateAppearancePreview() {
+        const theme = getCheckedValue("theme", "light");
+        const palette = getCheckedValue("palette", "pastel");
+        const fontSize = getCheckedValue("font_size", "normal");
+        const density = getCheckedValue("ui_density", "comfortable");
+
+        preview.dataset.previewTheme = theme;
+        preview.dataset.previewPalette = palette;
+        preview.dataset.previewFontSize = fontSize;
+        preview.dataset.previewDensity = density;
+
+        updatePreviewLabel("theme", theme);
+        updatePreviewLabel("palette", palette);
+        updatePreviewLabel("font_size", fontSize);
+        updatePreviewLabel("ui_density", density);
+    }
+
+    form.querySelectorAll("input[type='radio']").forEach(function (input) {
+        input.addEventListener("change", updateAppearancePreview);
+    });
+
+    updateAppearancePreview();
+});
+</script>
+
 
 {% endblock %}

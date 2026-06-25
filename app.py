@@ -600,11 +600,21 @@ def init_db():
     if "first_login_completed" not in user_column_names:
         cur.execute("ALTER TABLE users ADD COLUMN first_login_completed INTEGER DEFAULT 0")
 
+    if "show_beginner_tips" not in user_column_names:
+        cur.execute("ALTER TABLE users ADD COLUMN show_beginner_tips INTEGER DEFAULT 1")
+
     if "avatar_filename" not in user_column_names:
         cur.execute("ALTER TABLE users ADD COLUMN avatar_filename TEXT DEFAULT ''")
 
     # Нормализация значений для старых пользователей.
     # Если в старой базе поле пустое или NULL, подставляем безопасное значение по умолчанию.
+
+    cur.execute("""
+        UPDATE users
+        SET show_beginner_tips = 1
+        WHERE show_beginner_tips IS NULL
+    """)
+
     cur.execute("""
         UPDATE users
         SET theme = 'light'
@@ -1467,13 +1477,29 @@ def load_user_ui_settings_to_session(user):
         get_row_value(user, "first_login_completed", 0) or 0
     )
 
+    show_beginner_tips = int(
+        get_row_value(user, "show_beginner_tips", 1) or 0
+    )
+
     session["theme"] = theme
     session["palette"] = palette
     session["font_size"] = font_size
     session["ui_density"] = ui_density
     session["avatar_filename"] = avatar_filename
     session["first_login_completed"] = first_login_completed
+    session["show_beginner_tips"] = show_beginner_tips
 
+def get_default_redirect_for_role(role):
+    if role == "student":
+        return url_for("index")
+
+    if role == "teacher":
+        return url_for("teacher_panel")
+
+    if role == "admin":
+        return url_for("admin_panel")
+
+    return url_for("index")
 
 def build_unique_username(conn, base_username):
     base_username = str(base_username or "user").strip().lower()
@@ -6042,12 +6068,16 @@ def login():
 
             load_user_ui_settings_to_session(user)
 
+            needs_setup = int(session.get("first_login_completed", 0) or 0) == 0
+
+            if needs_setup:
+                redirect_url = url_for("setup_appearance")
+            else:
+                redirect_url = get_default_redirect_for_role(user["role"])
+
             conn.close()
 
-            if user["role"] == "admin":
-                return redirect(url_for("admin_panel"))
-
-            return redirect(url_for("index"))
+            return redirect(redirect_url)
 
         conn.close()
         flash("Неверный логин или пароль.")
@@ -6222,12 +6252,16 @@ def google_callback():
 
         load_user_ui_settings_to_session(user)
 
+        needs_setup = int(session.get("first_login_completed", 0) or 0) == 0
+
+        if needs_setup:
+            redirect_url = url_for("setup_appearance")
+        else:
+            redirect_url = get_default_redirect_for_role(user["role"])
+
         conn.close()
 
-        if user["role"] == "admin":
-            return redirect(url_for("admin_panel"))
-
-        return redirect(url_for("index"))
+        return redirect(redirect_url)
 
     session["google_registration"] = {
         "google_id": google_id,
@@ -6351,6 +6385,136 @@ APPEARANCE_THEMES = ["light", "dark", "system"]
 APPEARANCE_PALETTES = ["pastel", "indigo", "burgundy", "green"]
 APPEARANCE_FONT_SIZES = ["small", "normal", "large"]
 APPEARANCE_DENSITIES = ["comfortable", "compact"]
+
+
+@app.route("/setup/appearance", methods=["GET", "POST"])
+@login_required
+def setup_appearance():
+    conn = get_db()
+
+    user = conn.execute(
+        """
+        SELECT *
+        FROM users
+        WHERE username = ?
+        """,
+        (session["username"],)
+    ).fetchone()
+
+    if not user:
+        conn.close()
+        session.clear()
+        flash("Пользователь не найден. Выполните вход заново.")
+        return redirect(url_for("login"))
+
+    first_login_completed = int(
+        get_row_value(user, "first_login_completed", 0) or 0
+    )
+
+    if request.method == "GET" and first_login_completed == 1:
+        conn.close()
+        return redirect(get_default_redirect_for_role(session.get("role")))
+
+    if request.method == "POST":
+        theme = normalize_user_ui_value(
+            request.form.get("theme"),
+            "light",
+            APPEARANCE_THEMES
+        )
+
+        palette = normalize_user_ui_value(
+            request.form.get("palette"),
+            "pastel",
+            APPEARANCE_PALETTES
+        )
+
+        font_size = normalize_user_ui_value(
+            request.form.get("font_size"),
+            "normal",
+            ["normal", "large"]
+        )
+
+        ui_density = normalize_user_ui_value(
+            request.form.get("ui_density"),
+            "comfortable",
+            APPEARANCE_DENSITIES
+        )
+
+        show_beginner_tips = 1 if request.form.get("show_beginner_tips") == "1" else 0
+
+        conn.execute(
+            """
+            UPDATE users
+            SET theme = ?,
+                palette = ?,
+                font_size = ?,
+                ui_density = ?,
+                show_beginner_tips = ?,
+                first_login_completed = 1
+            WHERE username = ?
+            """,
+            (
+                theme,
+                palette,
+                font_size,
+                ui_density,
+                show_beginner_tips,
+                session["username"]
+            )
+        )
+
+        conn.commit()
+
+        updated_user = conn.execute(
+            """
+            SELECT *
+            FROM users
+            WHERE username = ?
+            """,
+            (session["username"],)
+        ).fetchone()
+
+        load_user_ui_settings_to_session(updated_user)
+
+        redirect_url = get_default_redirect_for_role(session.get("role"))
+
+        conn.close()
+
+        flash("Первичная настройка завершена.")
+        return redirect(redirect_url)
+
+    settings = {
+        "theme": normalize_user_ui_value(
+            get_row_value(user, "theme", "light"),
+            "light",
+            APPEARANCE_THEMES
+        ),
+        "palette": normalize_user_ui_value(
+            get_row_value(user, "palette", "pastel"),
+            "pastel",
+            APPEARANCE_PALETTES
+        ),
+        "font_size": normalize_user_ui_value(
+            get_row_value(user, "font_size", "normal"),
+            "normal",
+            ["normal", "large"]
+        ),
+        "ui_density": normalize_user_ui_value(
+            get_row_value(user, "ui_density", "comfortable"),
+            "comfortable",
+            APPEARANCE_DENSITIES
+        ),
+        "show_beginner_tips": int(
+            get_row_value(user, "show_beginner_tips", 1) or 0
+        )
+    }
+
+    conn.close()
+
+    return render_template(
+        "setup/appearance.html",
+        settings=settings
+    )
 
 
 @app.route("/settings/appearance", methods=["GET", "POST"])
@@ -6524,14 +6688,49 @@ def index():
             my_submissions=[]
         )
 
+    username = session["username"]
+
     conn = get_db()
 
-    labs = conn.execute(
+    student = conn.execute(
         """
         SELECT *
-        FROM labs
-        ORDER BY id DESC
+        FROM users
+        WHERE username = ?
+        """,
+        (username,)
+    ).fetchone()
+
+    labs_rows = conn.execute(
         """
+        SELECT
+            labs.*,
+
+            COUNT(submissions.id) AS attempts_count,
+            COALESCE(MAX(submissions.score), 0) AS best_score,
+            MAX(CASE WHEN submissions.status = 'PASSED' THEN 1 ELSE 0 END) AS is_passed,
+            MAX(submissions.created_at) AS last_attempt_at,
+
+            (
+                SELECT s2.status
+                FROM submissions AS s2
+                WHERE s2.lab_id = labs.id
+                  AND s2.username = ?
+                ORDER BY s2.created_at DESC
+                LIMIT 1
+            ) AS last_status
+
+        FROM labs
+        LEFT JOIN submissions
+            ON submissions.lab_id = labs.id
+           AND submissions.username = ?
+        GROUP BY labs.id
+        ORDER BY labs.id DESC
+        """,
+        (
+            username,
+            username
+        )
     ).fetchall()
 
     my_submissions = conn.execute(
@@ -6543,18 +6742,96 @@ def index():
         JOIN labs ON submissions.lab_id = labs.id
         WHERE submissions.username = ?
         ORDER BY submissions.created_at DESC
-        LIMIT 5
+        LIMIT 6
         """,
-        (session["username"],)
+        (username,)
     ).fetchall()
 
+    stats_row = conn.execute(
+        """
+        SELECT
+            ROUND(AVG(score), 1) AS average_score,
+            COUNT(DISTINCT CASE WHEN status = 'PASSED' THEN lab_id END) AS completed_labs,
+            COUNT(*) AS total_attempts
+        FROM submissions
+        WHERE username = ?
+        """,
+        (username,)
+    ).fetchone()
+
     conn.close()
+
+    labs = []
+
+    for lab_row in labs_rows:
+        lab = dict(lab_row)
+
+        attempts_count = int(lab.get("attempts_count") or 0)
+        best_score = int(lab.get("best_score") or 0)
+        is_passed = int(lab.get("is_passed") or 0) == 1
+
+        if is_passed:
+            status_code = "passed"
+            status_label = "Сдано"
+            progress_percent = 100
+        elif attempts_count > 0:
+            status_code = "in_progress"
+            status_label = "В работе"
+            progress_percent = max(0, min(best_score, 100))
+        else:
+            status_code = "not_started"
+            status_label = "Не начато"
+            progress_percent = 0
+
+        lab["attempts_count"] = attempts_count
+        lab["best_score"] = best_score
+        lab["status_code"] = status_code
+        lab["status_label"] = status_label
+        lab["progress_percent"] = progress_percent
+
+        labs.append(lab)
+
+    active_lab = None
+
+    in_progress_labs = [
+        lab for lab in labs
+        if lab["status_code"] == "in_progress"
+    ]
+
+    if in_progress_labs:
+        active_lab = sorted(
+            in_progress_labs,
+            key=lambda item: item.get("last_attempt_at") or "",
+            reverse=True
+        )[0]
+    else:
+        not_started_labs = [
+            lab for lab in labs
+            if lab["status_code"] == "not_started"
+        ]
+
+        if not_started_labs:
+            active_lab = not_started_labs[0]
+        elif labs:
+            active_lab = labs[0]
+
+    latest_submission = my_submissions[0] if my_submissions else None
+
+    dashboard_stats = {
+        "average_score": stats_row["average_score"] if stats_row and stats_row["average_score"] is not None else 0,
+        "completed_labs": stats_row["completed_labs"] if stats_row and stats_row["completed_labs"] is not None else 0,
+        "total_attempts": stats_row["total_attempts"] if stats_row and stats_row["total_attempts"] is not None else 0,
+        "latest_score": latest_submission["score"] if latest_submission else "—"
+    }
 
     return render_template(
         "common/index.html",
         is_landing=False,
         labs=labs,
-        my_submissions=my_submissions
+        my_submissions=my_submissions,
+        student=student,
+        dashboard_stats=dashboard_stats,
+        active_lab=active_lab
     )
 
 # Роут для сторінки з деталями лабораторної роботи, який відображає інформацію про лабораторну роботу, 

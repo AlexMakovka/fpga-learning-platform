@@ -1,0 +1,213 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+
+<div class="setup-appearance-page">
+
+    <div class="setup-appearance-shell">
+
+        <section class="setup-welcome-card">
+
+            <div class="setup-kicker">
+                Первый вход
+            </div>
+
+            <h1>Настроим интерфейс под вас</h1>
+
+            <p>
+                Выберите комфортную тему, палитру и плотность интерфейса.
+                Эти параметры можно будет изменить позже в настройках.
+            </p>
+
+            <div class="setup-steps">
+                <div>
+                    <span>1</span>
+                    <strong>Выбор темы</strong>
+                </div>
+
+                <div>
+                    <span>2</span>
+                    <strong>Цветовая палитра</strong>
+                </div>
+
+                <div>
+                    <span>3</span>
+                    <strong>Комфорт чтения</strong>
+                </div>
+            </div>
+
+        </section>
+
+        <form method="post"
+              action="{{ url_for('setup_appearance') }}"
+              class="setup-form-card">
+
+            {% include "includes/csrf_token.html" %}
+
+            <div class="setup-section">
+                <h2>Тема</h2>
+
+                <div class="setup-options setup-options-3">
+
+                    <label class="setup-option">
+                        <input type="radio"
+                               name="theme"
+                               value="light"
+                               {% if settings.theme == "light" %}checked{% endif %}>
+                        <span>☀</span>
+                        <strong>Светлая</strong>
+                        <small>Классический светлый режим</small>
+                    </label>
+
+                    <label class="setup-option">
+                        <input type="radio"
+                               name="theme"
+                               value="dark"
+                               {% if settings.theme == "dark" %}checked{% endif %}>
+                        <span>☾</span>
+                        <strong>Тёмная</strong>
+                        <small>Для работы вечером</small>
+                    </label>
+
+                    <label class="setup-option">
+                        <input type="radio"
+                               name="theme"
+                               value="system"
+                               {% if settings.theme == "system" %}checked{% endif %}>
+                        <span>◐</span>
+                        <strong>Системная</strong>
+                        <small>По настройкам устройства</small>
+                    </label>
+
+                </div>
+            </div>
+
+            <div class="setup-section">
+                <h2>Палитра</h2>
+
+                <div class="setup-options setup-options-4">
+
+                    <label class="setup-option">
+                        <input type="radio"
+                               name="palette"
+                               value="pastel"
+                               {% if settings.palette == "pastel" %}checked{% endif %}>
+                        <span class="setup-palette setup-palette-pastel"></span>
+                        <strong>Pastel</strong>
+                        <small>Мягкая учебная палитра</small>
+                    </label>
+
+                    <label class="setup-option">
+                        <input type="radio"
+                               name="palette"
+                               value="indigo"
+                               {% if settings.palette == "indigo" %}checked{% endif %}>
+                        <span class="setup-palette setup-palette-indigo"></span>
+                        <strong>Indigo</strong>
+                        <small>Цифровой стиль</small>
+                    </label>
+
+                    <label class="setup-option">
+                        <input type="radio"
+                               name="palette"
+                               value="burgundy"
+                               {% if settings.palette == "burgundy" %}checked{% endif %}>
+                        <span class="setup-palette setup-palette-burgundy"></span>
+                        <strong>Burgundy</strong>
+                        <small>Строгий бордовый</small>
+                    </label>
+
+                    <label class="setup-option">
+                        <input type="radio"
+                               name="palette"
+                               value="green"
+                               {% if settings.palette == "green" %}checked{% endif %}>
+                        <span class="setup-palette setup-palette-green"></span>
+                        <strong>Green</strong>
+                        <small>Спокойный зелёный</small>
+                    </label>
+
+                </div>
+            </div>
+
+            <div class="setup-section">
+                <h2>Размер шрифта</h2>
+
+                <div class="setup-options setup-options-2">
+
+                    <label class="setup-option">
+                        <input type="radio"
+                               name="font_size"
+                               value="normal"
+                               {% if settings.font_size == "normal" %}checked{% endif %}>
+                        <span>Aa</span>
+                        <strong>Обычный</strong>
+                        <small>Стандартный размер текста</small>
+                    </label>
+
+                    <label class="setup-option">
+                        <input type="radio"
+                               name="font_size"
+                               value="large"
+                               {% if settings.font_size == "large" %}checked{% endif %}>
+                        <span class="setup-large-text">Aa</span>
+                        <strong>Крупный</strong>
+                        <small>Удобнее для чтения</small>
+                    </label>
+
+                </div>
+            </div>
+
+            <div class="setup-section">
+                <h2>Плотность интерфейса</h2>
+
+                <div class="setup-options setup-options-2">
+
+                    <label class="setup-option">
+                        <input type="radio"
+                               name="ui_density"
+                               value="comfortable"
+                               {% if settings.ui_density == "comfortable" %}checked{% endif %}>
+                        <span>☰</span>
+                        <strong>Обычная</strong>
+                        <small>Больше воздуха и отступов</small>
+                    </label>
+
+                    <label class="setup-option">
+                        <input type="radio"
+                               name="ui_density"
+                               value="compact"
+                               {% if settings.ui_density == "compact" %}checked{% endif %}>
+                        <span>≡</span>
+                        <strong>Компактная</strong>
+                        <small>Больше данных на экране</small>
+                    </label>
+
+                </div>
+            </div>
+
+            <label class="setup-checkbox">
+                <input type="checkbox"
+                       name="show_beginner_tips"
+                       value="1"
+                       {% if settings.show_beginner_tips %}checked{% endif %}>
+
+                <span>
+                    <strong>Показывать подсказки для новичка</strong>
+                    <small>Система будет мягко объяснять новые разделы и действия.</small>
+                </span>
+            </label>
+
+            <div class="setup-actions">
+                <button type="submit" class="btn btn-primary">
+                    Сохранить и продолжить
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+{% endblock %}

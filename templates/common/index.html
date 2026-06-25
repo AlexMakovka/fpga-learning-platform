@@ -121,105 +121,255 @@
 
 {% else %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1 class="mb-1">Лабораторные работы</h1>
-        <p class="text-muted mb-0">
-            Выберите задание, загрузите HDL-файл и запустите автоматическую проверку.
-        </p>
-    </div>
-</div>
+<div class="student-dashboard">
 
-<div class="row">
-    {% for lab in labs %}
-        <div class="col-md-6 mb-4">
-            <div class="card h-100 shadow-sm border-0 rounded-4 lab-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <h4 class="card-title">{{ lab["title"] }}</h4>
-                        <span class="badge bg-primary">HDL</span>
-                    </div>
+    <section class="student-hero-card">
 
-                    <p class="card-text text-muted mt-3">
-                        {{ lab["description"] }}
-                    </p>
+        <div class="student-hero-content">
+            <div class="student-kicker">Личный кабинет студента</div>
 
-                    <a href="{{ url_for('lab_detail', lab_id=lab['id']) }}" class="btn btn-dark mt-2">
-                        Открыть задание
+            <h1>
+                Добро пожаловать,
+                {% if student and student.full_name %}
+                    {{ student.full_name }}
+                {% else %}
+                    {{ session.get("username") }}
+                {% endif %}
+            </h1>
+
+            <p>
+                Продолжайте выполнение лабораторных работ и отслеживайте прогресс.
+            </p>
+
+            <div class="student-hero-actions">
+                {% if active_lab %}
+                    <a href="{{ url_for('lab_detail', lab_id=active_lab.id) }}" class="student-btn student-btn-primary">
+                        Продолжить последнюю ЛР
                     </a>
-                </div>
+                {% else %}
+                    <span class="student-btn student-btn-disabled">
+                        ЛР пока нет
+                    </span>
+                {% endif %}
+
+                <a href="{{ url_for('student_gradebook') }}" class="student-btn student-btn-soft">
+                    Открыть зачётку
+                </a>
+
+                {% if active_lab %}
+                    <a href="{{ url_for('student_learning_path_live', lab_id=active_lab.id) }}" class="student-btn student-btn-soft">
+                        AI-рекомендации
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('student_learning_path_live') }}" class="student-btn student-btn-soft">
+                        AI-рекомендации
+                    </a>
+                {% endif %}
             </div>
         </div>
-    {% endfor %}
-</div>
 
-{% if labs|length == 0 %}
-    <div class="alert alert-info rounded-4">
-        Пока нет лабораторных работ.
-    </div>
-{% endif %}
+        <div class="student-hero-visual">
+            <div class="student-progress-orb">
+                <span>{{ dashboard_stats.average_score }}</span>
+                <small>средний балл</small>
+            </div>
+        </div>
 
-<h3 class="mt-4 mb-3">Последние мои попытки</h3>
+    </section>
 
-{% if my_submissions and my_submissions|length > 0 %}
+    <section class="student-stat-grid">
 
-    {% for sub in my_submissions %}
-        <div class="card shadow-sm border-0 rounded-4 mb-3">
-            <div class="card-body">
+        <article class="student-stat-card">
+            <span class="student-stat-label">Средний балл</span>
+            <strong>{{ dashboard_stats.average_score }}</strong>
+            <small>по всем попыткам</small>
+        </article>
 
-                <div class="d-flex justify-content-between align-items-center">
+        <article class="student-stat-card">
+            <span class="student-stat-label">Сдано лабораторных</span>
+            <strong>{{ dashboard_stats.completed_labs }}</strong>
+            <small>успешно завершено</small>
+        </article>
+
+        <article class="student-stat-card">
+            <span class="student-stat-label">Всего попыток</span>
+            <strong>{{ dashboard_stats.total_attempts }}</strong>
+            <small>отправок решений</small>
+        </article>
+
+        <article class="student-stat-card">
+            <span class="student-stat-label">Последняя оценка</span>
+            <strong>{{ dashboard_stats.latest_score }}</strong>
+            <small>за последнюю попытку</small>
+        </article>
+
+    </section>
+
+    <section class="student-dashboard-grid">
+
+        <div class="student-main-column">
+
+            <section class="student-section-card">
+                <div class="student-section-head">
                     <div>
-                        <h5 class="mb-1">{{ sub["lab_title"] }}</h5>
-
-                        <div class="text-muted small">
-                            Файл: {{ sub["filename"] }}
-                        </div>
-
-                        <div class="text-muted small">
-                            Дата проверки: {{ sub["created_at"] }}
-                        </div>
+                        <span class="student-kicker">Продолжить обучение</span>
+                        <h2>Активная лабораторная работа</h2>
                     </div>
+                </div>
 
-                    <div class="text-end">
+                {% if active_lab %}
+                    <article class="student-active-lab">
+                        <div>
+                            <div class="student-lab-meta">
+                                <span>{{ active_lab.discipline or "FPGA-проектирование" }}</span>
+                                <span>{{ active_lab.difficulty or "basic" }}</span>
+                            </div>
 
-                        {% if sub["status"] == "PASSED" %}
-                            <span class="badge bg-success fs-6">PASSED</span>
-                        {% elif sub["status"] == "PARTIAL" %}
-                            <span class="badge bg-info text-dark fs-6">PARTIAL</span>
-                        {% elif sub["status"] == "FAILED" %}
-                            <span class="badge bg-danger fs-6">FAILED</span>
-                        {% elif sub["status"] == "COMPILE_ERROR" %}
-                            <span class="badge bg-warning text-dark fs-6">COMPILE ERROR</span>
+                            <h3>{{ active_lab.title }}</h3>
+
+                            <p>
+                                Статус: <strong>{{ active_lab.status_label }}</strong>
+                                · Попытки: {{ active_lab.attempts_count }}{% if active_lab.max_attempts %} / {{ active_lab.max_attempts }}{% endif %}
+                            </p>
+
+                            <div class="student-progress-line">
+                                <span class="student-progress-fill"
+                                    data-progress="{{ active_lab.progress_percent }}"></span>
+                            </div>
+                        </div>
+
+                        <a href="{{ url_for('lab_detail', lab_id=active_lab.id) }}" class="student-btn student-btn-primary">
+                            Открыть
+                        </a>
+                    </article>
+                {% else %}
+                    <div class="student-empty-state">
+                        Лабораторные работы пока не добавлены.
+                    </div>
+                {% endif %}
+            </section>
+
+            <section class="student-section-card">
+                <div class="student-section-head">
+                    <div>
+                        <span class="student-kicker">LMS</span>
+                        <h2>Лабораторные работы</h2>
+                    </div>
+                </div>
+
+                <div class="student-labs-grid">
+
+                    {% for lab in labs %}
+                        <article class="student-lab-card student-lab-{{ lab.status_code }}">
+
+                            <div class="student-lab-card-top">
+                                <span class="student-status-pill student-status-{{ lab.status_code }}">
+                                    {{ lab.status_label }}
+                                </span>
+
+                                <span class="student-score-pill">
+                                    {{ lab.best_score }} / 100
+                                </span>
+                            </div>
+
+                            <h3>{{ lab.title }}</h3>
+
+                            <div class="student-lab-details">
+                                <span>{{ lab.topic or "общая тема" }}</span>
+                                <span>{{ lab.difficulty or "basic" }}</span>
+                            </div>
+
+                            <div class="student-progress-line">
+                                <span class="student-progress-fill"
+                                    data-progress="{{ lab.progress_percent }}"></span>
+                            </div>
+
+                            <div class="student-lab-footer">
+                                <small>
+                                    Попытки: {{ lab.attempts_count }}{% if lab.max_attempts %} / {{ lab.max_attempts }}{% endif %}
+                                </small>
+
+                                <a href="{{ url_for('lab_detail', lab_id=lab.id) }}">
+                                    Открыть →
+                                </a>
+                            </div>
+
+                        </article>
+                    {% else %}
+                        <div class="student-empty-state">
+                            Лабораторные работы пока отсутствуют.
+                        </div>
+                    {% endfor %}
+
+                </div>
+            </section>
+
+        </div>
+
+        <aside class="student-side-column">
+
+            <section class="student-section-card">
+                <div class="student-section-head">
+                    <div>
+                        <span class="student-kicker">История</span>
+                        <h2>Последние попытки</h2>
+                    </div>
+                </div>
+
+                <div class="student-attempts-list">
+
+                    {% for submission in my_submissions %}
+                        {% if submission.status == "PASSED" %}
+                            {% set attempt_class = "success" %}
+                        {% elif submission.status in ["PARTIAL", "FAILED"] %}
+                            {% set attempt_class = "warning" %}
                         {% else %}
-                            <span class="badge bg-secondary fs-6">{{ sub["status"] }}</span>
+                            {% set attempt_class = "danger" %}
                         {% endif %}
 
-                        <div class="mt-2">
-                            <span class="badge bg-dark">
-                                {{ sub["score"] }} / 100 баллов
-                            </span>
-                        </div>
+                        <article class="student-attempt-card student-attempt-{{ attempt_class }}">
 
-                        <div class="mt-1">
-                            <span class="badge bg-light text-dark border">
-                                Тесты: {{ sub["passed_tests"] }} из {{ sub["total_tests"] }}
-                            </span>
-                        </div>
+                            <div>
+                                <h3>{{ submission.lab_title }}</h3>
 
-                    </div>
+                                <p>
+                                    {{ submission.created_at }}
+                                </p>
+                            </div>
+
+                            <div class="student-attempt-right">
+                                <span>{{ submission.status }}</span>
+                                <strong>{{ submission.score }} / 100</strong>
+                                <a href="{{ url_for('lab_detail', lab_id=submission.lab_id) }}">
+                                    Перейти
+                                </a>
+                            </div>
+
+                        </article>
+                    {% else %}
+                        <div class="student-empty-state">
+                            Попыток пока нет. Начните первую лабораторную работу.
+                        </div>
+                    {% endfor %}
+
                 </div>
+            </section>
 
-            </div>
-        </div>
-    {% endfor %}
+        </aside>
 
-{% else %}
+    </section>
 
-    <div class="alert alert-light border rounded-4">
-        У вас пока нет отправленных решений.
-    </div>
+</div>
 
-{% endif %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".student-progress-fill").forEach(function (bar) {
+        const value = Number(bar.dataset.progress || 0);
+        const safeValue = Math.max(0, Math.min(value, 100));
+        bar.style.width = safeValue + "%";
+    });
+});
+</script>
 
 {% endif %}
 
