@@ -141,11 +141,10 @@
                 <div class="app-nav-section">Аккаунт</div>
 
                 {# Когда добавишь маршрут настроек, замени href="#" на url_for(...) #}
-                <a href="#"
-                   class="app-nav-link app-nav-link-disabled">
+                <a href="{{ url_for('appearance_settings') }}"
+                class="app-nav-link {% if endpoint == 'appearance_settings' %}is-active{% endif %}">
                     <span class="app-nav-icon">⚙</span>
                     <span>Настройки</span>
-                    <span class="app-nav-badge">скоро</span>
                 </a>
 
             {% elif role == "teacher" %}
@@ -199,11 +198,10 @@
                 <div class="app-nav-section">Аккаунт</div>
 
                 {# Когда добавишь маршрут настроек, замени href="#" на url_for(...) #}
-                <a href="#"
-                   class="app-nav-link app-nav-link-disabled">
+                <a href="{{ url_for('appearance_settings') }}"
+                class="app-nav-link {% if endpoint == 'appearance_settings' %}is-active{% endif %}">
                     <span class="app-nav-icon">⚙</span>
                     <span>Настройки</span>
-                    <span class="app-nav-badge">скоро</span>
                 </a>
 
             {% elif role == "admin" %}
@@ -249,11 +247,10 @@
                 <div class="app-nav-section">Аккаунт</div>
 
                 {# Когда добавишь маршрут настроек, замени href="#" на url_for(...) #}
-                <a href="#"
-                   class="app-nav-link app-nav-link-disabled">
+                <a href="{{ url_for('appearance_settings') }}"
+                class="app-nav-link {% if endpoint == 'appearance_settings' %}is-active{% endif %}">
                     <span class="app-nav-icon">⚙</span>
                     <span>Настройки</span>
-                    <span class="app-nav-badge">скоро</span>
                 </a>
 
             {% endif %}
@@ -290,13 +287,28 @@
 
             <div class="app-topbar-actions">
 
+            <form method="post"
+                action="{{ url_for('appearance_toggle_theme') }}"
+                class="app-theme-toggle-form">
+
+                {% include "includes/csrf_token.html" %}
+
                 <button class="app-theme-toggle"
-                        type="button"
-                        data-theme-toggle
-                        title="Переключить тему">
-                    <span data-theme-icon>◐</span>
-                    <span class="app-theme-toggle-text">Тема</span>
+                        type="submit"
+                        title="Быстро переключить светлую/тёмную тему">
+
+                    {% if session.get("theme") == "dark" %}
+                        <span>☾</span>
+                    {% else %}
+                        <span>☀</span>
+                    {% endif %}
+
+                    <span class="app-theme-toggle-text">
+                        Тема
+                    </span>
                 </button>
+
+            </form>
 
                 <div class="dropdown">
 
@@ -357,7 +369,7 @@
 
                         {# Когда добавишь маршрут настроек, замени href="#" на url_for(...) #}
                         <li>
-                            <a class="dropdown-item" href="#">
+                            <a class="dropdown-item" href="{{ url_for('appearance_settings') }}">
                                 Настройки внешнего вида
                             </a>
                         </li>
@@ -519,41 +531,6 @@ document.addEventListener("DOMContentLoaded", function () {
             document.body.classList.remove("app-sidebar-open");
         }
     });
-});
-</script>
-
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const themeButton = document.querySelector("[data-theme-toggle]");
-
-    if (!themeButton || !document.body.classList.contains("app-body")) {
-        return;
-    }
-
-    function updateThemeButton() {
-        const currentTheme = document.body.dataset.theme || "light";
-        const icon = themeButton.querySelector("[data-theme-icon]");
-
-        if (icon) {
-            icon.textContent = currentTheme === "dark" ? "☾" : "☀";
-        }
-    }
-
-    themeButton.addEventListener("click", function () {
-        const currentTheme = document.body.dataset.theme || "light";
-        const nextTheme = currentTheme === "dark" ? "light" : "dark";
-
-        document.body.dataset.theme = nextTheme;
-        updateThemeButton();
-
-        /*
-           Сейчас переключение работает на текущей странице.
-           Сохранение в базу добавим отдельным маршрутом настроек:
-           UPDATE users SET theme = ? WHERE username = ?
-        */
-    });
-
-    updateThemeButton();
 });
 </script>
 

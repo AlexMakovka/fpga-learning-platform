@@ -1,0 +1,291 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+
+<div class="appearance-page">
+
+    <div class="app-page-header">
+        <div>
+            <h1 class="app-section-title">Настройки внешнего вида</h1>
+            <p class="app-section-subtitle">
+                Выберите тему, цветовую палитру, размер текста и плотность интерфейса.
+            </p>
+        </div>
+    </div>
+
+    <div class="appearance-grid">
+
+        <form method="post"
+              action="{{ url_for('appearance_settings') }}"
+              class="app-card appearance-form-card">
+
+            {% include "includes/csrf_token.html" %}
+
+            <div class="app-card-body">
+
+                <div class="appearance-settings-block">
+
+                    <div class="appearance-block-header">
+                        <h2>Тема интерфейса</h2>
+                        <p>Определяет общий режим отображения страниц.</p>
+                    </div>
+
+                    <div class="appearance-options-grid appearance-options-3">
+
+                        <label class="appearance-option-card">
+                            <input type="radio"
+                                   name="theme"
+                                   value="light"
+                                   {% if settings.theme == "light" %}checked{% endif %}>
+
+                            <span class="appearance-option-visual appearance-theme-light">
+                                <span></span>
+                                <span></span>
+                            </span>
+
+                            <strong>Светлая</strong>
+                            <small>Мягкий светлый интерфейс</small>
+                        </label>
+
+                        <label class="appearance-option-card">
+                            <input type="radio"
+                                   name="theme"
+                                   value="dark"
+                                   {% if settings.theme == "dark" %}checked{% endif %}>
+
+                            <span class="appearance-option-visual appearance-theme-dark">
+                                <span></span>
+                                <span></span>
+                            </span>
+
+                            <strong>Тёмная</strong>
+                            <small>Комфортно для работы вечером</small>
+                        </label>
+
+                        <label class="appearance-option-card">
+                            <input type="radio"
+                                   name="theme"
+                                   value="system"
+                                   {% if settings.theme == "system" %}checked{% endif %}>
+
+                            <span class="appearance-option-visual appearance-theme-system">
+                                <span></span>
+                                <span></span>
+                            </span>
+
+                            <strong>Системная</strong>
+                            <small>По настройкам устройства</small>
+                        </label>
+
+                    </div>
+
+                </div>
+
+                <div class="appearance-settings-block">
+
+                    <div class="appearance-block-header">
+                        <h2>Цветовая палитра</h2>
+                        <p>Меняет акцентные цвета, кнопки и активные элементы меню.</p>
+                    </div>
+
+                    <div class="appearance-options-grid appearance-options-4">
+
+                        <label class="appearance-option-card">
+                            <input type="radio"
+                                   name="palette"
+                                   value="pastel"
+                                   {% if settings.palette == "pastel" %}checked{% endif %}>
+
+                            <span class="appearance-palette-swatch appearance-palette-pastel"></span>
+
+                            <strong>Pastel</strong>
+                            <small>Розово-голубая мягкая тема</small>
+                        </label>
+
+                        <label class="appearance-option-card">
+                            <input type="radio"
+                                   name="palette"
+                                   value="indigo"
+                                   {% if settings.palette == "indigo" %}checked{% endif %}>
+
+                            <span class="appearance-palette-swatch appearance-palette-indigo"></span>
+
+                            <strong>Indigo</strong>
+                            <small>Цифровой академичный стиль</small>
+                        </label>
+
+                        <label class="appearance-option-card">
+                            <input type="radio"
+                                   name="palette"
+                                   value="burgundy"
+                                   {% if settings.palette == "burgundy" %}checked{% endif %}>
+
+                            <span class="appearance-palette-swatch appearance-palette-burgundy"></span>
+
+                            <strong>Burgundy</strong>
+                            <small>Строгий бордово-серый стиль</small>
+                        </label>
+
+                        <label class="appearance-option-card">
+                            <input type="radio"
+                                   name="palette"
+                                   value="green"
+                                   {% if settings.palette == "green" %}checked{% endif %}>
+
+                            <span class="appearance-palette-swatch appearance-palette-green"></span>
+
+                            <strong>Green</strong>
+                            <small>Спокойная учебная палитра</small>
+                        </label>
+
+                    </div>
+
+                </div>
+
+                <div class="appearance-settings-block">
+
+                    <div class="appearance-block-header">
+                        <h2>Размер шрифта</h2>
+                        <p>Позволяет сделать текст компактнее или крупнее.</p>
+                    </div>
+
+                    <div class="appearance-options-grid appearance-options-3">
+
+                        <label class="appearance-option-card">
+                            <input type="radio"
+                                   name="font_size"
+                                   value="small"
+                                   {% if settings.font_size == "small" %}checked{% endif %}>
+
+                            <span class="appearance-font-demo appearance-font-small">Aa</span>
+
+                            <strong>Small</strong>
+                            <small>Больше информации на экране</small>
+                        </label>
+
+                        <label class="appearance-option-card">
+                            <input type="radio"
+                                   name="font_size"
+                                   value="normal"
+                                   {% if settings.font_size == "normal" %}checked{% endif %}>
+
+                            <span class="appearance-font-demo appearance-font-normal">Aa</span>
+
+                            <strong>Normal</strong>
+                            <small>Оптимальный размер по умолчанию</small>
+                        </label>
+
+                        <label class="appearance-option-card">
+                            <input type="radio"
+                                   name="font_size"
+                                   value="large"
+                                   {% if settings.font_size == "large" %}checked{% endif %}>
+
+                            <span class="appearance-font-demo appearance-font-large">Aa</span>
+
+                            <strong>Large</strong>
+                            <small>Крупнее и удобнее для чтения</small>
+                        </label>
+
+                    </div>
+
+                </div>
+
+                <div class="appearance-settings-block">
+
+                    <div class="appearance-block-header">
+                        <h2>Плотность интерфейса</h2>
+                        <p>Определяет высоту кнопок, отступы и компактность таблиц.</p>
+                    </div>
+
+                    <div class="appearance-options-grid appearance-options-2">
+
+                        <label class="appearance-option-card">
+                            <input type="radio"
+                                   name="ui_density"
+                                   value="comfortable"
+                                   {% if settings.ui_density == "comfortable" %}checked{% endif %}>
+
+                            <span class="appearance-density-demo appearance-density-comfortable">
+                                <i></i>
+                                <i></i>
+                                <i></i>
+                            </span>
+
+                            <strong>Comfortable</strong>
+                            <small>Больше воздуха и мягких отступов</small>
+                        </label>
+
+                        <label class="appearance-option-card">
+                            <input type="radio"
+                                   name="ui_density"
+                                   value="compact"
+                                   {% if settings.ui_density == "compact" %}checked{% endif %}>
+
+                            <span class="appearance-density-demo appearance-density-compact">
+                                <i></i>
+                                <i></i>
+                                <i></i>
+                            </span>
+
+                            <strong>Compact</strong>
+                            <small>Удобно для журнала и таблиц</small>
+                        </label>
+
+                    </div>
+
+                </div>
+
+                <div class="appearance-actions">
+                    <button type="submit" class="btn btn-primary">
+                        Сохранить настройки
+                    </button>
+
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                        Вернуться на главную
+                    </a>
+                </div>
+
+            </div>
+
+        </form>
+
+        <aside class="app-card appearance-preview-card">
+
+            <div class="app-card-body">
+
+                <div class="appearance-preview-kicker">
+                    Предпросмотр
+                </div>
+
+                <h2>FPGA Learning System</h2>
+
+                <p>
+                    Так будут выглядеть карточки, кнопки и элементы интерфейса
+                    после применения выбранных настроек.
+                </p>
+
+                <div class="appearance-preview-panel">
+                    <div class="appearance-preview-line appearance-preview-line-wide"></div>
+                    <div class="appearance-preview-line"></div>
+                    <div class="appearance-preview-line appearance-preview-line-short"></div>
+                </div>
+
+                <div class="appearance-preview-buttons">
+                    <span class="appearance-preview-primary">Основная кнопка</span>
+                    <span class="appearance-preview-secondary">Вторичная</span>
+                </div>
+
+                <div class="appearance-preview-note">
+                    Настройки сохраняются персонально для вашего аккаунта.
+                </div>
+
+            </div>
+
+        </aside>
+
+    </div>
+
+</div>
+
+{% endblock %}

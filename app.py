@@ -6343,6 +6343,171 @@ def logout():
     return redirect(url_for("login"))
 
 
+# ============================================================
+# Настройки внешнего вида пользователя
+# ============================================================
+
+APPEARANCE_THEMES = ["light", "dark", "system"]
+APPEARANCE_PALETTES = ["pastel", "indigo", "burgundy", "green"]
+APPEARANCE_FONT_SIZES = ["small", "normal", "large"]
+APPEARANCE_DENSITIES = ["comfortable", "compact"]
+
+
+@app.route("/settings/appearance", methods=["GET", "POST"])
+@login_required
+def appearance_settings():
+    conn = get_db()
+
+    user = conn.execute(
+        """
+        SELECT *
+        FROM users
+        WHERE username = ?
+        """,
+        (session["username"],)
+    ).fetchone()
+
+    if not user:
+        conn.close()
+        session.clear()
+        flash("Пользователь не найден. Выполните вход заново.")
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        theme = normalize_user_ui_value(
+            request.form.get("theme"),
+            "light",
+            APPEARANCE_THEMES
+        )
+
+        palette = normalize_user_ui_value(
+            request.form.get("palette"),
+            "pastel",
+            APPEARANCE_PALETTES
+        )
+
+        font_size = normalize_user_ui_value(
+            request.form.get("font_size"),
+            "normal",
+            APPEARANCE_FONT_SIZES
+        )
+
+        ui_density = normalize_user_ui_value(
+            request.form.get("ui_density"),
+            "comfortable",
+            APPEARANCE_DENSITIES
+        )
+
+        conn.execute(
+            """
+            UPDATE users
+            SET theme = ?,
+                palette = ?,
+                font_size = ?,
+                ui_density = ?,
+                first_login_completed = 1
+            WHERE username = ?
+            """,
+            (
+                theme,
+                palette,
+                font_size,
+                ui_density,
+                session["username"]
+            )
+        )
+
+        conn.commit()
+
+        updated_user = conn.execute(
+            """
+            SELECT *
+            FROM users
+            WHERE username = ?
+            """,
+            (session["username"],)
+        ).fetchone()
+
+        load_user_ui_settings_to_session(updated_user)
+
+        conn.close()
+
+        flash("Настройки внешнего вида сохранены.")
+        return redirect(url_for("appearance_settings"))
+
+    settings = {
+        "theme": normalize_user_ui_value(
+            get_row_value(user, "theme", "light"),
+            "light",
+            APPEARANCE_THEMES
+        ),
+        "palette": normalize_user_ui_value(
+            get_row_value(user, "palette", "pastel"),
+            "pastel",
+            APPEARANCE_PALETTES
+        ),
+        "font_size": normalize_user_ui_value(
+            get_row_value(user, "font_size", "normal"),
+            "normal",
+            APPEARANCE_FONT_SIZES
+        ),
+        "ui_density": normalize_user_ui_value(
+            get_row_value(user, "ui_density", "comfortable"),
+            "comfortable",
+            APPEARANCE_DENSITIES
+        )
+    }
+
+    conn.close()
+
+    return render_template(
+        "settings/appearance.html",
+        settings=settings
+    )
+
+
+@app.route("/settings/appearance/toggle-theme", methods=["POST"])
+@login_required
+def appearance_toggle_theme():
+    current_theme = session.get("theme") or "light"
+
+    if current_theme == "dark":
+        next_theme = "light"
+    else:
+        next_theme = "dark"
+
+    conn = get_db()
+
+    conn.execute(
+        """
+        UPDATE users
+        SET theme = ?
+        WHERE username = ?
+        """,
+        (
+            next_theme,
+            session["username"]
+        )
+    )
+
+    conn.commit()
+
+    updated_user = conn.execute(
+        """
+        SELECT *
+        FROM users
+        WHERE username = ?
+        """,
+        (session["username"],)
+    ).fetchone()
+
+    load_user_ui_settings_to_session(updated_user)
+
+    conn.close()
+
+    return redirect(request.referrer or url_for("index"))
+
+
 # =========================
 # 11. Common routes - спільні сторінки
 # =========================
