@@ -96,9 +96,14 @@
         <div class="card shadow-sm border-0 rounded-4 mb-4 journal-group-card">
 
             <form method="post"
-                  action="{{ url_for('update_group_journal') }}"
-                  class="journal-group-form">
 
+                action="{{ url_for('update_group_journal') }}"
+                class="journal-group-form">
+
+                    {% include "includes/csrf_token.html" %}
+                    <input type="hidden" name="group_name" value="{{ group_name }}">
+
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="group_name" value="{{ group_name }}">
 
                 <div class="card-body p-0">

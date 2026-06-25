@@ -31,6 +31,7 @@
 
             <form method="post"
                   action="{{ url_for('student_trainer_task_submit', task_id=task['id']) }}">
+                  {% include "includes/csrf_token.html" %}
 
                 {% for option in options %}
                     <div class="form-check mb-2">

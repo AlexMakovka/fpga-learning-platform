@@ -45,7 +45,8 @@
 
     <form method="post"
           action="{{ url_for('student_trainer_session_submit', session_id=trainer_session['id']) }}">
-
+          {% include "includes/csrf_token.html" %}
+          
         {% for item in questions %}
             {% set task = item.task %}
             {% set answer = item.answer %}

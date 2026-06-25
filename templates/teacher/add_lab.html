@@ -11,6 +11,8 @@
         <h1 class="mb-4">Добавить лабораторную работу</h1>
 
         <form method="post" action="{{ url_for('add_lab') }}">
+            {% include "includes/csrf_token.html" %}
+            
             <div class="mb-3">
                 <label class="form-label">Название</label>
                 <input type="text"

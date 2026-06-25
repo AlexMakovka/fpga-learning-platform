@@ -31,6 +31,7 @@
         </div>
 
         <form method="post" action="{{ url_for('complete_google_registration') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="mb-3">
                 <label class="form-label auth-label">ФИО</label>

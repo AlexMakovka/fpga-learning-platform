@@ -13,6 +13,8 @@
         <h3 class="mb-3">Добавить предмет</h3>
 
         <form method="post" action="{{ url_for('admin_disciplines') }}">
+            {% include "includes/csrf_token.html" %}
+            
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Название предмета</label>

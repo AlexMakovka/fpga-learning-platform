@@ -11913,9 +11913,19 @@ def teacher_grant_extra_attempt():
         flash("Выдавать дополнительные попытки может только преподаватель или администратор.")
         return redirect(url_for("index"))
     
-    lab_id = request.values.get("lab_id", type=int)
-    username = request.values.get("username", "").strip()
-    reason = request.values.get("reason", "").strip()
+    lab_id = request.form.get("lab_id", type=int) or request.args.get("lab_id", type=int)
+
+    username = (
+        request.form.get("username")
+        or request.args.get("username")
+        or ""
+    ).strip()
+
+    reason = (
+        request.form.get("reason")
+        or request.args.get("reason")
+        or ""
+    ).strip()
 
     if not lab_id or not username:
         flash("Не удалось определить лабораторную работу или студента.")

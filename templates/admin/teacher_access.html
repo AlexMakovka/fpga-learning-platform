@@ -13,8 +13,9 @@
         <h3 class="mb-3">Назначить преподавателя на предмет и группу</h3>
 
         <form method="post" action="{{ url_for('admin_teacher_access') }}">
-            <div class="row g-3">
+            {% include "includes/csrf_token.html" %}
 
+            <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Преподаватель</label>
                     <select name="teacher_username" class="form-select" required>

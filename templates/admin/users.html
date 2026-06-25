@@ -65,6 +65,8 @@
                                 {% if user["status"] != "active" %}
                                     <form method="post"
                                           action="{{ url_for('admin_approve_user', user_id=user['id']) }}">
+                                          {% include "includes/csrf_token.html" %}
+
                                         <button class="btn btn-success btn-sm" type="submit">
                                             Активировать
                                         </button>
@@ -74,6 +76,8 @@
                                 {% if user["status"] != "blocked" and user["role"] != "admin" %}
                                     <form method="post"
                                           action="{{ url_for('admin_block_user', user_id=user['id']) }}">
+                                          {% include "includes/csrf_token.html" %}
+                                          
                                         <button class="btn btn-outline-danger btn-sm" type="submit">
                                             Заблокировать
                                         </button>

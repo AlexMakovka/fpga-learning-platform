@@ -14,6 +14,7 @@
         <h3 class="mb-3">Добавить студента</h3>
 
         <form method="post" action="{{ url_for('manage_students') }}">
+            {% include "includes/csrf_token.html" %}
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="row">
@@ -132,6 +133,8 @@
                           action="{{ url_for('delete_group_students') }}"
                           onsubmit="return confirm('Удалить всю группу студентов вместе с их попытками и файлами?');">
 
+                          {% include "includes/csrf_token.html" %}
+
                         <label class="form-label small text-muted">Завершившая курс группа</label>
 
                         <div class="d-flex gap-2">
@@ -227,6 +230,8 @@
                                         <form method="post"
                                             action="{{ url_for('delete_student', user_id=student['id']) }}"
                                             onsubmit="return confirm('Удалить студента и все его попытки?');">
+
+                                            {% include "includes/csrf_token.html" %}
                                             <button type="submit" class="btn btn-outline-danger btn-sm">
                                                 Удал.
                                             </button>
