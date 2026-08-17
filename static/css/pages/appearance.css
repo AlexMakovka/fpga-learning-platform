@@ -1,0 +1,1852 @@
+/* =========================================================
+   СТОРІНКА НАЛАШТУВАНЬ ВИГЛЯДУ
+   ========================================================= */
+
+.appearance-page {
+    display: grid;
+    gap: 22px;
+}
+
+
+.appearance-grid {
+    display: grid;
+    grid-template-columns:
+        minmax(680px, 1.08fr)
+        minmax(500px, 580px);
+
+    align-items: start;
+    gap: 28px;
+}
+
+
+.appearance-form-card,
+.appearance-preview-card {
+    overflow: hidden;
+}
+
+
+/* =========================================================
+   БЛОКИ НАЛАШТУВАНЬ ВИГЛЯДУ
+   Логічно розділяють параметри теми, палітри, шрифту
+   та інших характеристик інтерфейсу
+   ========================================================= */
+
+.appearance-settings-block {
+    margin-bottom: 26px;
+    padding-bottom: 26px;
+
+    border-bottom: 1px solid var(--app-border-soft);
+}
+
+
+.appearance-settings-block:last-of-type {
+    margin-bottom: 0;
+    padding-bottom: 0;
+
+    border-bottom: 0;
+}
+
+
+.appearance-block-header {
+    margin-bottom: 14px;
+}
+
+
+.appearance-block-header h2 {
+    margin: 0 0 4px;
+
+    color: var(--app-text-strong);
+
+    font-size: 19px;
+    font-weight: 900;
+    line-height: 1.2;
+}
+
+
+.appearance-block-header p {
+    margin: 0;
+
+    color: var(--app-text-muted);
+
+    font-size: 14px;
+}
+
+
+/* =========================================================
+   СІТКА ВАРІАНТІВ НАЛАШТУВАНЬ
+   ========================================================= */
+
+.appearance-options-grid {
+    display: grid;
+    gap: 12px;
+}
+
+
+.appearance-options-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+
+.appearance-options-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+
+.appearance-options-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+
+/* =========================================================
+   КАРТКА ВАРІАНТА НАЛАШТУВАННЯ
+   Стан вибору та клавіатурний фокус визначаються через
+   прихований елемент форми та псевдоклас :has()
+   ========================================================= */
+
+.appearance-option-card {
+    position: relative;
+
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    min-height: 142px;
+    padding: 15px;
+
+    background: var(--app-surface-muted);
+
+    border: 1px solid var(--app-border-soft);
+    border-radius: 20px;
+
+    cursor: pointer;
+
+    transition:
+        background-color var(--app-transition),
+        border-color var(--app-transition),
+        box-shadow var(--app-transition),
+        transform var(--app-transition);
+}
+
+
+.appearance-option-card:hover {
+    border-color: rgba(var(--app-primary-rgb), 0.36);
+
+    transform: translateY(-2px);
+
+    box-shadow: var(--app-shadow-sm);
+}
+
+
+/*
+ * Елемент форми залишається у DOM і доступним для клавіатурної
+ * навігації, але його візуальний стан відображає контейнер картки.
+ */
+.appearance-option-card input {
+    position: absolute;
+
+    width: 1px;
+    height: 1px;
+
+    overflow: hidden;
+
+    opacity: 0;
+}
+
+
+.appearance-option-card:has(input:checked) {
+    background: var(--app-primary-soft);
+
+    border-color: rgba(var(--app-primary-rgb), 0.72);
+
+    box-shadow:
+        0 0 0 3px rgba(var(--app-primary-rgb), 0.12),
+        var(--app-shadow-sm);
+}
+
+
+.appearance-option-card:has(input:focus-visible) {
+    outline: 3px solid rgba(var(--app-primary-rgb), 0.24);
+    outline-offset: 2px;
+}
+
+
+.appearance-option-card strong {
+    color: var(--app-text-strong);
+
+    font-size: 15px;
+    font-weight: 900;
+}
+
+
+.appearance-option-card small {
+    color: var(--app-text-muted);
+
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+
+/* =========================================================
+   ВІЗУАЛЬНІ ПРИКЛАДИ НАЛАШТУВАНЬ
+   ========================================================= */
+
+.appearance-option-visual,
+.appearance-palette-swatch,
+.appearance-font-demo {
+    height: 48px;
+
+    border: 1px solid var(--app-border-soft);
+    border-radius: 16px;
+}
+
+
+/* =========================================================
+   ПОПЕРЕДНІЙ ПЕРЕГЛЯД ТЕМИ
+   ========================================================= */
+
+.appearance-option-visual {
+    display: grid;
+    grid-template-columns:
+        34%
+        minmax(0, 1fr);
+
+    gap: 6px;
+
+    padding: 7px;
+}
+
+
+.appearance-option-visual span {
+    border-radius: 10px;
+}
+
+
+/* ---------- Світла тема ---------- */
+
+.appearance-theme-light {
+    background: #f8fafc;
+}
+
+
+.appearance-theme-light span:first-child {
+    background: #e2e8f0;
+}
+
+
+.appearance-theme-light span:last-child {
+    background: #ffffff;
+}
+
+
+/* ---------- Темна тема ---------- */
+
+.appearance-theme-dark {
+    background: #0f172a;
+}
+
+
+.appearance-theme-dark span:first-child {
+    background: #1e293b;
+}
+
+
+.appearance-theme-dark span:last-child {
+    background: #334155;
+}
+
+
+/* ---------- Системна тема ---------- */
+
+.appearance-theme-system {
+    background: linear-gradient(
+        90deg,
+        #f8fafc 0 50%,
+        #0f172a 50% 100%
+    );
+}
+
+
+.appearance-theme-system span:first-child {
+    background: rgba(148, 163, 184, 0.55);
+}
+
+
+.appearance-theme-system span:last-child {
+    background: rgba(255, 255, 255, 0.62);
+}
+
+
+/* =========================================================
+   ПОПЕРЕДНІЙ ПЕРЕГЛЯД КОЛЬОРОВОЇ ПАЛІТРИ
+   Значення кольорів повторюють відповідні токени палітр,
+   щоб користувач бачив фактичне поєднання до його вибору
+   ========================================================= */
+
+.appearance-palette-pastel {
+    background: linear-gradient(90deg, #f472b6, #60a5fa);
+}
+
+
+.appearance-palette-indigo {
+    background: linear-gradient(90deg, #6366f1, #38bdf8);
+}
+
+
+.appearance-palette-burgundy {
+    background: linear-gradient(90deg, #8b1e3f, #64748b);
+}
+
+
+.appearance-palette-green {
+    background: linear-gradient(90deg, #16a34a, #14b8a6);
+}
+
+
+/* =========================================================
+   ПОПЕРЕДНІЙ ПЕРЕГЛЯД ШРИФТУ
+   ========================================================= */
+
+.appearance-font-demo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: var(--app-surface-solid);
+
+    color: var(--app-primary);
+
+    font-weight: 900;
+}
+
+
+/* =========================================================
+   ДЕМОНСТРАЦІЯ РОЗМІРУ ШРИФТУ
+   ========================================================= */
+
+.appearance-font-small {
+    font-size: 18px;
+}
+
+
+.appearance-font-normal {
+    font-size: 24px;
+}
+
+
+.appearance-font-large {
+    font-size: 30px;
+}
+
+
+/* =========================================================
+   ДЕМОНСТРАЦІЯ ЩІЛЬНОСТІ ІНТЕРФЕЙСУ
+   Візуально показує різницю між звичайним і компактним
+   розташуванням елементів без зміни фактичної сторінки
+   ========================================================= */
+
+.appearance-density-demo {
+    display: grid;
+    gap: 5px;
+
+    height: 48px;
+    padding: 8px;
+
+    background: var(--app-surface-solid);
+
+    border: 1px solid var(--app-border-soft);
+    border-radius: 16px;
+}
+
+
+.appearance-density-demo i {
+    display: block;
+
+    background: var(--app-gradient);
+
+    border-radius: var(--app-radius-pill);
+}
+
+
+.appearance-density-comfortable i {
+    height: 8px;
+}
+
+
+.appearance-density-compact i {
+    height: 5px;
+}
+
+
+/* =========================================================
+   ДІЇ СТОРІНКИ НАЛАШТУВАНЬ ВИГЛЯДУ
+   ========================================================= */
+
+.appearance-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    margin-top: 26px;
+}
+
+
+/* =========================================================
+   ІНТЕРАКТИВНИЙ ПОПЕРЕДНІЙ ПЕРЕГЛЯД ВИГЛЯДУ
+   Власні --preview-* токени ізолюють стан попереднього
+   перегляду від фактичної теми інтерфейсу
+   ========================================================= */
+
+.appearance-preview-card {
+    /* =====================================================
+       ТЕМА ПОПЕРЕДНЬОГО ПЕРЕГЛЯДУ
+       За замовчуванням використовується світла тема
+       ===================================================== */
+
+    --preview-bg: #f8fafc;
+    --preview-bg-soft: #ffffff;
+
+    --preview-surface: rgba(255, 255, 255, 0.88);
+
+    --preview-surface-muted: rgba(248, 250, 252, 0.94);
+
+    --preview-text: #253047;
+    --preview-text-strong: #111827;
+    --preview-text-muted: #667085;
+
+    --preview-border: rgba(226, 232, 240, 0.86);
+
+    --preview-shadow: 0 16px 40px rgba(15, 23, 42, 0.10);
+
+
+    /* =====================================================
+       ПАЛІТРА ПОПЕРЕДНЬОГО ПЕРЕГЛЯДУ
+       За замовчуванням використовується пастельна палітра
+       ===================================================== */
+
+    --preview-primary: #60a5fa;
+    --preview-primary-rgb: 96, 165, 250;
+
+    --preview-accent: #f472b6;
+    --preview-accent-rgb: 244, 114, 182;
+
+    --preview-primary-soft: rgba(96, 165, 250, 0.14);
+
+    --preview-gradient:
+        linear-gradient(
+            90deg,
+            #f472b6 0%,
+            #60a5fa 100%
+        );
+
+
+    /* =====================================================
+       РОЗМІРИ ЕЛЕМЕНТІВ ПОПЕРЕДНЬОГО ПЕРЕГЛЯДУ
+       ===================================================== */
+
+    --preview-font-size: 14px;
+
+    --preview-density-padding: 13px;
+    --preview-density-gap: 9px;
+    --preview-control-height: 36px;
+
+
+    /* =====================================================
+       КОМПОНУВАННЯ КАРТКИ ПОПЕРЕДНЬОГО ПЕРЕГЛЯДУ
+       Sticky-позиціонування зберігає результат налаштувань
+       видимим під час прокручування форми
+       ===================================================== */
+
+    position: sticky;
+
+    top: calc(var(--app-topbar-height) + 22px);
+
+    background:
+        radial-gradient(
+            circle at 18% 16%,
+            rgba(var(--preview-accent-rgb), 0.18),
+            transparent 34%
+        ),
+        radial-gradient(
+            circle at 88% 14%,
+            rgba(var(--preview-primary-rgb), 0.18),
+            transparent 36%
+        ),
+        linear-gradient(
+            135deg,
+            var(--preview-bg) 0%,
+            var(--preview-bg-soft) 100%
+        ) !important;
+
+    color: var(--preview-text);
+}
+
+
+/* =========================================================
+   ЗАГОЛОВОК ПОПЕРЕДНЬОГО ПЕРЕГЛЯДУ
+   ========================================================= */
+
+.appearance-preview-kicker {
+    width: fit-content;
+
+    margin-bottom: 12px;
+    padding: 6px 10px;
+
+    background: var(--app-primary-soft);
+
+    border-radius: var(--app-radius-pill);
+
+    color: var(--app-primary);
+
+    font-size: 11px;
+    font-weight: 900;
+
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+
+.appearance-preview-card h2 {
+    margin-bottom: 8px;
+
+    color: var(--preview-text-strong);
+
+    font-size: 23px;
+    font-weight: 900;
+}
+
+
+.appearance-preview-card p {
+    margin-bottom: 18px;
+
+    color: var(--preview-text-muted);
+
+    line-height: 1.55;
+}
+
+
+/* =========================================================
+   ПАНЕЛЬ ВМІСТУ ПОПЕРЕДНЬОГО ПЕРЕГЛЯДУ
+   ========================================================= */
+
+.appearance-preview-panel {
+    display: grid;
+    gap: 9px;
+
+    padding: 16px;
+
+    background: var(--preview-surface-muted);
+
+    border: 1px solid var(--preview-border);
+    border-radius: 20px;
+}
+
+
+/* =========================================================
+   ІМІТАЦІЯ ТЕКСТОВИХ РЯДКІВ
+   ========================================================= */
+
+.appearance-preview-line {
+    width: 74%;
+    height: 10px;
+
+    background: rgba(var(--preview-primary-rgb), 0.22);
+
+    border-radius: var(--app-radius-pill);
+}
+
+
+.appearance-preview-line-wide {
+    width: 100%;
+}
+
+
+.appearance-preview-line-short {
+    width: 48%;
+}
+
+
+/* =========================================================
+   КНОПКИ ПОПЕРЕДНЬОГО ПЕРЕГЛЯДУ
+   ========================================================= */
+
+.appearance-preview-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    margin-top: 16px;
+}
+
+
+.appearance-preview-primary,
+.appearance-preview-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 38px;
+    padding: 0 13px;
+
+    border-radius: var(--app-radius-pill);
+
+    font-size: 12px;
+    font-weight: 900;
+}
+
+
+/* ---------- Основна кнопка ---------- */
+
+.appearance-preview-primary {
+    background: var(--preview-primary);
+
+    color: #ffffff;
+}
+
+
+/* ---------- Другорядна кнопка ---------- */
+
+.appearance-preview-secondary {
+    background: var(--preview-surface);
+
+    border: 1px solid var(--preview-border);
+
+    color: var(--preview-text);
+}
+
+
+/* =========================================================
+   ПРИМІТКА ПОПЕРЕДНЬОГО ПЕРЕГЛЯДУ
+   ========================================================= */
+
+.appearance-preview-note {
+    margin-top: 16px;
+    padding: 12px 14px;
+
+    background: var(--preview-primary-soft);
+
+    border-radius: 16px;
+
+    color: var(--preview-text-muted);
+
+    font-size: 13px;
+}
+
+
+/* =========================================================
+   PREVIEW THEMES
+   ========================================================= */
+
+/* Light theme is defined by default
+   on .appearance-preview-card. */
+
+.appearance-preview-card[data-preview-theme="dark"] {
+    --preview-bg: #0f172a;
+    --preview-bg-soft: #111827;
+
+    --preview-surface:
+        rgba(
+            30,
+            41,
+            59,
+            0.86
+        );
+
+    --preview-surface-muted:
+        rgba(
+            15,
+            23,
+            42,
+            0.78
+        );
+
+    --preview-text: #e5e7eb;
+    --preview-text-strong: #ffffff;
+    --preview-text-muted: #aab4c5;
+
+    --preview-border:
+        rgba(
+            148,
+            163,
+            184,
+            0.24
+        );
+
+    --preview-shadow:
+        0 18px 48px
+        rgba(
+            0,
+            0,
+            0,
+            0.36
+        );
+}
+
+
+/* ---------- System theme ---------- */
+
+@media (prefers-color-scheme: dark) {
+    .appearance-preview-card[data-preview-theme="system"] {
+        --preview-bg: #0f172a;
+        --preview-bg-soft: #111827;
+
+        --preview-surface:
+            rgba(
+                30,
+                41,
+                59,
+                0.86
+            );
+
+        --preview-surface-muted:
+            rgba(
+                15,
+                23,
+                42,
+                0.78
+            );
+
+        --preview-text: #e5e7eb;
+        --preview-text-strong: #ffffff;
+        --preview-text-muted: #aab4c5;
+
+        --preview-border:
+            rgba(
+                148,
+                163,
+                184,
+                0.24
+            );
+
+        --preview-shadow:
+            0 18px 48px
+            rgba(
+                0,
+                0,
+                0,
+                0.36
+            );
+    }
+}
+
+
+/* =========================================================
+   PREVIEW PALETTES
+   Default: pastel
+   ========================================================= */
+
+/* ---------- Indigo ---------- */
+
+.appearance-preview-card[data-preview-palette="indigo"] {
+    --preview-primary: #6366f1;
+    --preview-primary-rgb: 99, 102, 241;
+
+    --preview-accent: #38bdf8;
+    --preview-accent-rgb: 56, 189, 248;
+
+    --preview-primary-soft:
+        rgba(
+            99,
+            102,
+            241,
+            0.14
+        );
+
+    --preview-gradient:
+        linear-gradient(
+            90deg,
+            #6366f1 0%,
+            #38bdf8 100%
+        );
+}
+
+
+/* ---------- Burgundy ---------- */
+
+.appearance-preview-card[data-preview-palette="burgundy"] {
+    --preview-primary: #8b1e3f;
+    --preview-primary-rgb: 139, 30, 63;
+
+    --preview-accent: #64748b;
+    --preview-accent-rgb: 100, 116, 139;
+
+    --preview-primary-soft:
+        rgba(
+            139,
+            30,
+            63,
+            0.14
+        );
+
+    --preview-gradient:
+        linear-gradient(
+            90deg,
+            #8b1e3f 0%,
+            #64748b 100%
+        );
+}
+
+
+/* ---------- Green ---------- */
+
+.appearance-preview-card[data-preview-palette="green"] {
+    --preview-primary: #16a34a;
+    --preview-primary-rgb: 22, 163, 74;
+
+    --preview-accent: #14b8a6;
+    --preview-accent-rgb: 20, 184, 166;
+
+    --preview-primary-soft:
+        rgba(
+            22,
+            163,
+            74,
+            0.14
+        );
+
+    --preview-gradient:
+        linear-gradient(
+            90deg,
+            #16a34a 0%,
+            #14b8a6 100%
+        );
+}
+
+
+/* =========================================================
+   PREVIEW FONT SIZE
+   Default: normal
+   ========================================================= */
+
+.appearance-preview-card[data-preview-font-size="small"] {
+    --preview-font-size: 13px;
+}
+
+
+.appearance-preview-card[data-preview-font-size="large"] {
+    --preview-font-size: 15.5px;
+}
+
+
+/* =========================================================
+   PREVIEW DENSITY
+   Default: comfortable
+   ========================================================= */
+
+.appearance-preview-card[data-preview-density="compact"] {
+    --preview-density-padding: 9px;
+    --preview-density-gap: 6px;
+    --preview-control-height: 30px;
+}
+
+
+/* =========================================================
+   APPEARANCE RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1200px) {
+    .appearance-grid {
+        grid-template-columns: 1fr;
+    }
+
+
+    .appearance-preview-card {
+        position: static;
+    }
+}
+
+
+@media (max-width: 900px) {
+    .appearance-options-3,
+    .appearance-options-4 {
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(0, 1fr)
+            );
+    }
+}
+
+
+@media (max-width: 576px) {
+    .appearance-options-2,
+    .appearance-options-3,
+    .appearance-options-4 {
+        grid-template-columns: 1fr;
+    }
+
+
+    .appearance-option-card {
+        min-height: auto;
+    }
+
+
+    .appearance-actions .btn {
+        width: 100%;
+    }
+}
+
+
+/* =========================================================
+   МІНІМАКЕТ ПОПЕРЕДНЬОГО ПЕРЕГЛЯДУ
+   Відтворює структуру внутрішнього інтерфейсу та використовує
+   локальні --preview-* токени для демонстрації налаштувань
+   ========================================================= */
+
+.appearance-mini-layout {
+    display: grid;
+    grid-template-columns: 34% minmax(0, 1fr);
+
+    min-height: 360px;
+    margin-top: 18px;
+
+    overflow: hidden;
+
+    background: var(--preview-bg);
+
+    border: 1px solid var(--preview-border);
+    border-radius: 22px;
+
+    font-size: var(--preview-font-size);
+
+    box-shadow: var(--preview-shadow);
+}
+
+
+/* ---------- Мініатюрна бічна панель ---------- */
+
+.appearance-mini-sidebar {
+    display: grid;
+    align-content: start;
+    gap: var(--preview-density-gap);
+
+    padding: var(--preview-density-padding);
+
+    background: var(--preview-surface-muted);
+
+    border-right: 1px solid var(--preview-border);
+}
+
+
+/* ---------- Мініатюрний логотип ---------- */
+
+.appearance-mini-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 48px;
+    height: 38px;
+    margin-bottom: 4px;
+
+    background: var(--preview-gradient);
+
+    border-radius: 14px;
+
+    color: #ffffff;
+
+    font-size: 11px;
+    font-weight: 900;
+}
+
+
+/* ---------- Мініатюрна навігація ---------- */
+
+.appearance-mini-nav {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    min-height: var(--preview-control-height);
+    padding: 0 9px;
+
+    background: transparent;
+
+    border-radius: 13px;
+
+    color: var(--preview-text-muted);
+}
+
+
+.appearance-mini-nav span {
+    flex: 0 0 auto;
+
+    width: 18px;
+    aspect-ratio: 1;
+
+    background: var(--preview-surface);
+
+    border: 1px solid var(--preview-border);
+    border-radius: 7px;
+}
+
+
+.appearance-mini-nav b {
+    overflow: hidden;
+
+    font-size: 0.82em;
+    font-weight: 850;
+
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+
+.appearance-mini-nav.is-active {
+    background: var(--preview-primary-soft);
+
+    color: var(--preview-text-strong);
+
+    box-shadow: inset 3px 0 0 var(--preview-primary);
+}
+
+
+.appearance-mini-nav.is-active span {
+    background: var(--preview-gradient);
+
+    border-color: transparent;
+}
+
+
+/* ---------- Основна область мініатюрного макета ---------- */
+
+.appearance-mini-main {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+
+    min-width: 0;
+
+    background:
+        radial-gradient(
+            circle at 88% 12%,
+            rgba(var(--preview-primary-rgb), 0.14),
+            transparent 34%
+        ),
+        var(--preview-bg);
+}
+
+
+/* ---------- Мініатюрна верхня панель ---------- */
+
+.appearance-mini-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+
+    min-height: 64px;
+    padding: 10px 12px;
+
+    background: rgba(15, 23, 42, 0.92);
+
+    border-bottom: 1px solid var(--preview-border);
+
+    color: #ffffff;
+}
+
+
+.appearance-mini-topbar strong {
+    display: block;
+
+    font-size: 0.94em;
+    font-weight: 900;
+}
+
+
+.appearance-mini-topbar small {
+    display: block;
+
+    margin-top: 3px;
+
+    color: rgba(255, 255, 255, 0.58);
+
+    font-size: 0.68em;
+
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+
+/* ---------- Мініатюрний аватар ---------- */
+
+.appearance-mini-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 0 0 34px;
+
+    width: 34px;
+    aspect-ratio: 1;
+
+    background: var(--preview-gradient);
+
+    border-radius: 50%;
+
+    color: #ffffff;
+
+    font-size: 0.78em;
+    font-weight: 900;
+}
+
+
+/* ---------- Вміст мініатюрного макета ---------- */
+
+.appearance-mini-content {
+    min-width: 0;
+
+    padding: var(--preview-density-padding);
+}
+
+
+.appearance-mini-card {
+    padding: var(--preview-density-padding);
+
+    background: var(--preview-surface);
+
+    border: 1px solid var(--preview-border);
+    border-radius: 18px;
+
+    box-shadow: var(--preview-shadow);
+}
+
+
+.appearance-mini-card-title {
+    margin-bottom: 11px;
+
+    color: var(--preview-text-strong);
+
+    font-weight: 900;
+}
+
+
+.appearance-mini-card .appearance-preview-line {
+    background: rgba(var(--preview-primary-rgb), 0.22);
+}
+
+
+/* ---------- Кнопки та поточний стан попереднього перегляду ---------- */
+
+.appearance-preview-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+
+    margin-top: 14px;
+}
+
+
+.appearance-preview-primary,
+.appearance-preview-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: var(--preview-control-height);
+    padding: 0 12px;
+
+    border-radius: 999px;
+
+    font-size: 0.78em;
+    font-weight: 900;
+}
+
+
+.appearance-preview-primary {
+    background: var(--preview-primary);
+
+    color: #ffffff;
+}
+
+
+.appearance-preview-secondary {
+    background: var(--preview-surface);
+
+    border: 1px solid var(--preview-border);
+
+    color: var(--preview-text);
+}
+
+
+/*
+ * Блок відображає значення налаштувань, які зараз
+ * застосовані до локального попереднього перегляду.
+ */
+.appearance-preview-current {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+
+    margin-top: 16px;
+}
+
+
+.appearance-preview-current div {
+    padding: 10px 11px;
+
+    background: var(--preview-surface-muted);
+
+    border: 1px solid var(--preview-border);
+    border-radius: 15px;
+}
+
+
+.appearance-preview-current span {
+    display: block;
+
+    margin-bottom: 3px;
+
+    color: var(--preview-text-muted);
+
+    font-size: 11px;
+    font-weight: 800;
+
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+
+.appearance-preview-current strong {
+    color: var(--preview-text-strong);
+
+    font-size: 13px;
+    font-weight: 900;
+}
+
+
+.appearance-preview-note {
+    background: var(--preview-primary-soft);
+
+    border: 1px solid rgba(var(--preview-primary-rgb), 0.20);
+
+    color: var(--preview-text-muted);
+}
+
+
+/* ---------- Попередній перегляд на мобільних екранах ---------- */
+
+@media (max-width: 576px) {
+    .appearance-mini-layout {
+        grid-template-columns: 1fr;
+    }
+
+
+    .appearance-mini-sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--preview-border);
+    }
+
+
+    .appearance-preview-current {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =========================================================
+   НАЛАШТУВАННЯ ШИРИНИ СТОРІНКИ ВИГЛЯДУ
+   Збільшена область вмісту застосовується лише до сторінки
+   персоналізації та не впливає на інші внутрішні сторінки
+   ========================================================= */
+
+body.app-body .app-content:has(.appearance-page) {
+    width: min(1440px, calc(100% - 42px));
+}
+
+
+.appearance-grid {
+    grid-template-columns:
+        minmax(680px, 1.08fr)
+        minmax(500px, 580px);
+
+    gap: 28px;
+}
+
+
+.appearance-preview-card {
+    width: 100%;
+}
+
+
+.appearance-mini-layout {
+    grid-template-columns: 34% 66%;
+
+    min-height: 360px;
+}
+
+
+.appearance-mini-card {
+    min-height: 165px;
+}
+
+
+.appearance-preview-card .app-card-body,
+.appearance-form-card .app-card-body {
+    padding: 24px;
+}
+
+
+/* ---------- Екрани середньої ширини ---------- */
+
+@media (max-width: 1280px) {
+    body.app-body .app-content:has(.appearance-page) {
+        width: min(100%, calc(100% - 32px));
+    }
+
+
+    /*
+     * Форма та попередній перегляд переходять в одну колонку,
+     * коли доступної ширини недостатньо для двопанельного режиму.
+     */
+    .appearance-grid {
+        grid-template-columns: 1fr;
+    }
+
+
+    .appearance-preview-card {
+        max-width: 760px;
+    }
+}
+
+
+/* ---------- Мобільні екрани ---------- */
+
+@media (max-width: 576px) {
+    body.app-body .app-content:has(.appearance-page) {
+        width: min(100%, calc(100% - 24px));
+    }
+
+
+    .appearance-preview-card {
+        max-width: none;
+    }
+
+
+    .appearance-preview-card .app-card-body,
+    .appearance-form-card .app-card-body {
+        padding: 18px;
+    }
+
+
+    .appearance-mini-layout {
+        grid-template-columns: 1fr;
+
+        min-height: auto;
+    }
+}
+
+
+/* =========================================================
+   ПЕРВИННЕ НАЛАШТУВАННЯ ВИГЛЯДУ
+   Використовується під час першого входу для початкового
+   вибору параметрів персоналізації інтерфейсу
+   ========================================================= */
+
+.setup-appearance-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: calc(100vh - var(--app-topbar-height) - 80px);
+}
+
+
+.setup-appearance-shell {
+    display: grid;
+    grid-template-columns:
+        minmax(360px, 0.8fr)
+        minmax(560px, 1.2fr);
+
+    align-items: stretch;
+    gap: 24px;
+
+    width: min(1180px, 100%);
+}
+
+
+/* =========================================================
+   КАРТКИ ПЕРВИННОГО НАЛАШТУВАННЯ
+   ========================================================= */
+
+.setup-welcome-card,
+.setup-form-card {
+    background: var(--app-surface);
+
+    border: 1px solid var(--app-border);
+    border-radius: 32px;
+
+    -webkit-backdrop-filter: blur(22px);
+    backdrop-filter: blur(22px);
+
+    box-shadow: var(--app-shadow-md);
+}
+
+
+/* ---------- Вітальна картка ---------- */
+
+.setup-welcome-card {
+    position: relative;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    padding: 42px;
+
+    overflow: hidden;
+
+    /*
+     * Акцентні кольори поточної палітри використовуються лише
+     * як декоративний фон, тому текст зберігає семантичні
+     * кольори теми та необхідну читабельність.
+     */
+    background:
+        radial-gradient(
+            circle at 86% 16%,
+            rgba(var(--app-primary-rgb), 0.20),
+            transparent 30%
+        ),
+        radial-gradient(
+            circle at 14% 88%,
+            rgba(var(--app-accent-rgb), 0.18),
+            transparent 32%
+        ),
+        var(--app-surface);
+}
+
+
+/* ---------- Мітка етапу налаштування ---------- */
+
+.setup-kicker {
+    width: fit-content;
+
+    margin-bottom: 18px;
+    padding: 7px 12px;
+
+    background: var(--app-primary-soft);
+
+    border-radius: var(--app-radius-pill);
+
+    color: var(--app-primary);
+
+    font-size: 12px;
+    font-weight: 900;
+
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+
+/* ---------- Вітальний текст ---------- */
+
+.setup-welcome-card h1 {
+    margin: 0 0 16px;
+
+    color: var(--app-text-strong);
+
+    font-size: 38px;
+    font-weight: 900;
+    line-height: 1.08;
+}
+
+
+.setup-welcome-card p {
+    max-width: 440px;
+    margin: 0;
+
+    color: var(--app-text-muted);
+
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   ЕТАПИ ПЕРВИННОГО НАЛАШТУВАННЯ
+   Візуально пояснюють послідовність початкової персоналізації
+   інтерфейсу під час першого входу користувача
+   ========================================================= */
+
+.setup-steps {
+    display: grid;
+    gap: 10px;
+
+    margin-top: 28px;
+}
+
+
+.setup-steps div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 12px;
+
+    background: var(--app-surface-muted);
+
+    border: 1px solid var(--app-border-soft);
+    border-radius: 18px;
+}
+
+
+.setup-steps span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 0 0 auto;
+
+    width: 30px;
+    aspect-ratio: 1;
+
+    background: var(--app-gradient);
+
+    border-radius: 11px;
+
+    color: #ffffff;
+
+    font-size: 13px;
+    font-weight: 900;
+}
+
+
+.setup-steps strong {
+    color: var(--app-text-strong);
+
+    font-size: 14px;
+}
+
+
+/* =========================================================
+   ФОРМА ПЕРВИННОГО НАЛАШТУВАННЯ
+   ========================================================= */
+
+.setup-form-card {
+    padding: 28px;
+}
+
+
+/* ---------- Розділ налаштувань ---------- */
+
+.setup-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+
+    border-bottom: 1px solid var(--app-border-soft);
+}
+
+
+.setup-section:last-of-type {
+    margin-bottom: 0;
+    padding-bottom: 0;
+
+    border-bottom: 0;
+}
+
+
+.setup-section h2 {
+    margin: 0 0 12px;
+
+    color: var(--app-text-strong);
+
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.2;
+}
+
+
+/* =========================================================
+   ВАРІАНТИ ПЕРВИННОГО НАЛАШТУВАННЯ
+   ========================================================= */
+
+.setup-options {
+    display: grid;
+    gap: 10px;
+}
+
+
+.setup-options-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+
+.setup-options-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+
+.setup-options-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+
+/* ---------- Картка варіанта ---------- */
+
+/*
+ * Стан картки визначається реальним елементом форми:
+ * CSS лише відображає checked-стан і клавіатурний фокус,
+ * не створюючи окремого стану вибору в інтерфейсі.
+ */
+.setup-option {
+    position: relative;
+
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+
+    min-height: 122px;
+    padding: 14px;
+
+    background: var(--app-surface-muted);
+
+    border: 1px solid var(--app-border-soft);
+    border-radius: 20px;
+
+    cursor: pointer;
+
+    transition:
+        background-color var(--app-transition),
+        border-color var(--app-transition),
+        box-shadow var(--app-transition),
+        transform var(--app-transition);
+}
+
+
+.setup-option:hover {
+    border-color: rgba(var(--app-primary-rgb), 0.36);
+
+    transform: translateY(-2px);
+
+    box-shadow: var(--app-shadow-sm);
+}
+
+
+/*
+ * Елемент input залишається доступним для клавіатурної
+ * навігації та assistive technologies, хоча візуально прихований.
+ */
+.setup-option input {
+    position: absolute;
+
+    width: 1px;
+    height: 1px;
+
+    overflow: hidden;
+
+    opacity: 0;
+}
+
+
+.setup-option:has(input:checked) {
+    background: var(--app-primary-soft);
+
+    border-color: rgba(var(--app-primary-rgb), 0.62);
+
+    box-shadow: 0 0 0 3px rgba(var(--app-primary-rgb), 0.12);
+}
+
+
+.setup-option:has(input:focus-visible) {
+    outline: 3px solid rgba(var(--app-primary-rgb), 0.24);
+    outline-offset: 2px;
+}
+
+
+/* ---------- Піктограма варіанта ---------- */
+
+.setup-option > span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 42px;
+    aspect-ratio: 1;
+
+    background: var(--app-surface-solid);
+
+    border: 1px solid var(--app-border-soft);
+    border-radius: 15px;
+
+    color: var(--app-primary);
+
+    font-weight: 900;
+}
+
+
+.setup-option strong {
+    color: var(--app-text-strong);
+
+    font-size: 14px;
+    font-weight: 900;
+}
+
+
+.setup-option small {
+    color: var(--app-text-muted);
+
+    font-size: 12px;
+    line-height: 1.35;
+}
+
+
+/* ---------- Варіант збільшеного тексту ---------- */
+
+.setup-large-text {
+    font-size: 20px;
+}
+
+
+/* =========================================================
+   ПОПЕРЕДНІЙ ПЕРЕГЛЯД ПАЛІТРИ ПІД ЧАС ПЕРВИННОГО НАЛАШТУВАННЯ
+   Кольори відображають фактичні варіанти палітр до їх застосування
+   ========================================================= */
+
+.setup-palette {
+    width: 100%;
+    height: 42px;
+}
+
+
+.setup-option .setup-palette-pastel {
+    background: linear-gradient(90deg, #f472b6, #60a5fa);
+}
+
+
+.setup-option .setup-palette-indigo {
+    background: linear-gradient(90deg, #6366f1, #38bdf8);
+}
+
+
+.setup-option .setup-palette-burgundy {
+    background: linear-gradient(90deg, #8b1e3f, #64748b);
+}
+
+
+.setup-option .setup-palette-green {
+    background: linear-gradient(90deg, #16a34a, #14b8a6);
+}
+
+
+/* =========================================================
+   ПАРАМЕТР ІЗ ПРАПОРЦЕМ
+   Стандартний checkbox зберігає нативну семантику форми,
+   а accent-color узгоджує його з активною палітрою застосунку
+   ========================================================= */
+
+.setup-checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+
+    padding: 14px 16px;
+
+    background: var(--app-surface-muted);
+
+    border: 1px solid var(--app-border-soft);
+    border-radius: 20px;
+
+    cursor: pointer;
+}
+
+
+.setup-checkbox input {
+    flex: 0 0 auto;
+
+    margin-top: 4px;
+
+    accent-color: var(--app-primary);
+}
+
+
+.setup-checkbox span {
+    display: flex;
+    flex-direction: column;
+
+    min-width: 0;
+}
+
+
+.setup-checkbox strong {
+    color: var(--app-text-strong);
+
+    font-size: 14px;
+}
+
+
+.setup-checkbox small {
+    margin-top: 3px;
+
+    color: var(--app-text-muted);
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   ДІЇ ПЕРВИННОГО НАЛАШТУВАННЯ
+   ========================================================= */
+
+.setup-actions {
+    margin-top: 22px;
+}
+
+
+.setup-actions .btn {
+    width: 100%;
+    min-height: 46px;
+
+    border-radius: 16px;
+
+    font-weight: 900;
+}
+
+
+/* =========================================================
+   АДАПТИВНІСТЬ ПЕРВИННОГО НАЛАШТУВАННЯ
+   Двоколонкове компонування та сітка варіантів поступово
+   спрощуються відповідно до доступної ширини екрана
+   ========================================================= */
+
+@media (max-width: 1100px) {
+    .setup-appearance-shell {
+        width: min(760px, 100%);
+
+        grid-template-columns: 1fr;
+    }
+}
+
+
+@media (max-width: 768px) {
+    .setup-options-3,
+    .setup-options-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+
+    .setup-welcome-card {
+        padding: 30px;
+    }
+
+
+    .setup-welcome-card h1 {
+        font-size: 30px;
+    }
+}
+
+
+@media (max-width: 520px) {
+    .setup-options-2,
+    .setup-options-3,
+    .setup-options-4 {
+        grid-template-columns: 1fr;
+    }
+
+
+    .setup-welcome-card,
+    .setup-form-card {
+        border-radius: 24px;
+    }
+
+
+    .setup-form-card {
+        padding: 20px;
+    }
+}

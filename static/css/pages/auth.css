@@ -1,0 +1,2237 @@
+/* =========================================================
+   КОМПОНУВАННЯ СТОРІНКИ АВТЕНТИФІКАЦІЇ
+   Висота сторінки враховує глобальну верхню панель
+   ========================================================= */
+
+.auth-main {
+    min-height: calc(100vh - var(--topbar-height));
+
+    padding: 0;
+}
+
+/* =========================================================
+   ФОН СТОРІНОК АВТЕНТИФІКАЦІЇ ТА ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+.auth-body {
+    background:
+        linear-gradient(
+            135deg,
+            #fff8fc 0%,
+            #f5fbff 100%
+        );
+}
+
+
+.auth-page {
+    position: relative;
+
+    isolation: isolate;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: calc(100vh - var(--topbar-height));
+
+    padding: 36px 24px;
+
+    overflow: hidden;
+
+    background:
+        radial-gradient(
+            circle at 18% 22%,
+            rgba(255, 192, 203, 0.25),
+            transparent 28%
+        ),
+        radial-gradient(
+            circle at 82% 18%,
+            rgba(173, 216, 230, 0.32),
+            transparent 30%
+        ),
+        radial-gradient(
+            circle at 68% 78%,
+            rgba(221, 214, 254, 0.22),
+            transparent 25%
+        ),
+        linear-gradient(
+            135deg,
+            #fff8fc 0%,
+            #f7fbff 100%
+        );
+}
+
+
+/* =========================================================
+   М'ЯКИЙ ФОНОВИЙ ГРАДІЄНТ
+   Декоративний шар ізольований від інтерактивного вмісту
+   ========================================================= */
+
+.auth-page::before {
+    content: "";
+
+    position: absolute;
+    inset: -35%;
+    z-index: 0;
+
+    background:
+        radial-gradient(
+            circle at 20% 30%,
+            rgba(244, 114, 182, 0.16),
+            transparent 24%
+        ),
+        radial-gradient(
+            circle at 75% 25%,
+            rgba(96, 165, 250, 0.16),
+            transparent 26%
+        ),
+        radial-gradient(
+            circle at 60% 78%,
+            rgba(216, 180, 254, 0.14),
+            transparent 24%
+        );
+
+    animation:
+        authSoftGradientMove
+        24s ease-in-out
+        infinite alternate;
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   ДЕКОРАТИВНА СІТКА
+   ========================================================= */
+
+.auth-grid-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+
+    opacity: 0.18;
+
+    background-image:
+        linear-gradient(
+            rgba(96, 165, 250, 0.10) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(244, 114, 182, 0.08) 1px,
+            transparent 1px
+        );
+
+    background-size: 46px 46px;
+
+    -webkit-mask-image:
+        radial-gradient(
+            circle at center,
+            #000 0%,
+            transparent 74%
+        );
+
+    mask-image:
+        radial-gradient(
+            circle at center,
+            #000 0%,
+            transparent 74%
+        );
+
+    animation:
+        authGridSummerMove
+        34s linear infinite;
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   ФОНОВІ ДЕКОРАТИВНІ ЕЛЕМЕНТИ
+   ========================================================= */
+
+.auth-bg {
+    position: absolute;
+    z-index: 1;
+
+    aspect-ratio: 1;
+
+    border-radius: 50%;
+
+    opacity: 0.62;
+
+    filter: blur(2px);
+
+    pointer-events: none;
+}
+
+
+/* ---------- Елемент 1 ---------- */
+
+.auth-bg-1 {
+    top: 20%;
+    left: 10%;
+
+    width: 150px;
+
+    background: rgba(255, 182, 193, 0.34);
+
+    animation:
+        authBigBubbleDriftOne
+        22s ease-in-out infinite;
+}
+
+
+/* ---------- Елемент 2 ---------- */
+
+.auth-bg-2 {
+    top: 13%;
+    right: 10%;
+
+    width: 210px;
+
+    background: rgba(173, 216, 230, 0.38);
+
+    animation:
+        authBigBubbleDriftTwo
+        26s ease-in-out infinite;
+}
+
+
+/* ---------- Елемент 3 ---------- */
+
+.auth-bg-3 {
+    right: 22%;
+    bottom: 10%;
+
+    width: 115px;
+
+    background: rgba(216, 180, 254, 0.30);
+
+    animation:
+        authBigBubbleDriftThree
+        24s ease-in-out infinite;
+}
+
+
+/* ---------- Елемент 4 ---------- */
+
+.auth-bg-4 {
+    bottom: 13%;
+    left: 24%;
+
+    width: 95px;
+
+    background: rgba(255, 210, 230, 0.30);
+
+    animation:
+        authBigBubbleDriftFour
+        28s ease-in-out infinite;
+}
+
+
+/* =========================================================
+   ФОНОВІ ЧАСТИНКИ
+   Параметри окремих частинок задаються через користувацькі властивості CSS
+   ========================================================= */
+
+.auth-random-particles {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+
+    overflow: hidden;
+
+    pointer-events: none;
+}
+
+
+.auth-random-particles span {
+    position: absolute;
+
+    top: var(--particle-y);
+    left: var(--particle-x);
+
+    width: var(--particle-size);
+    aspect-ratio: 1;
+
+    border-radius: 50%;
+
+    background: var(--particle-color);
+
+    opacity: var(--particle-opacity);
+
+    filter: blur(var(--particle-blur));
+
+    box-shadow: 0 0 18px var(--particle-glow);
+
+    animation:
+        summerBreezeParticle
+        var(--particle-duration)
+        ease-in-out
+        var(--particle-delay)
+        infinite
+        alternate,
+
+        summerBreezePulse
+        calc(var(--particle-duration) * 0.72)
+        ease-in-out
+        var(--particle-delay)
+        infinite;
+}
+
+/* =========================================================
+   ДВОКОЛОНКОВЕ КОМПОНУВАННЯ АВТЕНТИФІКАЦІЇ ТА ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+.auth-split-shell {
+    position: relative;
+    z-index: 3;
+
+    display: grid;
+    grid-template-columns:
+        minmax(520px, 1.22fr)
+        minmax(420px, 0.78fr);
+
+    align-items: stretch;
+    gap: 34px;
+
+    width: min(1280px, 100%);
+}
+
+
+/* =========================================================
+   ПАНЕЛІ АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+.auth-info-panel,
+.auth-card {
+    min-height: 535px;
+
+    border: 1px solid
+        rgba(255, 255, 255, 0.72);
+
+    border-radius: 32px;
+
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+
+    animation:
+        authFadeUp
+        0.6s ease;
+}
+
+
+.auth-info-panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    padding: 42px 40px;
+
+    background: rgba(255, 255, 255, 0.56);
+
+    box-shadow:
+        0 20px 60px
+        rgba(116, 130, 160, 0.13),
+        0 6px 18px
+        rgba(116, 130, 160, 0.07);
+}
+
+
+.auth-card {
+    position: relative;
+    z-index: 3;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    width: 100%;
+    max-width: none;
+
+    padding: 38px;
+
+    background: rgba(255, 255, 255, 0.84);
+
+    box-shadow:
+        0 22px 64px
+        rgba(116, 130, 160, 0.18),
+        0 6px 18px
+        rgba(116, 130, 160, 0.08);
+}
+
+
+/* =========================================================
+   ШИРИНА ВМІСТУ ФОРМИ АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+.auth-page-login .auth-card > *,
+.auth-page-register .auth-card > *,
+.auth-card-wide > * {
+    width: 100%;
+
+    margin-right: auto;
+    margin-left: auto;
+}
+
+
+.auth-page-login .auth-card > * {
+    max-width: 420px;
+}
+
+
+.auth-page-register .auth-card > *,
+.auth-card-wide > * {
+    max-width: 520px;
+}
+
+
+/* =========================================================
+   БРЕНД І ІНФОРМАЦІЙНА ПАНЕЛЬ АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+.brand-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+
+    width: fit-content;
+    padding: 9px 12px;
+
+    background: rgba(255, 255, 255, 0.72);
+
+    border: 1px solid
+        rgba(255, 255, 255, 0.75);
+
+    border-radius: 18px;
+
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+
+    box-shadow:
+        0 14px 36px
+        rgba(116, 130, 160, 0.12);
+}
+
+
+/* =========================================================
+   ЛОГОТИП АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+.auth-logo-wrap {
+    display: flex;
+    justify-content: center;
+
+    margin-bottom: 18px;
+}
+
+
+.auth-logo-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 74px;
+    aspect-ratio: 1;
+
+    border-radius: 22px;
+
+    font-size: 15px;
+    font-weight: 900;
+
+    box-shadow:
+        0 10px 28px
+        rgba(161, 177, 201, 0.22);
+}
+
+
+/* =========================================================
+   ЗАГОЛОВОК АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+.auth-title {
+    margin-bottom: 10px;
+
+    color: #263248;
+
+    font-size: 42px;
+    font-weight: 900;
+    line-height: 1.1;
+
+    text-align: center;
+
+    letter-spacing: -0.02em;
+}
+
+
+.auth-subtitle {
+    margin-bottom: 28px;
+
+    color: #7b8598;
+
+    font-size: 15px;
+    line-height: 1.6;
+
+    text-align: center;
+}
+
+
+/* =========================================================
+   ПОЛЯ ФОРМИ АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+.auth-label {
+    color: #4b5563;
+
+    font-size: 14px;
+    font-weight: 600;
+}
+
+
+.auth-input {
+    padding: 12px 14px;
+
+    background: rgba(245, 249, 255, 0.90);
+
+    border: 1px solid #dde6f2;
+    border-radius: 16px;
+
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+
+.auth-input:focus {
+    background: #ffffff;
+
+    border-color: #a5c8ff;
+
+    outline: none;
+
+    box-shadow:
+        0 0 0 4px
+        rgba(165, 200, 255, 0.25);
+}
+
+
+/* =========================================================
+   КНОПКИ АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+.auth-main-btn,
+.auth-google-btn,
+.landing-outline-btn {
+    min-height: 48px;
+
+    padding: 13px 20px;
+
+    border-radius: 18px;
+
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.2;
+
+    transition:
+        background-color 0.25s ease,
+        border-color 0.25s ease,
+        color 0.25s ease,
+        box-shadow 0.25s ease,
+        transform 0.25s ease;
+}
+
+
+/* ---------- Основна ---------- */
+
+.auth-main-btn {
+    border: 0;
+
+    background:
+        linear-gradient(
+            90deg,
+            #f472b6 0%,
+            #60a5fa 100%
+        );
+
+    color: #ffffff;
+
+    box-shadow:
+        0 12px 28px
+        rgba(116, 163, 255, 0.25);
+}
+
+
+.auth-main-btn:hover {
+    color: #ffffff;
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 16px 32px
+        rgba(116, 163, 255, 0.32);
+}
+
+
+/* ---------- Другорядна / Google ---------- */
+
+.auth-google-btn,
+.landing-outline-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+
+    background: rgba(255, 255, 255, 0.92);
+
+    border: 1px solid #e3e8f0;
+
+    color: #374151;
+
+    text-decoration: none;
+}
+
+
+.auth-google-btn:hover,
+.landing-outline-btn:hover {
+    background: #ffffff;
+
+    border-color: #d1d9e6;
+
+    color: #374151;
+
+    text-decoration: none;
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 10px 24px
+        rgba(148, 163, 184, 0.18);
+}
+
+
+/* =========================================================
+   ПІКТОГРАМА GOOGLE
+   ========================================================= */
+
+.google-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 0 0 auto;
+}
+
+
+/* =========================================================
+   РОЗДІЛЬНИК АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+.auth-divider {
+    position: relative;
+
+    margin: 20px 0;
+
+    color: #a0a8b8;
+
+    font-size: 13px;
+    text-align: center;
+}
+
+
+.auth-divider::before {
+    content: "";
+
+    position: absolute;
+    top: 50%;
+    left: 0;
+
+    width: 100%;
+    height: 1px;
+
+    background: #e9eef5;
+
+    transform: translateY(-50%);
+}
+
+
+.auth-divider span {
+    position: relative;
+    z-index: 1;
+
+    padding: 0 10px;
+
+    background: rgba(255, 255, 255, 0.82);
+}
+
+
+/* =========================================================
+   НИЖНЯ ЧАСТИНА АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+.auth-footer {
+    margin-top: 18px;
+
+    color: #7b8598;
+
+    font-size: 14px;
+    text-align: center;
+}
+
+
+.auth-footer a {
+    color: #2563eb;
+
+    font-weight: 800;
+
+    text-decoration: none;
+}
+
+
+.auth-footer a:hover {
+    text-decoration: underline;
+}
+
+
+/* =========================================================
+   ІНФОРМАЦІЙНІ БЛОКИ АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+.auth-demo-box,
+.auth-google-info {
+    padding: 12px 14px;
+
+    background: rgba(248, 250, 252, 0.72);
+
+    border: 1px solid
+        rgba(226, 232, 240, 0.75);
+
+    border-radius: 16px;
+
+    color: #7b8598;
+
+    font-size: 13px;
+    text-align: center;
+}
+
+
+.auth-google-info {
+    margin-bottom: 18px;
+
+    text-align: left;
+}
+
+
+/* =========================================================
+   СПІЛЬНИЙ АКЦЕНТ АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+.brand-mark-icon,
+.auth-logo-box,
+.feature-icon {
+    background:
+        linear-gradient(
+            135deg,
+            var(--pink-soft) 0%,
+            var(--blue-soft) 100%
+        );
+
+    color: var(--text-main);
+}
+
+
+/* =========================================================
+   ПІКТОГРАМА БРЕНДУ
+   ========================================================= */
+
+.brand-mark-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 48px;
+    aspect-ratio: 1;
+
+    border-radius: 16px;
+
+    font-size: 12px;
+    font-weight: 900;
+}
+
+
+/* =========================================================
+   ТЕКСТ БРЕНДУ
+   ========================================================= */
+
+.brand-mark-title {
+    color: var(--text-main);
+
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1.1;
+}
+
+
+.brand-mark-subtitle {
+    color: #7b8598;
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   ВСТУПНИЙ БЛОК АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+.auth-info-title {
+    max-width: 620px;
+    margin-bottom: 18px;
+
+    color: var(--text-main);
+
+    font-size: clamp(32px, 3.1vw, 44px);
+
+    font-weight: 900;
+    line-height: 1.08;
+
+    letter-spacing: -0.03em;
+}
+
+
+.auth-info-text {
+    max-width: 620px;
+    margin-bottom: 22px;
+
+    color: var(--text-muted);
+
+    font-size: 16px;
+    line-height: 1.7;
+}
+
+
+/* =========================================================
+   ПЕРЕЛІК ПЕРЕВАГ АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+.auth-info-list {
+    display: grid;
+    gap: 11px;
+
+    margin-top: 18px;
+    margin-bottom: 0;
+
+    padding-left: 0;
+}
+
+
+.auth-info-list :is(div, li) {
+    position: relative;
+
+    padding-left: 30px;
+
+    color: #475569;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    list-style: none;
+}
+
+
+.auth-info-list :is(div, li)::before {
+    content: "✓";
+
+    position: absolute;
+    top: 0;
+    left: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 21px;
+    aspect-ratio: 1;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--pink-soft) 0%,
+            var(--blue-soft) 100%
+        );
+
+    border-radius: 8px;
+
+    color: var(--text-main);
+
+    font-size: 12px;
+    font-weight: 800;
+}
+
+
+/* =========================================================
+   ІНФОРМАЦІЙНА ПРИМІТКА АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+.auth-info-note {
+    margin-top: 22px;
+    padding: 12px 14px;
+
+    background: rgba(248, 250, 252, 0.72);
+
+    border: 1px solid
+        rgba(226, 232, 240, 0.75);
+
+    border-radius: 16px;
+
+    color: #7b8598;
+
+    font-size: 13px;
+}
+
+/* =========================================================
+   ПРАВА КАРТКА ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+.landing-main-card {
+    min-height: 535px;
+    padding: 38px;
+}
+
+
+.landing-main-card > * {
+    width: 100%;
+
+    margin-right: auto;
+    margin-left: auto;
+}
+
+
+/* =========================================================
+   НАПІВПРОЗОРІ КАРТКИ ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+.landing-panel-card,
+.landing-feature-card,
+.main-panel-card {
+    background: rgba(255, 255, 255, 0.78);
+
+    border: 1px solid
+        rgba(255, 255, 255, 0.88);
+
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+}
+
+
+/* =========================================================
+   ОСНОВНА ПАНЕЛЬ ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+.main-panel-card {
+    padding: 24px 24px 20px;
+
+    border-radius: 26px;
+
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+
+    box-shadow:
+        0 20px 55px
+        rgba(80, 90, 130, 0.12);
+}
+
+
+.main-panel-card h3 {
+    margin-bottom: 12px;
+
+    color: #24304a;
+
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+
+/* =========================================================
+   ПОЗНАЧКА ПАНЕЛІ ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+.panel-chip {
+    display: inline-flex;
+    align-items: center;
+
+    margin-bottom: 14px;
+    padding: 6px 10px;
+
+    background: rgba(239, 246, 255, 0.90);
+
+    border-radius: 999px;
+
+    color: #2563eb;
+
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+
+/* =========================================================
+   ПАНЕЛЬ ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+.landing-panel-card h3 {
+    margin-bottom: 10px;
+
+    color: var(--text-main);
+
+    font-size: 28px;
+    font-weight: 900;
+    line-height: 1.15;
+}
+
+
+.landing-panel-card p {
+    margin-bottom: 0;
+
+    color: var(--text-muted);
+
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   СІТКА МОЖЛИВОСТЕЙ ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+.landing-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 16px;
+
+    margin-top: 16px;
+}
+
+
+.landing-feature-card {
+    min-height: 150px;
+
+    padding: 18px 18px 16px;
+
+    border-radius: 22px;
+
+    box-shadow:
+        0 18px 45px
+        rgba(80, 90, 130, 0.10);
+}
+
+
+/* ---------- Піктограма можливості ---------- */
+
+.feature-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 38px;
+    aspect-ratio: 1;
+
+    margin-bottom: 12px;
+
+    border-radius: 14px;
+
+    font-weight: 900;
+}
+
+
+/* ---------- Текст можливості ---------- */
+
+.landing-feature-card h4 {
+    margin-bottom: 8px;
+
+    color: #24304a;
+
+    font-size: 18px;
+    font-weight: 800;
+    line-height: 1.25;
+}
+
+
+.landing-feature-card p {
+    margin-bottom: 0;
+
+    color: #667085;
+
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+
+/* =========================================================
+   ДІЇ ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+.landing-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+
+    margin-top: 18px;
+    margin-bottom: 14px;
+}
+
+
+.landing-actions .btn {
+    min-height: 46px;
+
+    padding: 10px 18px;
+
+    border-radius: 14px;
+
+    font-size: 14px;
+    font-weight: 700;
+}
+
+
+.landing-google-btn {
+    width: auto;
+
+    padding-right: 20px;
+    padding-left: 20px;
+}
+
+
+/* =========================================================
+   СПЛИВНІ ПОВІДОМЛЕННЯ АВТЕНТИФІКАЦІЇ
+   Повідомлення розташовуються над вмістом і не змінюють геометрію форми
+   ========================================================= */
+
+.auth-flash-wrapper {
+    position: fixed;
+    top: calc(var(--topbar-height) + 12px);
+    left: 50%;
+    z-index: 999;
+
+    width: min(520px, calc(100% - 32px));
+
+    transform: translateX(-50%);
+}
+
+
+.auth-flash-wrapper .alert {
+    margin-bottom: 0;
+
+    border: 0;
+    border-radius: 16px;
+
+    animation:
+        flashSlideDown
+        0.35s ease;
+}
+
+
+/* =========================================================
+   АНІМАЦІЇ АВТЕНТИФІКАЦІЇ ТА ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+@keyframes authFadeUp {
+    from {
+        opacity: 0;
+
+        transform:
+            translateY(24px)
+            scale(0.985);
+    }
+
+    to {
+        opacity: 1;
+
+        transform:
+            translateY(0)
+            scale(1);
+    }
+}
+
+
+/* ---------- Фонові частинки ---------- */
+
+@keyframes summerBreezeParticle {
+    0% {
+        transform:
+            translate3d(0, 0, 0)
+            scale(0.92);
+    }
+
+    20% {
+        transform:
+            translate3d(
+                calc(var(--particle-drift-x) * 0.22),
+                calc(var(--particle-drift-y) * 0.12),
+                0
+            )
+            scale(1);
+    }
+
+    45% {
+        transform:
+            translate3d(
+                calc(var(--particle-drift-x) * 0.55),
+                calc(var(--particle-drift-y) * -0.35),
+                0
+            )
+            scale(1.08);
+    }
+
+    70% {
+        transform:
+            translate3d(
+                calc(var(--particle-drift-x) * 0.82),
+                calc(var(--particle-drift-y) * 0.28),
+                0
+            )
+            scale(0.98);
+    }
+
+    100% {
+        transform:
+            translate3d(
+                var(--particle-drift-x),
+                var(--particle-drift-y),
+                0
+            )
+            scale(1.06);
+    }
+}
+
+
+@keyframes summerBreezePulse {
+    0%,
+    100% {
+        opacity: calc(var(--particle-opacity) * 0.7);
+    }
+
+    50% {
+        opacity: var(--particle-opacity);
+    }
+}
+
+
+/* ---------- Фонове середовище ---------- */
+
+@keyframes authSoftGradientMove {
+    0% {
+        transform:
+            translate3d(-2%, -2%, 0)
+            rotate(0deg)
+            scale(1);
+    }
+
+    50% {
+        transform:
+            translate3d(3%, 2%, 0)
+            rotate(5deg)
+            scale(1.03);
+    }
+
+    100% {
+        transform:
+            translate3d(-1%, 3%, 0)
+            rotate(-4deg)
+            scale(1.02);
+    }
+}
+
+
+@keyframes authGridSummerMove {
+    from {
+        background-position: 0 0;
+    }
+
+    to {
+        background-position: 92px 46px;
+    }
+}
+
+
+/* ---------- Фонові декоративні елементи ---------- */
+
+@keyframes authBigBubbleDriftOne {
+    0%,
+    100% {
+        transform:
+            translate3d(0, 0, 0)
+            scale(1);
+    }
+
+    35% {
+        transform:
+            translate3d(46px, -26px, 0)
+            scale(1.05);
+    }
+
+    70% {
+        transform:
+            translate3d(-22px, 28px, 0)
+            scale(0.97);
+    }
+}
+
+
+@keyframes authBigBubbleDriftTwo {
+    0%,
+    100% {
+        transform:
+            translate3d(0, 0, 0)
+            scale(1);
+    }
+
+    40% {
+        transform:
+            translate3d(-54px, 28px, 0)
+            scale(1.04);
+    }
+
+    75% {
+        transform:
+            translate3d(26px, -34px, 0)
+            scale(0.98);
+    }
+}
+
+
+@keyframes authBigBubbleDriftThree {
+    0%,
+    100% {
+        transform:
+            translate3d(0, 0, 0)
+            scale(1);
+    }
+
+    45% {
+        transform:
+            translate3d(-30px, -38px, 0)
+            scale(1.07);
+    }
+
+    80% {
+        transform:
+            translate3d(34px, 20px, 0)
+            scale(0.96);
+    }
+}
+
+
+@keyframes authBigBubbleDriftFour {
+    0%,
+    100% {
+        transform:
+            translate3d(0, 0, 0)
+            scale(1);
+    }
+
+    50% {
+        transform:
+            translate3d(42px, 24px, 0)
+            scale(1.05);
+    }
+}
+
+
+/* ---------- Спливне повідомлення ---------- */
+
+@keyframes flashSlideDown {
+    from {
+        opacity: 0;
+
+        transform:
+            translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+
+        transform:
+            translateY(0);
+    }
+}
+
+
+/* =========================================================
+   АДАПТИВНІ СТИЛІ АВТЕНТИФІКАЦІЇ ТА ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+@media (min-width: 1500px) {
+    .auth-split-shell {
+        width: min(1360px, 100%);
+
+        grid-template-columns:
+            minmax(600px, 1.28fr)
+            minmax(450px, 0.72fr);
+    }
+
+    .auth-info-panel,
+    .auth-card,
+    .landing-main-card {
+        min-height: 560px;
+    }
+
+    .auth-info-title {
+        font-size: clamp(36px, 3.2vw, 48px);
+    }
+}
+
+
+@media (max-width: 1200px) {
+    .auth-split-shell {
+        width: min(1100px, 100%);
+
+        grid-template-columns:
+            minmax(480px, 1.1fr)
+            minmax(390px, 0.9fr);
+
+        gap: 26px;
+    }
+
+    .auth-info-panel {
+        padding: 36px 32px;
+    }
+
+    .auth-card {
+        padding: 34px 32px;
+    }
+
+    .auth-info-title {
+        font-size: 36px;
+    }
+}
+
+
+@media (max-width: 992px) {
+    .auth-split-shell {
+        width: min(680px, 100%);
+
+        grid-template-columns: 1fr;
+    }
+
+    .auth-info-panel {
+        display: none;
+    }
+
+    .auth-card,
+    .landing-main-card {
+        min-height: auto;
+    }
+
+    .auth-card {
+        padding: 32px 26px;
+    }
+
+    .landing-feature-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* =========================================================
+   МОБІЛЬНИЙ РЕЖИМ АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+@media (max-width: 576px) {
+    .auth-page {
+        padding: 20px 14px;
+    }
+
+
+    .auth-card {
+        padding: 26px 20px;
+
+        border-radius: 26px;
+    }
+
+
+    .auth-title {
+        font-size: 30px;
+    }
+
+
+    .auth-subtitle {
+        font-size: 13px;
+    }
+
+
+    .landing-actions .btn {
+        width: 100%;
+    }
+
+
+    .brand-mark {
+        width: 100%;
+
+        justify-content: center;
+    }
+}
+
+
+/* =========================================================
+   ОСНОВНЕ КОМПОНУВАННЯ ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+.auth-page .landing-split-shell {
+    width: min(1120px, 100%);
+
+    grid-template-columns:
+        minmax(590px, 1.32fr)
+        minmax(460px, 1fr);
+
+    align-items: stretch;
+    gap: 24px;
+}
+
+
+/* =========================================================
+   ІНФОРМАЦІЙНА ПАНЕЛЬ ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+.auth-page .landing-info-panel {
+    min-height: 480px;
+
+    padding: 40px 42px;
+}
+
+
+.auth-page
+.landing-info-panel
+.auth-info-title {
+    max-width: 560px;
+
+    margin-bottom: 18px;
+
+    font-size: 36px;
+    line-height: 1.08;
+}
+
+
+.auth-page
+.landing-info-panel
+.auth-info-text {
+    max-width: 540px;
+
+    margin-bottom: 16px;
+
+    font-size: 15px;
+    line-height: 1.65;
+}
+
+
+/* =========================================================
+   ДІЇ ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+.auth-page
+.landing-info-panel
+.landing-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    flex-wrap: wrap;
+    gap: 12px;
+
+    margin-top: 30px;
+    margin-bottom: 8px;
+}
+
+
+.auth-page
+.landing-info-panel
+:is(
+    .landing-actions .btn,
+    .auth-main-btn,
+    .landing-outline-btn,
+    .auth-google-btn
+) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    height: 44px;
+    min-height: 44px;
+
+    padding: 0 20px;
+
+    border-radius: 14px;
+
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1;
+
+    white-space: nowrap;
+}
+
+
+.auth-page
+.landing-info-panel
+.auth-main-btn {
+    min-width: 86px;
+}
+
+
+.auth-page
+.landing-info-panel
+.landing-outline-btn {
+    min-width: 126px;
+}
+
+
+.auth-page
+.landing-info-panel
+.landing-google-btn {
+    min-width: 112px;
+}
+
+
+/* =========================================================
+   ІНФОРМАЦІЙНА ПРИМІТКА ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+.auth-page
+.landing-info-panel
+.auth-info-note {
+    width: 100%;
+    max-width: 500px;
+
+    margin: 10px auto 0;
+    padding: 11px 16px;
+
+    border-radius: 14px;
+
+    font-size: 12px;
+    line-height: 1.45;
+
+    text-align: center;
+}
+
+
+/* =========================================================
+   ОСНОВНА КАРТКА ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+.auth-page .landing-main-card {
+    min-height: 480px;
+
+    padding: 24px;
+}
+
+
+.auth-page
+.landing-main-card
+.main-panel-card {
+    padding: 22px 22px 18px;
+
+    background: rgba(255, 255, 255, 0.64);
+
+    border: 1px solid
+        rgba(220, 228, 240, 0.55);
+
+    border-radius: 20px;
+
+    box-shadow: none;
+}
+
+
+.auth-page
+.landing-main-card
+.main-panel-card h3 {
+    margin-bottom: 10px;
+
+    font-size: 21px;
+    line-height: 1.18;
+}
+
+
+.auth-page
+.landing-main-card
+.main-panel-card p {
+    font-size: 13.5px;
+    line-height: 1.55;
+}
+
+
+/* =========================================================
+   ОБЛАСТЬ МОЖЛИВОСТЕЙ ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+.auth-page
+.landing-main-card
+.landing-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 10px;
+
+    margin-top: 14px;
+    padding: 12px;
+
+    background: rgba(255, 255, 255, 0.42);
+
+    border: 1px solid
+        rgba(220, 228, 240, 0.48);
+
+    border-radius: 20px;
+}
+
+
+.auth-page
+.landing-main-card
+.landing-feature-card {
+    min-height: 108px;
+
+    padding: 15px 15px 13px;
+
+    background: rgba(255, 255, 255, 0.46);
+
+    border: 0;
+    border-radius: 15px;
+
+    box-shadow: none;
+}
+
+
+.auth-page
+.landing-main-card
+.feature-icon {
+    width: 32px;
+    aspect-ratio: 1;
+
+    margin-bottom: 9px;
+
+    border-radius: 11px;
+
+    font-size: 12px;
+}
+
+
+.auth-page
+.landing-main-card
+.landing-feature-card h4 {
+    margin-bottom: 5px;
+
+    font-size: 15px;
+    line-height: 1.2;
+}
+
+
+.auth-page
+.landing-main-card
+.landing-feature-card p {
+    font-size: 12.3px;
+    line-height: 1.45;
+}
+
+/* =========================================================
+   АДАПТИВНІ СТИЛІ ГОЛОВНОЇ СТОРІНКИ
+   ========================================================= */
+
+@media (max-width: 1200px) {
+    .auth-page .landing-split-shell {
+        width: min(1040px, 100%);
+
+        grid-template-columns:
+            minmax(520px, 1.15fr)
+            minmax(400px, 0.85fr);
+
+        gap: 20px;
+    }
+
+
+    .auth-page .landing-info-panel {
+        padding: 36px 32px;
+    }
+
+
+    .auth-page
+    .landing-info-panel
+    .auth-info-title {
+        font-size: 34px;
+    }
+}
+
+
+@media (max-width: 992px) {
+    .auth-page .landing-split-shell {
+        width: min(680px, 100%);
+
+        grid-template-columns: 1fr;
+    }
+
+
+    .auth-page .landing-info-panel {
+        display: none;
+    }
+
+
+    .auth-page .landing-main-card {
+        min-height: auto;
+
+        padding: 24px;
+    }
+}
+
+
+@media (max-width: 576px) {
+    .auth-page .landing-main-card {
+        padding: 20px;
+    }
+
+
+    .auth-page
+    .landing-main-card
+    .main-panel-card {
+        padding: 20px;
+    }
+
+
+    .auth-page
+    .landing-main-card
+    .landing-feature-grid {
+        grid-template-columns: 1fr;
+
+        padding: 10px;
+    }
+
+
+    .auth-page
+    .landing-main-card
+    .landing-feature-card {
+        min-height: auto;
+
+        padding: 15px;
+    }
+
+
+    .auth-page
+    .landing-info-panel
+    .landing-actions {
+        flex-direction: column;
+    }
+
+
+    .auth-page
+    .landing-info-panel
+    :is(
+        .landing-actions .btn,
+        .auth-main-btn,
+        .landing-outline-btn,
+        .auth-google-btn
+    ) {
+        width: 100%;
+    }
+}
+
+
+/* =========================================================
+   КОМПОНУВАННЯ ВХОДУ / РЕЄСТРАЦІЇ
+   ========================================================= */
+
+.auth-page-login .auth-split-shell,
+.auth-page-register .auth-split-shell {
+    width: min(1120px, 100%);
+
+    grid-template-columns:
+        minmax(590px, 1.35fr)
+        minmax(420px, 1fr);
+
+    align-items: stretch;
+    gap: 24px;
+}
+
+
+/* =========================================================
+   ІНФОРМАЦІЙНА ПАНЕЛЬ ВХОДУ / РЕЄСТРАЦІЇ
+   ========================================================= */
+
+.auth-page-login .auth-info-panel,
+.auth-page-register .auth-info-panel {
+    position: relative;
+
+    min-height: 500px;
+
+    padding: 42px 44px;
+
+    overflow: hidden;
+
+    background:
+        radial-gradient(
+            circle at 88% 18%,
+            rgba(96, 165, 250, 0.16) 0 42px,
+            transparent 43px
+        ),
+        radial-gradient(
+            circle at 92% 78%,
+            rgba(244, 114, 182, 0.13) 0 34px,
+            transparent 35px
+        ),
+        radial-gradient(
+            circle at 12% 84%,
+            rgba(216, 180, 254, 0.16) 0 30px,
+            transparent 31px
+        ),
+        rgba(255, 255, 255, 0.58);
+
+    border-radius: 30px;
+}
+
+
+/* =========================================================
+   ДЕКОРАТИВНА РАМКА ВХОДУ / РЕЄСТРАЦІЇ
+   ========================================================= */
+
+.auth-page-login
+.auth-info-panel::before,
+.auth-page-register
+.auth-info-panel::before {
+    content: "";
+
+    position: absolute;
+    inset: 22px;
+
+    background: rgba(255, 255, 255, 0.12);
+
+    border: 1px solid
+        rgba(210, 220, 235, 0.58);
+
+    border-radius: 24px;
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   ДЕКОРАТИВНИЙ АКЦЕНТ ВХОДУ / РЕЄСТРАЦІЇ
+   ========================================================= */
+
+.auth-page-login
+.auth-info-panel::after,
+.auth-page-register
+.auth-info-panel::after {
+    content: "";
+
+    position: absolute;
+    top: 58px;
+    right: 42px;
+
+    width: 82px;
+    aspect-ratio: 1;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(244, 114, 182, 0.22),
+            rgba(96, 165, 250, 0.20)
+        );
+
+    border-radius: 28px;
+
+    opacity: 0.45;
+
+    transform: rotate(12deg);
+
+    pointer-events: none;
+}
+
+
+/* =========================================================
+   ВМІСТ ПАНЕЛІ ВХОДУ / РЕЄСТРАЦІЇ
+   ========================================================= */
+
+.auth-page-login
+.auth-info-panel > *,
+.auth-page-register
+.auth-info-panel > * {
+    position: relative;
+    z-index: 1;
+}
+
+
+/* =========================================================
+   ІНФОРМАЦІЙНИЙ ТЕКСТ ВХОДУ / РЕЄСТРАЦІЇ
+   ========================================================= */
+
+.auth-page-login .auth-info-title,
+.auth-page-register .auth-info-title {
+    max-width: 520px;
+
+    margin-bottom: 18px;
+
+    font-size: 38px;
+    line-height: 1.08;
+}
+
+
+.auth-page-login .auth-info-text,
+.auth-page-register .auth-info-text {
+    max-width: 520px;
+
+    margin-bottom: 18px;
+}
+
+
+/* =========================================================
+   ПЕРЕЛІК ПЕРЕВАГ ВХОДУ / РЕЄСТРАЦІЇ
+   ========================================================= */
+
+.auth-page-login .auth-info-list,
+.auth-page-register .auth-info-list {
+    width: 100%;
+    max-width: 520px;
+
+    padding: 14px;
+
+    gap: 6px;
+
+    background: rgba(255, 255, 255, 0.42);
+
+    border: 1px solid
+        rgba(220, 228, 240, 0.58);
+
+    border-radius: 20px;
+}
+
+
+.auth-page-login
+.auth-info-list :is(div, li),
+.auth-page-register
+.auth-info-list :is(div, li) {
+    display: flex;
+    align-items: center;
+
+    min-height: 34px;
+
+    padding-left: 34px;
+
+    background: rgba(255, 255, 255, 0.34);
+
+    border-radius: 13px;
+}
+
+
+.auth-page-login
+.auth-info-list :is(div, li)::before,
+.auth-page-register
+.auth-info-list :is(div, li)::before {
+    top: 50%;
+    left: 8px;
+
+    transform: translateY(-50%);
+}
+
+
+/* =========================================================
+   КАРТКА ВХОДУ / РЕЄСТРАЦІЇ
+   ========================================================= */
+
+.auth-page-login .auth-card,
+.auth-page-register .auth-card {
+    min-height: 500px;
+
+    border-radius: 30px;
+}
+
+
+/* =========================================================
+   ПОЯВА ПАНЕЛЕЙ АВТЕНТИФІКАЦІЇ
+   Окремі анімації підкреслюють двопанельну структуру інтерфейсу
+   ========================================================= */
+
+.auth-page-login .auth-info-panel,
+.auth-page-register .auth-info-panel,
+.auth-page .landing-info-panel {
+    animation:
+        authPanelLeftIn
+        0.45s ease both;
+}
+
+
+.auth-page-login .auth-card,
+.auth-page-register .auth-card,
+.auth-page .landing-main-card {
+    animation:
+        authPanelRightIn
+        0.45s ease both;
+}
+
+
+/* ---------- Ліва панель ---------- */
+
+@keyframes authPanelLeftIn {
+    from {
+        opacity: 0;
+
+        transform:
+            translate3d(
+                -18px,
+                8px,
+                0
+            );
+    }
+
+    to {
+        opacity: 1;
+
+        transform:
+            translate3d(
+                0,
+                0,
+                0
+            );
+    }
+}
+
+
+/* ---------- Права панель ---------- */
+
+@keyframes authPanelRightIn {
+    from {
+        opacity: 0;
+
+        transform:
+            translate3d(
+                18px,
+                8px,
+                0
+            );
+    }
+
+    to {
+        opacity: 1;
+
+        transform:
+            translate3d(
+                0,
+                0,
+                0
+            );
+    }
+}
+
+
+/* =========================================================
+   АДАПТИВНІ СТИЛІ ВХОДУ / РЕЄСТРАЦІЇ
+   ========================================================= */
+
+@media (max-width: 992px) {
+    .auth-page-login .auth-split-shell,
+    .auth-page-register .auth-split-shell {
+        width: min(680px, 100%);
+
+        grid-template-columns: 1fr;
+    }
+
+
+    .auth-page-login .auth-info-panel,
+    .auth-page-register .auth-info-panel {
+        display: none;
+    }
+
+
+    .auth-page-login .auth-card,
+    .auth-page-register .auth-card {
+        min-height: auto;
+    }
+}
+
+
+/* =========================================================
+   ЗМЕНШЕННЯ АНІМАЦІЙ АВТЕНТИФІКАЦІЇ ТА ГОЛОВНОЇ СТОРІНКИ
+   Блок розміщено після всіх декларацій властивості animation, щоб гарантовано
+   враховувати prefers-reduced-motion
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+    .auth-page::before,
+    .auth-grid-layer,
+    .auth-bg,
+    .auth-random-particles span,
+
+    .auth-info-panel,
+    .auth-card,
+
+    .auth-page-login .auth-info-panel,
+    .auth-page-register .auth-info-panel,
+    .auth-page-login .auth-card,
+    .auth-page-register .auth-card,
+
+    .auth-page .landing-info-panel,
+    .auth-page .landing-main-card,
+
+    .auth-flash-wrapper .alert {
+        animation: none;
+    }
+}
+
+
+/* =========================================================
+   БАЛАНС КОМПОНУВАННЯ СТОРІНКИ РЕЄСТРАЦІЇ
+   ========================================================= */
+
+.auth-page-register .auth-split-shell {
+    align-items: center;
+}
+
+
+.auth-page-register .auth-info-panel {
+    justify-content: center;
+
+    min-height: 430px;
+
+    padding: 40px 44px;
+}
+
+
+.auth-page-register
+.auth-info-panel::before {
+    inset: 16px;
+}
+
+
+.auth-page-register .auth-info-title {
+    margin-bottom: 16px;
+
+    font-size: 34px;
+    line-height: 1.08;
+}
+
+
+.auth-page-register .auth-info-text {
+    margin-bottom: 16px;
+}
+
+
+.auth-page-register .auth-info-list {
+    margin-top: 16px;
+
+    padding: 12px;
+}
+
+
+.auth-page-register .auth-card {
+    min-height: auto;
+}
+
+
+/* =========================================================
+   ВИБІР РОЛІ В АВТЕНТИФІКАЦІЇ
+   ========================================================= */
+
+.auth-select {
+    cursor: pointer;
+}
+
+
+.auth-select:focus {
+    border-color: #a5c8ff;
+
+    box-shadow:
+        0 0 0 4px
+        rgba(165, 200, 255, 0.25);
+}

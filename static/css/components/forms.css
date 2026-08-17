@@ -1,0 +1,79 @@
+/* =========================================================
+   ПОЛЕ ВВЕДЕННЯ КОДУ
+   Моноширинне відображення HDL-коду
+   ========================================================= */
+
+.code-area {
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        "Liberation Mono",
+        Menlo,
+        monospace;
+
+    font-size: 14px;
+}
+
+
+/* =========================================================
+   ЕЛЕМЕНТИ ФОРМИ
+   ========================================================= */
+
+body.app-body .form-control,
+body.app-body .form-select {
+    min-height: var(--app-control-height);
+
+    background: var(--app-surface-solid);
+
+    border: 1px solid var(--app-border-soft);
+    border-radius: 14px;
+
+    color: var(--app-text);
+
+    box-shadow: none;
+
+    transition:
+        background-color var(--app-transition),
+        border-color var(--app-transition),
+        box-shadow var(--app-transition);
+}
+
+
+/* =========================================================
+   ФОКУС ЕЛЕМЕНТІВ ФОРМИ
+   Візуальне виділення активного елемента введення
+   ========================================================= */
+
+body.app-body .form-control:focus,
+body.app-body .form-select:focus {
+    background: var(--app-surface-solid);
+
+    border-color: rgba(var(--app-primary-rgb), 0.58);
+
+    color: var(--app-text);
+
+    box-shadow: 0 0 0 4px rgba(var(--app-primary-rgb), 0.14);
+}
+
+
+/* =========================================================
+   ТЕКСТ-ЗАПОВНЮВАЧ ПОЛЯ ВВЕДЕННЯ
+   ========================================================= */
+
+body.app-body .form-control::placeholder {
+    color: var(--app-text-soft);
+
+    opacity: 1;
+}
+
+
+/* =========================================================
+   ПІДПИСИ ПОЛІВ ФОРМИ
+   ========================================================= */
+
+body.app-body .form-label {
+    color: var(--app-text-muted);
+
+    font-size: 13px;
+    font-weight: 750;
+}

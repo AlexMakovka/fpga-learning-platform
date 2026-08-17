@@ -1,0 +1,339 @@
+/* =========================================================
+   ВЕРХНЯ ПАНЕЛЬ ПУБЛІЧНИХ СТОРІНОК
+   Використовується на публічних сторінках і сторінках автентифікації
+   ========================================================= */
+
+.topbar {
+    min-height: var(--topbar-height);
+    padding: 0;
+
+    background: rgba(21, 26, 34, 0.94);
+
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+
+    box-shadow:
+        0 10px 26px rgba(15, 23, 42, 0.14),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+}
+
+
+.topbar-container {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr)
+        auto
+        minmax(0, 1fr);
+
+    align-items: center;
+    gap: 18px;
+
+    width: min(1380px, calc(100% - 36px));
+    min-height: var(--topbar-height);
+
+    margin: 0 auto;
+}
+
+
+/* =========================================================
+   КОМПОНУВАННЯ ВЕРХНЬОЇ ПАНЕЛІ
+   ========================================================= */
+
+.topbar-left,
+.topbar-center,
+.topbar-actions {
+    display: flex;
+    align-items: center;
+}
+
+
+.topbar-left {
+    justify-content: flex-start;
+
+    min-width: 0;
+}
+
+
+.topbar-center {
+    justify-content: center;
+}
+
+
+.topbar-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+
+/* =========================================================
+   БРЕНД ПУБЛІЧНОЇ ЧАСТИНИ
+   ========================================================= */
+
+.topbar-brand {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    color: inherit;
+
+    line-height: 1.05;
+    text-decoration: none;
+}
+
+
+.topbar-brand:hover {
+    color: inherit;
+
+    text-decoration: none;
+}
+
+
+.topbar-brand-title {
+    color: #ffffff;
+
+    font-size: 30px;
+    font-weight: 900;
+
+    letter-spacing: -0.03em;
+}
+
+
+.topbar-brand-subtitle {
+    margin-top: 4px;
+
+    color: rgba(255, 255, 255, 0.58);
+
+    font-size: 11px;
+    font-weight: 600;
+
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+
+/* =========================================================
+   ІНФОРМАЦІЯ ПРО КОРИСТУВАЧА У ВЕРХНІЙ ПАНЕЛІ
+   ========================================================= */
+
+.topbar-user-pill {
+    display: inline-flex;
+    align-items: center;
+
+    max-width: 100%;
+    padding: 8px 14px;
+
+    overflow: hidden;
+
+    background: rgba(255, 255, 255, 0.08);
+
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 999px;
+
+    color: rgba(255, 255, 255, 0.88);
+
+    font-size: 13px;
+    font-weight: 600;
+
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+
+/* =========================================================
+   КНОПКИ ДІЙ ВЕРХНЬОЇ ПАНЕЛІ
+   ========================================================= */
+
+.topbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 40px;
+    padding: 0 16px;
+
+    border: 1px solid transparent;
+    border-radius: 999px;
+
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+}
+
+
+.topbar-btn:hover {
+    text-decoration: none;
+
+    transform: translateY(-1px);
+}
+
+
+/* ---------- Світла кнопка ---------- */
+
+.topbar-btn-light {
+    background: rgba(255, 255, 255, 0.92);
+
+    color: #1f2937;
+
+    box-shadow: 0 6px 18px rgba(255, 255, 255, 0.16);
+}
+
+
+.topbar-btn-light:hover {
+    background: #f8fafc;
+
+    color: #111827;
+}
+
+
+/* ---------- Контурна кнопка ---------- */
+
+.topbar-btn-outline {
+    background: rgba(255, 255, 255, 0.06);
+
+    border-color: rgba(255, 255, 255, 0.20);
+
+    color: #ffffff;
+}
+
+
+.topbar-btn-outline:hover {
+    background: rgba(255, 255, 255, 0.12);
+
+    border-color: rgba(255, 255, 255, 0.28);
+
+    color: #ffffff;
+}
+
+
+/* ---------- Кнопка небезпечної дії ---------- */
+
+.topbar-btn-danger {
+    background: rgba(239, 68, 68, 0.15);
+
+    border-color: rgba(239, 68, 68, 0.35);
+
+    color: #ffffff;
+}
+
+
+.topbar-btn-danger:hover {
+    background: rgba(239, 68, 68, 0.24);
+
+    border-color: rgba(239, 68, 68, 0.45);
+
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   АДАПТИВНЕ КОМПОНУВАННЯ ВЕРХНЬОЇ ПАНЕЛІ
+   Перехід від триколонкової структури до вертикальної
+   ========================================================= */
+
+@media (max-width: 1100px) {
+    .topbar-container {
+        grid-template-columns: 1fr;
+
+        gap: 12px;
+
+        padding: 12px 0;
+    }
+
+
+    .topbar-left,
+    .topbar-center,
+    .topbar-actions {
+        justify-content: center;
+    }
+
+
+    .topbar-user-pill {
+        white-space: normal;
+
+        text-align: center;
+    }
+}
+
+
+@media (max-width: 768px) {
+    .topbar {
+        min-height: auto;
+    }
+
+
+    .topbar-container {
+        width: calc(100% - 20px);
+
+        gap: 10px;
+
+        padding: 10px 0;
+    }
+
+
+    .topbar-brand-title {
+        font-size: 22px;
+
+        text-align: center;
+    }
+
+
+    .topbar-brand-subtitle {
+        font-size: 10px;
+
+        text-align: center;
+    }
+
+
+    .topbar-actions {
+        gap: 8px;
+    }
+
+
+    .topbar-btn {
+        min-height: 38px;
+
+        padding: 0 14px;
+
+        font-size: 13px;
+    }
+
+
+    .topbar-user-pill {
+        padding: 7px 12px;
+
+        font-size: 12px;
+    }
+}
+
+
+/* =========================================================
+   ВЕРХНЯ ПАНЕЛЬ НА МАЛИХ МОБІЛЬНИХ ЕКРАНАХ
+   ========================================================= */
+
+@media (max-width: 480px) {
+    .topbar-brand-subtitle {
+        display: none;
+    }
+
+
+    .topbar-actions {
+        width: 100%;
+    }
+
+
+    .topbar-btn {
+        flex: 1 1 auto;
+    }
+}

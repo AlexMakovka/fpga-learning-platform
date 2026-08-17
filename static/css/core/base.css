@@ -1,0 +1,133 @@
+/* =========================================================
+   БАЗОВІ СТИЛІ ДОКУМЕНТА
+   ========================================================= */
+
+html,
+body {
+    min-height: 100%;
+}
+
+
+body {
+    margin: 0;
+
+    background: #f4f6fb;
+}
+
+
+/* =========================================================
+   ВМІСТ ПУБЛІЧНИХ СТОРІНОК
+   ========================================================= */
+
+main.container {
+    padding-top: 24px;
+    padding-bottom: 32px;
+}
+
+
+/* =========================================================
+   ОСНОВНА ОБЛАСТЬ ЗАСТОСУНКУ
+   Використовується для внутрішніх авторизованих сторінок
+   ========================================================= */
+
+body.app-body {
+    min-height: 100vh;
+    margin: 0;
+
+    overflow-x: hidden;
+
+    background: var(--app-gradient-soft);
+
+    color: var(--app-text);
+
+    font-family: var(--app-font-family);
+    font-size: var(--app-font-size);
+    line-height: var(--app-line-height);
+}
+
+
+/* =========================================================
+   ТИПОГРАФІКА ЗАСТОСУНКУ
+   ========================================================= */
+
+body.app-body :is(
+    h1,
+    h2,
+    h3,
+    h4,
+    h5
+) {
+    color: var(--app-text-strong);
+
+    letter-spacing: -0.025em;
+}
+
+
+body.app-body .text-muted {
+    color: var(--app-text-muted) !important;
+}
+
+
+/* =========================================================
+   ЗАГОЛОВОК РОЗДІЛУ
+   ========================================================= */
+
+.app-section-title {
+    margin-bottom: 6px;
+
+    color: var(--app-text-strong);
+
+    font-size: 28px;
+    font-weight: 900;
+    line-height: 1.2;
+}
+
+
+.app-section-subtitle {
+    margin-bottom: 0;
+
+    color: var(--app-text-muted);
+}
+
+
+/* =========================================================
+   ТАБЛИЦІ ЗАСТОСУНКУ
+   Узгодження компонентів Bootstrap із системою тем оформлення
+   ========================================================= */
+
+body.app-body .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--app-text);
+    --bs-table-border-color: var(--app-border-soft);
+
+    color: var(--app-text);
+}
+
+
+body.app-body .table > :not(caption) > * > * {
+    padding:
+        var(--app-table-cell-padding-y)
+        var(--app-table-cell-padding-x);
+
+    background: transparent;
+
+    border-color: var(--app-border-soft);
+}
+
+
+body.app-body .table thead th {
+    background: var(--app-topbar-bg);
+
+    border-color: rgba(255, 255, 255, 0.08);
+
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   APP FLASH
+   ========================================================= */
+
+.app-flash-stack {
+    margin-bottom: 18px;
+}

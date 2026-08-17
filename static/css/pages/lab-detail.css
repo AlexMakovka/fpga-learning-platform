@@ -1,0 +1,928 @@
+/* =========================================================
+   ЧАСОВА ДІАГРАМА ЛАБОРАТОРНОЇ РОБОТИ
+   Контейнер забезпечує прокручування великих HDL/VCD-діаграм
+   без виходу за межі основної області інтерфейсу
+   ========================================================= */
+
+body.app-body .waveform-wrapper {
+    width: fit-content;
+    max-width: 100%;
+
+    min-height: 260px;
+    max-height: 720px;
+
+    overflow: auto;
+
+    background: var(--app-surface-solid);
+
+    border: 1px solid var(--app-border);
+    border-radius: 18px;
+}
+
+/* =========================================================
+   СТОРІНКА ЛАБОРАТОРНОЇ РОБОТИ
+   Локальні токени ізолюють оформлення сторінки лабораторної
+   роботи від глобальної дизайн-системи застосунку
+   ========================================================= */
+
+.lab-detail-page {
+    /* ---------- Локальні псевдоніми токенів ---------- */
+
+    --lab-surface: var(--app-surface);
+    --lab-surface-strong: var(--app-surface-solid);
+
+    --lab-border: var(--app-border);
+
+    --lab-text: var(--app-text-strong);
+    --lab-muted: var(--app-text-muted);
+
+    --lab-primary: var(--app-primary);
+    --lab-primary-rgb: var(--app-primary-rgb);
+    --lab-primary-soft: var(--app-primary-soft);
+
+    --lab-accent: var(--app-accent);
+    --lab-accent-rgb: var(--app-accent-rgb);
+
+    --lab-shadow: var(--app-shadow-md);
+
+
+    /* ---------- Компонування ---------- */
+
+    display: grid;
+    gap: 20px;
+}
+
+
+/* =========================================================
+   ПОСИЛАННЯ ДЛЯ ПОВЕРНЕННЯ
+   ========================================================= */
+
+.lab-back-link {
+    width: fit-content;
+
+    color: var(--lab-muted);
+
+    font-weight: 800;
+
+    text-decoration: none;
+
+    transition: color var(--app-transition);
+}
+
+
+.lab-back-link:hover {
+    color: var(--lab-primary);
+}
+
+
+/* =========================================================
+   КАРТКИ СТОРІНКИ ЛАБОРАТОРНОЇ РОБОТИ
+   ========================================================= */
+
+.lab-summary-card,
+.lab-panel-card {
+    background: var(--lab-surface);
+
+    border: 1px solid var(--lab-border);
+
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+
+    box-shadow: var(--lab-shadow);
+}
+
+
+/* =========================================================
+   ЗВЕДЕНА ІНФОРМАЦІЯ ПРО ЛАБОРАТОРНУ РОБОТУ
+   ========================================================= */
+
+.lab-summary-card {
+    position: relative;
+
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1.25fr)
+        minmax(360px, 0.75fr);
+
+    align-items: center;
+    gap: 24px;
+
+    padding: 30px;
+
+    overflow: hidden;
+
+    border-radius: 34px;
+}
+
+
+/*
+ * Декоративний шар використовує кольори активної палітри,
+ * але не бере участі у взаємодії з користувачем.
+ */
+.lab-summary-card::before {
+    content: "";
+
+    position: absolute;
+    inset: -35%;
+
+    background:
+        radial-gradient(
+            circle at 18% 18%,
+            rgba(var(--lab-primary-rgb), 0.20),
+            transparent 28%
+        ),
+        radial-gradient(
+            circle at 82% 24%,
+            rgba(var(--lab-accent-rgb), 0.16),
+            transparent 25%
+        ),
+        radial-gradient(
+            circle at 70% 90%,
+            rgba(var(--lab-primary-rgb), 0.12),
+            transparent 28%
+        );
+
+    pointer-events: none;
+}
+
+
+.lab-summary-main,
+.lab-summary-stats {
+    position: relative;
+    z-index: 1;
+}
+
+
+/* ---------- Мітка лабораторної роботи ---------- */
+
+.lab-kicker {
+    display: inline-flex;
+    align-items: center;
+
+    width: fit-content;
+    margin-bottom: 10px;
+    padding: 6px 10px;
+
+    background: var(--lab-primary-soft);
+
+    border-radius: var(--app-radius-pill);
+
+    color: var(--lab-primary);
+
+    font-size: 11px;
+    font-weight: 900;
+
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+
+/* ---------- Назва лабораторної роботи ---------- */
+
+.lab-summary-card h1 {
+    margin: 0;
+
+    color: var(--lab-text);
+
+    font-size: clamp(30px, 4vw, 48px);
+    font-weight: 950;
+    line-height: 1.04;
+
+    letter-spacing: -0.04em;
+}
+
+
+/* ---------- Теги лабораторної роботи ---------- */
+
+.lab-summary-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    margin-top: 16px;
+}
+
+
+.lab-summary-tags span {
+    padding: 7px 11px;
+
+    background: rgba(148, 163, 184, 0.13);
+
+    border-radius: var(--app-radius-pill);
+
+    color: var(--lab-muted);
+
+    font-size: 12px;
+    font-weight: 800;
+}
+
+
+/* =========================================================
+   СТАТИСТИКА ЛАБОРАТОРНОЇ РОБОТИ
+   ========================================================= */
+
+.lab-summary-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+
+.lab-summary-stat {
+    padding: 16px;
+
+    background: var(--lab-surface-strong);
+
+    border: 1px solid var(--lab-border);
+    border-radius: 22px;
+}
+
+
+.lab-summary-stat span {
+    display: block;
+
+    margin-bottom: 7px;
+
+    color: var(--lab-muted);
+
+    font-size: 12px;
+    font-weight: 900;
+}
+
+
+.lab-summary-stat strong {
+    color: var(--lab-text);
+
+    font-size: 18px;
+    font-weight: 950;
+}
+
+
+/* ---------- Кнопка запуску перевірки ---------- */
+
+.lab-run-button {
+    grid-column: 1 / -1;
+
+    min-height: 54px;
+
+    background: var(--app-gradient);
+
+    border: 0;
+    border-radius: 22px;
+
+    color: #ffffff;
+
+    font-weight: 950;
+
+    box-shadow: 0 16px 34px rgba(var(--lab-primary-rgb), 0.28);
+
+    transition:
+        box-shadow var(--app-transition),
+        transform var(--app-transition);
+}
+
+
+.lab-run-button:hover {
+    color: #ffffff;
+
+    transform: translateY(-1px);
+
+    box-shadow: 0 20px 40px rgba(var(--lab-primary-rgb), 0.32);
+}
+
+
+/* =========================================================
+   ВКЛАДКИ ЛАБОРАТОРНОЇ РОБОТИ
+   Горизонтальне прокручування зберігає доступність усіх
+   розділів робочого простору на вузьких екранах
+   ========================================================= */
+
+.lab-tabs {
+    gap: 8px;
+    flex-wrap: nowrap;
+
+    padding: 8px;
+
+    overflow-x: auto;
+
+    background: var(--lab-surface);
+
+    border: 1px solid var(--lab-border);
+    border-radius: 24px;
+
+    box-shadow: var(--lab-shadow);
+}
+
+
+.lab-tabs .nav-link {
+    border: 0;
+    border-radius: 16px;
+
+    color: var(--lab-muted);
+
+    font-weight: 900;
+
+    white-space: nowrap;
+
+    transition:
+        background-color var(--app-transition),
+        color var(--app-transition);
+}
+
+
+.lab-tabs .nav-link:hover {
+    background: rgba(148, 163, 184, 0.10);
+
+    color: var(--lab-text);
+}
+
+
+.lab-tabs .nav-link.active {
+    background: var(--lab-primary-soft);
+
+    color: var(--lab-primary);
+}
+
+
+/* =========================================================
+   ВМІСТ ВКЛАДОК ЛАБОРАТОРНОЇ РОБОТИ
+   ========================================================= */
+
+.lab-tab-content {
+    display: grid;
+    gap: 20px;
+}
+
+
+.lab-tab-content .tab-pane.active {
+    display: grid;
+    gap: 20px;
+}
+
+
+/* =========================================================
+   ПАНЕЛЬ ЛАБОРАТОРНОЇ РОБОТИ
+   ========================================================= */
+
+.lab-panel-card {
+    padding: 24px;
+
+    border-radius: 28px;
+}
+
+
+.lab-panel-head {
+    margin-bottom: 18px;
+}
+
+
+.lab-panel-head h2 {
+    margin: 0;
+
+    color: var(--lab-text);
+
+    font-size: 24px;
+    font-weight: 950;
+}
+
+
+.lab-panel-head p,
+.lab-description {
+    margin: 8px 0 0;
+
+    color: var(--lab-muted);
+
+    line-height: 1.65;
+}
+
+
+/* =========================================================
+   ПАСПОРТ, ПЕРЕВІРКИ ТА ЗВЕДЕННЯ РЕЗУЛЬТАТІВ
+   Однорідна сітка забезпечує узгоджене представлення
+   параметрів лабораторної роботи та результатів перевірки
+   ========================================================= */
+
+.lab-passport-grid,
+.lab-check-grid,
+.lab-result-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+
+.lab-passport-item,
+.lab-check-card,
+.lab-result-summary > div {
+    padding: 16px;
+
+    background: var(--lab-surface-strong);
+
+    border: 1px solid var(--lab-border);
+    border-radius: 20px;
+}
+
+
+.lab-passport-item span,
+.lab-check-card span,
+.lab-result-summary span,
+.lab-recommendation-card span,
+.lab-diagnostic-card span {
+    display: block;
+
+    margin-bottom: 6px;
+
+    color: var(--lab-muted);
+
+    font-size: 12px;
+    font-weight: 900;
+
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+
+.lab-passport-item strong,
+.lab-check-card strong,
+.lab-result-summary strong {
+    color: var(--lab-text);
+
+    font-size: 17px;
+    font-weight: 950;
+}
+
+
+/* =========================================================
+   ЗВЕДЕННЯ РЕЗУЛЬТАТІВ ПЕРЕВІРКИ
+   ========================================================= */
+
+.lab-result-summary {
+    margin-bottom: 14px;
+}
+
+
+.lab-check-card small {
+    display: block;
+
+    margin-top: 6px;
+
+    color: var(--lab-muted);
+}
+
+
+/* =========================================================
+   КАРТКИ РОБОЧОГО ПРОСТОРУ ЛАБОРАТОРНОЇ РОБОТИ
+   Об'єднують редактор, завантаження файлів, результати,
+   діагностику, рекомендації, спроби та часові діаграми
+   ========================================================= */
+
+.lab-editor-card,
+.lab-file-upload-box,
+.lab-output-box,
+.lab-diagnostic-card,
+.lab-recommendation-card,
+.lab-attempt-card,
+.lab-waveform-card {
+    padding: 18px;
+
+    background: var(--lab-surface-strong);
+
+    border: 1px solid var(--lab-border);
+    border-radius: 24px;
+}
+
+
+/* =========================================================
+   РЕДАКТОР HDL-КОДУ
+   ========================================================= */
+
+.lab-editor-toolbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+
+    margin-bottom: 16px;
+}
+
+
+.lab-editor-toolbar h3,
+.lab-file-upload-box h3,
+.lab-output-box h3,
+.lab-diagnostic-card h3 {
+    margin: 0;
+
+    color: var(--lab-text);
+
+    font-weight: 950;
+}
+
+
+.lab-editor-toolbar p {
+    margin: 5px 0 0;
+
+    color: var(--lab-muted);
+}
+
+
+.lab-editor-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    margin-top: 14px;
+}
+
+
+.lab-editor-actions span {
+    color: var(--lab-muted);
+
+    font-size: 13px;
+}
+
+
+/* ---------- CodeMirror ---------- */
+
+/*
+ * Селектори CodeMirror належать сторонній бібліотеці та
+ * налаштовуються лише в межах сторінки лабораторної роботи,
+ * щоб не впливати на інші екземпляри редактора.
+ */
+.lab-detail-page .CodeMirror {
+    min-height: 430px;
+
+    overflow: hidden;
+
+    border: 1px solid var(--lab-border);
+    border-radius: 18px;
+
+    font-family:
+        "SFMono-Regular",
+        Consolas,
+        "Liberation Mono",
+        Menlo,
+        monospace;
+
+    font-size: 14px;
+}
+
+
+.lab-detail-page .CodeMirror-scroll {
+    min-height: 430px;
+}
+
+
+/* =========================================================
+   ВИВЕДЕННЯ РЕЗУЛЬТАТІВ ЛАБОРАТОРНОЇ РОБОТИ
+   Блоки pre використовуються для текстових результатів
+   компіляції, симуляції та автоматизованої перевірки HDL
+   ========================================================= */
+
+.lab-output-box {
+    margin-top: 14px;
+}
+
+
+.lab-output-box pre,
+.lab-attempt-details pre {
+    margin: 12px 0 0;
+    padding: 16px;
+
+    overflow: auto;
+
+    background: var(--app-code-bg);
+
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 18px;
+
+    color: var(--app-code-text);
+
+    font-size: 13px;
+
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+
+/* =========================================================
+   ДІАГНОСТИКА ТА РЕКОМЕНДАЦІЇ
+   ========================================================= */
+
+.lab-diagnostic-card {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+
+.lab-diagnostic-card p,
+.lab-recommendation-card p {
+    margin: 8px 0 0;
+
+    color: var(--lab-muted);
+
+    line-height: 1.6;
+}
+
+
+.lab-diagnostic-card > strong {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 0 0 auto;
+
+    min-width: 58px;
+    min-height: 36px;
+    padding: 0 10px;
+
+    background: var(--lab-primary-soft);
+
+    border-radius: var(--app-radius-pill);
+
+    color: var(--lab-primary);
+}
+
+
+/* ---------- Дії ---------- */
+
+.lab-action-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    margin-top: 14px;
+}
+
+
+.lab-muted-pill {
+    padding: 8px 12px;
+
+    background: rgba(148, 163, 184, 0.14);
+
+    border-radius: var(--app-radius-pill);
+
+    color: var(--lab-muted);
+
+    font-size: 13px;
+    font-weight: 800;
+}
+
+
+/* =========================================================
+   СПРОБИ ВИКОНАННЯ ЛАБОРАТОРНОЇ РОБОТИ
+   Кожна картка відображає окремий результат запуску,
+   пов'язаний статус і доступні деталі перевірки
+   ========================================================= */
+
+.lab-attempt-list,
+.lab-waveform-list {
+    display: grid;
+    gap: 12px;
+}
+
+
+.lab-attempt-card {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr)
+        auto;
+
+    align-items: start;
+    gap: 14px;
+}
+
+
+.lab-attempt-title {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+
+.lab-attempt-title strong,
+.lab-waveform-card strong {
+    color: var(--lab-text);
+}
+
+
+.lab-attempt-title span,
+.lab-attempt-file,
+.lab-waveform-card span {
+    color: var(--lab-muted);
+
+    font-size: 13px;
+}
+
+
+.lab-attempt-meta {
+    display: grid;
+    justify-items: end;
+    gap: 7px;
+}
+
+
+/* =========================================================
+   СТАТУСИ ПЕРЕВІРКИ ЛАБОРАТОРНОЇ РОБОТИ
+   Семантичні класи відображають результат компіляції,
+   симуляції, перевірки та ізольованого виконання
+   ========================================================= */
+
+.lab-status-pill {
+    padding: 5px 9px;
+
+    background: rgba(148, 163, 184, 0.16);
+
+    border-radius: var(--app-radius-pill);
+
+    color: var(--lab-muted);
+
+    font-size: 12px;
+    font-weight: 900;
+}
+
+
+/* ---------- Успішне виконання ---------- */
+
+.lab-status-passed {
+    background: rgba(34, 197, 94, 0.14);
+
+    color: #16a34a;
+}
+
+
+/* ---------- Частковий результат ---------- */
+
+.lab-status-partial {
+    background: rgba(14, 165, 233, 0.16);
+
+    color: #0284c7;
+}
+
+
+/* ---------- Помилки виконання ---------- */
+
+.lab-status-failed,
+.lab-status-compile-error,
+.lab-status-simulation-error,
+.lab-status-system-error,
+.lab-status-security-block {
+    background: rgba(239, 68, 68, 0.14);
+
+    color: #dc2626;
+}
+
+
+/* ---------- Перевищення часу виконання ---------- */
+
+.lab-status-timeout {
+    background: rgba(245, 158, 11, 0.16);
+
+    color: #d97706;
+}
+
+
+/* =========================================================
+   ДЕТАЛІ СПРОБИ
+   ========================================================= */
+
+.lab-attempt-details {
+    grid-column: 1 / -1;
+}
+
+
+.lab-attempt-details summary {
+    color: var(--lab-primary);
+
+    font-weight: 900;
+
+    cursor: pointer;
+}
+
+
+/* =========================================================
+   ЧАСОВІ ДІАГРАМИ
+   Картки представляють сформовані VCD або інші артефакти
+   моделювання, доступні для подальшого перегляду
+   ========================================================= */
+
+.lab-waveform-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+
+/* =========================================================
+   СТАНИ СТОРІНКИ ЛАБОРАТОРНОЇ РОБОТИ
+   ========================================================= */
+
+.lab-empty-state {
+    padding: 18px;
+
+    background: rgba(148, 163, 184, 0.10);
+
+    border: 1px dashed var(--lab-border);
+    border-radius: 20px;
+
+    color: var(--lab-muted);
+
+    font-weight: 700;
+}
+
+
+.lab-warning-state {
+    background: rgba(245, 158, 11, 0.12);
+
+    color: #d97706;
+}
+
+
+.lab-success-state {
+    background: rgba(34, 197, 94, 0.12);
+
+    color: #16a34a;
+}
+
+
+/* =========================================================
+   ТАБЛИЦЯ ЛАБОРАТОРНОЇ РОБОТИ
+   Bootstrap-токени узгоджуються з локальною темою сторінки
+   ========================================================= */
+
+.lab-table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--lab-text);
+    --bs-table-border-color: var(--lab-border);
+
+    color: var(--lab-text);
+}
+
+
+.lab-table thead th {
+    color: var(--lab-muted);
+
+    border-color: var(--lab-border);
+}
+
+
+.lab-table td {
+    border-color: var(--lab-border);
+}
+
+
+/* =========================================================
+   АДАПТИВНІСТЬ СТОРІНКИ ЛАБОРАТОРНОЇ РОБОТИ
+   ========================================================= */
+
+@media (max-width: 1100px) {
+    .lab-summary-card {
+        grid-template-columns: 1fr;
+    }
+
+
+    .lab-passport-grid,
+    .lab-check-grid,
+    .lab-result-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+
+@media (max-width: 700px) {
+    .lab-summary-stats,
+    .lab-passport-grid,
+    .lab-check-grid,
+    .lab-result-summary {
+        grid-template-columns: 1fr;
+    }
+
+
+    .lab-summary-card,
+    .lab-panel-card {
+        padding: 20px;
+
+        border-radius: 24px;
+    }
+
+
+    .lab-editor-toolbar,
+    .lab-waveform-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+
+    .lab-attempt-card {
+        grid-template-columns: 1fr;
+    }
+
+
+    .lab-attempt-meta {
+        justify-items: start;
+    }
+}

@@ -1,0 +1,1595 @@
+/* =========================================================
+   ПРОФІЛЬ КОРИСТУВАЧА
+   Сучасне оформлення сторінки профілю з підтримкою
+   глобальної теми та активної колірної палітри
+   ========================================================= */
+
+.profile-page {
+    padding: 10px 0 36px;
+}
+
+
+.profile-shell {
+    display: grid;
+    gap: 18px;
+
+    width: min(1160px, 100%);
+    margin: 0 auto;
+}
+
+
+/* =========================================================
+   КАРТКИ ПРОФІЛЮ
+   ========================================================= */
+
+.profile-card {
+    position: relative;
+
+    overflow: hidden;
+
+    background: rgba(255, 255, 255, 0.76);
+
+    border: 1px solid rgba(226, 232, 240, 0.92);
+    border-radius: 28px;
+
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+
+    box-shadow:
+        0 14px 40px rgba(15, 23, 42, 0.08),
+        0 3px 10px rgba(15, 23, 42, 0.04);
+}
+
+
+.profile-card-body {
+    padding: 22px;
+}
+
+
+/* ---------- Темна тема ---------- */
+
+body.app-body[data-theme="dark"] .profile-card {
+    background: rgba(15, 23, 42, 0.72);
+
+    border-color: rgba(148, 163, 184, 0.20);
+
+    box-shadow:
+        0 18px 48px rgba(0, 0, 0, 0.26),
+        0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+
+/*
+ * У режимі system темне оформлення карток застосовується
+ * лише тоді, коли операційна система використовує темну тему.
+ */
+@media (prefers-color-scheme: dark) {
+    body.app-body[data-theme="system"] .profile-card {
+        background: rgba(15, 23, 42, 0.72);
+
+        border-color: rgba(148, 163, 184, 0.20);
+
+        box-shadow:
+            0 18px 48px rgba(0, 0, 0, 0.26),
+            0 4px 14px rgba(0, 0, 0, 0.18);
+    }
+}
+
+
+/* =========================================================
+   ГОЛОВНА КАРТКА ПРОФІЛЮ
+   ========================================================= */
+
+.profile-hero-card {
+    padding: 0;
+
+    border-radius: 32px;
+}
+
+
+/*
+ * Декоративна світлова пляма використовує активну палітру
+ * та не впливає на взаємодію з елементами профілю.
+ */
+.profile-hero-card::before {
+    content: "";
+
+    position: absolute;
+    right: -80px;
+    bottom: -120px;
+
+    width: 280px;
+    height: 280px;
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(var(--app-primary-rgb), 0.14),
+            transparent 70%
+        );
+
+    border-radius: 50%;
+
+    pointer-events: none;
+}
+
+
+/* ---------- Обкладинка профілю ---------- */
+
+.profile-cover {
+    position: relative;
+    z-index: 1;
+
+    height: 118px;
+
+    overflow: hidden;
+
+    background:
+        radial-gradient(
+            circle at 14% 28%,
+            rgba(var(--app-accent-rgb), 0.30),
+            transparent 30%
+        ),
+        radial-gradient(
+            circle at 84% 22%,
+            rgba(var(--app-primary-rgb), 0.30),
+            transparent 34%
+        ),
+        linear-gradient(
+            120deg,
+            rgba(255, 255, 255, 0.08),
+            transparent 46%
+        ),
+        var(--app-gradient);
+}
+
+
+.profile-cover::after {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    background:
+        linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.10),
+            rgba(255, 255, 255, 0.02)
+        );
+
+    pointer-events: none;
+}
+
+
+/* ---------- Основний вміст профілю ---------- */
+
+.profile-hero-content {
+    position: relative;
+    z-index: 3;
+
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr)
+        205px;
+
+    align-items: end;
+    gap: 22px;
+
+    margin-top: -38px;
+    padding: 0 24px 22px;
+}
+
+
+.profile-person {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+
+    min-width: 0;
+}
+
+
+/* =========================================================
+   ОСНОВНИЙ АВАТАР КОРИСТУВАЧА
+   ========================================================= */
+
+.profile-main-avatar-wrap {
+    position: relative;
+
+    flex: 0 0 88px;
+
+    width: 88px;
+    aspect-ratio: 1;
+
+    overflow: visible;
+}
+
+
+.profile-main-avatar {
+    width: 100%;
+    height: 100%;
+
+    background: var(--app-gradient);
+
+    border: 4px solid var(--app-surface-solid);
+    border-radius: 25px;
+
+    box-shadow:
+        0 14px 32px rgba(15, 23, 42, 0.16),
+        0 0 0 1px rgba(var(--app-primary-rgb), 0.10);
+}
+
+
+.profile-main-avatar .profile-avatar-media {
+    border-radius: 21px;
+}
+
+
+/* =========================================================
+   КНОПКА РЕДАГУВАННЯ АВАТАРА
+   Підтримує взаємодію мишею, клавіатурою та сенсорними
+   пристроями без постійного відображення на desktop
+   ========================================================= */
+
+.profile-avatar-edit-btn {
+    position: absolute;
+    right: -6px;
+    bottom: -6px;
+    z-index: 5;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 36px;
+    height: 36px;
+    padding: 0;
+
+    background: rgba(255, 255, 255, 0.96);
+
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 50%;
+
+    color: var(--app-primary);
+
+    cursor: pointer;
+
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.16);
+
+    opacity: 0;
+    pointer-events: none;
+
+    transform: translateY(4px) scale(0.9);
+
+    transition:
+        opacity 0.22s ease,
+        transform 0.22s ease,
+        background-color 0.22s ease,
+        color 0.22s ease,
+        box-shadow 0.22s ease;
+}
+
+
+.profile-avatar-edit-btn svg {
+    display: block;
+
+    width: 15px;
+    height: 15px;
+
+    pointer-events: none;
+}
+
+
+.profile-main-avatar-wrap:hover .profile-avatar-edit-btn,
+.profile-main-avatar-wrap:focus-within .profile-avatar-edit-btn {
+    opacity: 1;
+    pointer-events: auto;
+
+    transform: translateY(0) scale(1);
+}
+
+
+.profile-avatar-edit-btn:hover {
+    background: var(--app-gradient);
+
+    color: #ffffff;
+
+    box-shadow: 0 12px 26px rgba(var(--app-primary-rgb), 0.28);
+}
+
+
+.profile-avatar-edit-btn:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+
+    transform: translateY(0) scale(1);
+
+    outline: 3px solid rgba(var(--app-primary-rgb), 0.22);
+    outline-offset: 2px;
+}
+
+
+/*
+ * На пристроях без hover кнопка залишається постійно видимою,
+ * оскільки користувач не може попередньо навести вказівник.
+ */
+@media (hover: none) {
+    .profile-avatar-edit-btn {
+        opacity: 1;
+        pointer-events: auto;
+
+        transform: none;
+    }
+}
+
+
+/* =========================================================
+   ІНФОРМАЦІЯ ПРО КОРИСТУВАЧА
+   ========================================================= */
+
+.profile-person-info {
+    min-width: 0;
+
+    padding-top: 46px;
+    padding-bottom: 2px;
+}
+
+
+.profile-name-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+
+.profile-name-row h1 {
+    min-width: 0;
+    margin: 0;
+
+    color: var(--app-text-strong);
+
+    font-size: clamp(28px, 2.15vw, 36px);
+    font-weight: 950;
+    line-height: 1.06;
+
+    letter-spacing: -0.035em;
+
+    white-space: nowrap;
+}
+
+
+@media (max-width: 1280px) {
+    .profile-name-row h1 {
+        font-size: clamp(26px, 2.4vw, 33px);
+
+        white-space: normal;
+    }
+}
+
+
+.profile-username {
+    width: fit-content;
+    margin-top: 6px;
+
+    color: var(--app-primary);
+
+    font-size: 14px;
+    font-weight: 900;
+}
+
+
+.profile-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    margin-top: 12px;
+}
+
+
+.profile-meta-chip {
+    display: inline-flex;
+    align-items: center;
+
+    min-height: 29px;
+    padding: 0 12px;
+
+    background: rgba(248, 250, 252, 0.88);
+
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: var(--app-radius-pill);
+
+    color: var(--app-text-muted);
+
+    font-size: 12px;
+    font-weight: 850;
+
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+}
+
+
+.profile-meta-chip-accent {
+    background: rgba(var(--app-primary-rgb), 0.10);
+
+    border-color: rgba(var(--app-primary-rgb), 0.18);
+
+    color: var(--app-primary);
+}
+
+
+.profile-selected-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 32px;
+    height: 32px;
+
+    background: var(--app-gradient);
+
+    border-radius: 12px;
+
+    color: #ffffff;
+
+    font-size: 12px;
+    font-weight: 950;
+
+    box-shadow: 0 8px 18px rgba(var(--app-primary-rgb), 0.22);
+}
+
+
+/* =========================================================
+   КАРТКА ДОСВІДУ КОРИСТУВАЧА
+   ========================================================= */
+
+.profile-xp-card {
+    position: relative;
+
+    align-self: end;
+
+    margin-bottom: 2px;
+    padding: 16px 16px 14px;
+
+    overflow: hidden;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.95),
+            rgba(248, 250, 252, 0.90)
+        );
+
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 22px;
+
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
+}
+
+
+/*
+ * Декоративний елемент використовує активну палітру
+ * та не бере участі у взаємодії з користувачем.
+ */
+.profile-xp-card::before {
+    content: "";
+
+    position: absolute;
+    top: -36px;
+    right: -30px;
+
+    width: 100px;
+    height: 100px;
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(var(--app-primary-rgb), 0.13),
+            transparent 72%
+        );
+
+    border-radius: 50%;
+
+    pointer-events: none;
+}
+
+
+.profile-xp-top {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+
+.profile-xp-top span {
+    color: var(--app-text-muted);
+
+    font-size: 11px;
+    font-weight: 900;
+
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+
+.profile-xp-top strong {
+    color: var(--app-text-strong);
+
+    font-size: 24px;
+    font-weight: 950;
+    line-height: 1;
+}
+
+
+.profile-xp-card small {
+    display: block;
+
+    margin-top: 10px;
+
+    color: var(--app-text-muted);
+
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+
+.profile-xp-progress {
+    position: relative;
+
+    height: 8px;
+    margin-top: 10px;
+
+    overflow: hidden;
+
+    background: rgba(148, 163, 184, 0.18);
+
+    border-radius: var(--app-radius-pill);
+}
+
+
+/*
+ * Базове значення дорівнює нулю. Фактична ширина смуги
+ * має визначатися відповідно до поточного прогресу користувача.
+ */
+.profile-xp-progress-value {
+    display: block;
+
+    width: 0;
+    height: 100%;
+
+    background: var(--app-gradient);
+
+    border-radius: inherit;
+
+    box-shadow: 0 0 10px rgba(var(--app-primary-rgb), 0.28);
+
+    transition: width 0.35s ease;
+}
+
+
+/* =========================================================
+   ЗВЕДЕНА ІНФОРМАЦІЯ ПРОФІЛЮ
+   ========================================================= */
+
+.profile-summary-grid {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1.5fr)
+        minmax(250px, 0.5fr);
+
+    gap: 16px;
+}
+
+
+.profile-card-heading {
+    margin-bottom: 10px;
+}
+
+
+.profile-section-kicker {
+    display: block;
+
+    margin-bottom: 5px;
+
+    color: var(--app-primary);
+
+    font-size: 11px;
+    font-weight: 900;
+
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+
+.profile-card h2,
+.profile-section-head h2 {
+    margin: 0;
+
+    color: var(--app-text-strong);
+
+    font-size: 18px;
+    font-weight: 950;
+    line-height: 1.2;
+
+    letter-spacing: -0.02em;
+}
+
+
+.profile-bio,
+.profile-empty-text {
+    margin: 0;
+
+    color: var(--app-text-muted);
+
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+
+.profile-bio {
+    white-space: pre-line;
+}
+
+
+.profile-signature {
+    width: fit-content;
+    margin-top: 13px;
+    padding: 8px 12px;
+
+    background: rgba(var(--app-primary-rgb), 0.10);
+
+    border-radius: 12px;
+
+    color: var(--app-text);
+
+    font-size: 12px;
+    font-style: italic;
+    font-weight: 700;
+}
+
+
+.profile-progress-value {
+    display: block;
+
+    margin-top: 10px;
+
+    color: var(--app-text-strong);
+
+    font-size: 30px;
+    font-weight: 950;
+    line-height: 1;
+}
+
+
+.profile-progress-card p {
+    margin: 10px 0 0;
+
+    color: var(--app-text-muted);
+
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+
+/* =========================================================
+   ФОРМА РЕДАГУВАННЯ ПРОФІЛЮ
+   ========================================================= */
+
+.profile-form {
+    display: grid;
+    gap: 18px;
+}
+
+
+.profile-section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+
+    margin-bottom: 4px;
+}
+
+
+.profile-section-head p {
+    margin: 6px 0 0;
+
+    color: var(--app-text-muted);
+
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+
+.profile-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+
+.profile-bio-field {
+    margin-top: 2px;
+}
+
+
+.profile-bio-field textarea {
+    min-height: 118px;
+
+    resize: vertical;
+}
+
+
+.profile-form .form-label {
+    color: var(--app-text-muted);
+
+    font-size: 13px;
+    font-weight: 800;
+}
+
+
+.profile-form .form-control,
+.profile-form .form-select,
+.profile-form textarea {
+    min-height: 48px;
+
+    background: rgba(255, 255, 255, 0.74);
+
+    border: 1px solid rgba(214, 223, 234, 0.95);
+    border-radius: 16px;
+
+    color: var(--app-text);
+
+    box-shadow: none;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background-color 0.2s ease;
+}
+
+
+.profile-form textarea.form-control {
+    padding-top: 14px;
+}
+
+
+.profile-form .form-control:focus,
+.profile-form .form-select:focus,
+.profile-form textarea:focus {
+    background: rgba(255, 255, 255, 0.94);
+
+    border-color: rgba(var(--app-primary-rgb), 0.45);
+
+    box-shadow: 0 0 0 4px rgba(var(--app-primary-rgb), 0.10);
+}
+
+
+/* =========================================================
+   ТЕМНЕ ОФОРМЛЕННЯ ЕЛЕМЕНТІВ ПРОФІЛЮ
+   ========================================================= */
+
+body.app-body[data-theme="dark"] .profile-avatar-edit-btn {
+    background: rgba(15, 23, 42, 0.96);
+
+    border-color: rgba(148, 163, 184, 0.24);
+
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+}
+
+
+body.app-body[data-theme="dark"] .profile-meta-chip {
+    background: rgba(30, 41, 59, 0.68);
+
+    border-color: rgba(148, 163, 184, 0.20);
+
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+
+body.app-body[data-theme="dark"] .profile-meta-chip-accent {
+    background: rgba(var(--app-primary-rgb), 0.16);
+
+    border-color: rgba(var(--app-primary-rgb), 0.28);
+}
+
+
+body.app-body[data-theme="dark"] .profile-xp-card {
+    background:
+        linear-gradient(
+            145deg,
+            rgba(15, 23, 42, 0.92),
+            rgba(17, 24, 39, 0.88)
+        );
+
+    border-color: rgba(148, 163, 184, 0.20);
+
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+}
+
+
+body.app-body[data-theme="dark"] .profile-form .form-control,
+body.app-body[data-theme="dark"] .profile-form .form-select,
+body.app-body[data-theme="dark"] .profile-form textarea {
+    background: rgba(15, 23, 42, 0.62);
+
+    border-color: rgba(148, 163, 184, 0.24);
+}
+
+
+body.app-body[data-theme="dark"] .profile-form .form-control:focus,
+body.app-body[data-theme="dark"] .profile-form .form-select:focus,
+body.app-body[data-theme="dark"] .profile-form textarea:focus {
+    background: rgba(15, 23, 42, 0.82);
+}
+
+
+/* ---------- Системна темна тема ---------- */
+
+@media (prefers-color-scheme: dark) {
+    body.app-body[data-theme="system"] .profile-avatar-edit-btn {
+        background: rgba(15, 23, 42, 0.96);
+
+        border-color: rgba(148, 163, 184, 0.24);
+
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+    }
+
+
+    body.app-body[data-theme="system"] .profile-meta-chip {
+        background: rgba(30, 41, 59, 0.68);
+
+        border-color: rgba(148, 163, 184, 0.20);
+
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+
+    body.app-body[data-theme="system"] .profile-meta-chip-accent {
+        background: rgba(var(--app-primary-rgb), 0.16);
+
+        border-color: rgba(var(--app-primary-rgb), 0.28);
+    }
+
+
+    body.app-body[data-theme="system"] .profile-xp-card {
+        background:
+            linear-gradient(
+                145deg,
+                rgba(15, 23, 42, 0.92),
+                rgba(17, 24, 39, 0.88)
+            );
+
+        border-color: rgba(148, 163, 184, 0.20);
+
+        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+    }
+
+
+    body.app-body[data-theme="system"] .profile-form .form-control,
+    body.app-body[data-theme="system"] .profile-form .form-select,
+    body.app-body[data-theme="system"] .profile-form textarea {
+        background: rgba(15, 23, 42, 0.62);
+
+        border-color: rgba(148, 163, 184, 0.24);
+    }
+
+
+    body.app-body[data-theme="system"] .profile-form .form-control:focus,
+    body.app-body[data-theme="system"] .profile-form .form-select:focus,
+    body.app-body[data-theme="system"] .profile-form textarea:focus {
+        background: rgba(15, 23, 42, 0.82);
+    }
+}
+
+
+/* Кнопка карандашика */
+.profile-avatar-edit-btn {
+    right: 2px;
+    bottom: 2px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+
+    background: rgba(255, 255, 255, 0.96);
+    border: 2px solid #ffffff;
+    box-shadow:
+        0 10px 24px rgba(15, 23, 42, 0.16),
+        0 0 0 1px rgba(var(--app-primary-rgb), 0.10);
+
+    color: var(--app-primary);
+}
+
+.profile-avatar-edit-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Информация справа от аватара */
+.profile-person-info {
+    min-width: 0;
+    padding-bottom: 8px;
+}
+
+.profile-name-row h1 {
+    margin: 0;
+    max-width: 760px;
+
+    color: var(--app-text-strong);
+    font-size: clamp(36px, 3.1vw, 52px);
+    line-height: 0.98;
+    font-weight: 950;
+    letter-spacing: -0.04em;
+
+    overflow-wrap: anywhere;
+}
+
+.profile-username {
+    margin-top: 8px;
+    color: var(--app-primary);
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.profile-meta {
+    margin-top: 14px;
+    gap: 8px;
+}
+
+.profile-meta-chip {
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+/* =========================================================
+   XP CARD
+   ========================================================= */
+
+.profile-xp-card {
+    align-self: center;
+
+    padding: 18px 18px;
+    border-radius: 24px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.96),
+            rgba(248, 250, 252, 0.96)
+        );
+
+    border: 1px solid var(--app-border-soft);
+
+    box-shadow:
+        0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.profile-xp-top strong {
+    font-size: 32px;
+}
+
+.profile-xp-card small {
+    margin-top: 10px;
+    font-size: 12px;
+}
+
+.profile-xp-progress {
+    height: 8px;
+    margin-top: 12px;
+}
+
+/* =========================================================
+   PROFILE CARDS BELOW
+   ========================================================= */
+
+.profile-card,
+.profile-section-card {
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid var(--app-border-soft);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+}
+
+.profile-card-body {
+    padding: 22px;
+}
+
+/* =========================================================
+   FLOATING ORBS ANIMATION
+   ========================================================= */
+
+@keyframes profileOrbFloatOne {
+    0%, 100% {
+        transform: translate(0, 0) scale(1);
+    }
+    50% {
+        transform: translate(18px, 24px) scale(1.08);
+    }
+}
+
+@keyframes profileOrbFloatTwo {
+    0%, 100% {
+        transform: translate(0, 0) scale(1);
+    }
+    50% {
+        transform: translate(-22px, 18px) scale(1.06);
+    }
+}
+
+@keyframes profileOrbFloatThree {
+    0%, 100% {
+        transform: translate(0, 0) scale(1);
+    }
+    50% {
+        transform: translate(14px, -18px) scale(1.04);
+    }
+}
+
+@keyframes profileOrbFloatFour {
+    0%, 100% {
+        transform: translate(0, 0) scale(1);
+    }
+    50% {
+        transform: translate(-16px, -14px) scale(1.08);
+    }
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1100px) {
+    body.app-body .app-content:has(.profile-page) {
+        width: min(100%, calc(100% - 28px));
+    }
+
+    .profile-shell {
+        width: min(100%, 1080px);
+    }
+
+    .profile-hero-content {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+    .profile-xp-card {
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .profile-cover {
+        height: 130px;
+    }
+
+    .profile-hero-content {
+        margin-top: -52px;
+        padding: 0 18px 18px;
+    }
+
+    .profile-person {
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .profile-main-avatar-wrap {
+        flex-basis: 104px;
+        width: 104px;
+    }
+
+    .profile-main-avatar {
+        border-radius: 28px;
+    }
+
+    .profile-main-avatar .profile-avatar-media {
+        border-radius: 23px;
+    }
+
+    .profile-name-row h1 {
+        font-size: clamp(28px, 6vw, 40px);
+        line-height: 1.02;
+    }
+
+    .profile-avatar-edit-btn {
+        width: 34px;
+        height: 34px;
+    }
+}
+
+@media (max-width: 576px) {
+    body.app-body .app-content:has(.profile-page) {
+        width: min(100%, calc(100% - 18px));
+    }
+
+    .profile-page {
+        border-radius: 20px;
+    }
+
+    .profile-cover {
+        height: 112px;
+    }
+
+    .profile-main-avatar-wrap {
+        flex-basis: 88px;
+        width: 88px;
+    }
+
+    .profile-name-row h1 {
+        font-size: 24px;
+    }
+
+    .profile-card-body {
+        padding: 18px;
+    }
+
+/* =========================================================
+   PROFILE BACKGROUND ORBS
+   ========================================================= */
+
+    .profile-page::before,
+    .profile-page::after,
+    .profile-shell::before,
+    .profile-shell::after {
+        content: "";
+
+        position: absolute;
+        z-index: -1;
+
+        aspect-ratio: 1;
+
+        border-radius: 50%;
+
+        pointer-events: none;
+
+        filter: blur(2px);
+
+        will-change: transform;
+    }
+
+
+    /* ---------- Large pink orb ---------- */
+
+    .profile-page::before {
+        top: 90px;
+        left: -220px;
+
+        width: 240px;
+
+        background:
+            radial-gradient(
+                circle at 36% 34%,
+                rgba(var(--app-accent-rgb), 0.18),
+                rgba(var(--app-accent-rgb), 0.07) 52%,
+                transparent 72%
+            );
+
+        animation:
+            profileOrbFloatOne
+            17s ease-in-out infinite;
+    }
+
+
+    /* ---------- Large blue orb ---------- */
+
+    .profile-page::after {
+        top: 180px;
+        right: -260px;
+
+        width: 300px;
+
+        background:
+            radial-gradient(
+                circle at 38% 36%,
+                rgba(var(--app-primary-rgb), 0.16),
+                rgba(var(--app-primary-rgb), 0.06) 55%,
+                transparent 74%
+            );
+
+        animation:
+            profileOrbFloatTwo
+            21s ease-in-out infinite;
+    }
+
+
+    /* ---------- Small pink orb ---------- */
+
+    .profile-shell::before {
+        left: -150px;
+        bottom: 18%;
+
+        width: 130px;
+
+        background:
+            radial-gradient(
+                circle,
+                rgba(var(--app-accent-rgb), 0.14),
+                rgba(var(--app-accent-rgb), 0.04) 62%,
+                transparent 74%
+            );
+
+        animation:
+            profileOrbFloatThree
+            19s ease-in-out infinite;
+    }
+
+
+    /* ---------- Small blue orb ---------- */
+
+    .profile-shell::after {
+        right: -160px;
+        bottom: 8%;
+
+        width: 105px;
+
+        background:
+            radial-gradient(
+                circle,
+                rgba(var(--app-primary-rgb), 0.13),
+                rgba(var(--app-primary-rgb), 0.04) 62%,
+                transparent 74%
+            );
+
+        animation:
+            profileOrbFloatFour
+            15s ease-in-out infinite;
+    }
+}
+
+/* =========================================================
+   ФІНАЛЬНЕ НАЛАШТУВАННЯ ПРОФІЛЮ
+   ========================================================= */
+
+/* ---------- Кнопка редагування аватара ---------- */
+
+.profile-avatar-edit-btn {
+    right: 2px;
+    bottom: 2px;
+
+    width: 38px;
+    height: 38px;
+
+    background: rgba(255, 255, 255, 0.96);
+
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+
+    color: var(--app-primary);
+
+    box-shadow:
+        0 10px 24px rgba(15, 23, 42, 0.16),
+        0 0 0 1px rgba(var(--app-primary-rgb), 0.10);
+}
+
+
+.profile-avatar-edit-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+
+/* ---------- Інформація про користувача ---------- */
+
+.profile-person-info {
+    min-width: 0;
+
+    padding-bottom: 8px;
+}
+
+
+.profile-name-row h1 {
+    max-width: 760px;
+    margin: 0;
+
+    color: var(--app-text-strong);
+
+    font-size: clamp(36px, 3.1vw, 52px);
+    font-weight: 950;
+    line-height: 0.98;
+
+    letter-spacing: -0.04em;
+
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+
+.profile-username {
+    margin-top: 8px;
+
+    color: var(--app-primary);
+
+    font-size: 15px;
+    font-weight: 900;
+}
+
+
+.profile-meta {
+    gap: 8px;
+
+    margin-top: 14px;
+}
+
+
+.profile-meta-chip {
+    min-height: 30px;
+    padding: 0 12px;
+
+    border-radius: var(--app-radius-pill);
+
+    font-size: 12px;
+    font-weight: 850;
+}
+
+
+/* =========================================================
+   КАРТКА ДОСВІДУ КОРИСТУВАЧА
+   ========================================================= */
+
+.profile-xp-card {
+    align-self: center;
+
+    padding: 18px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.96),
+            rgba(248, 250, 252, 0.96)
+        );
+
+    border: 1px solid var(--app-border-soft);
+    border-radius: 24px;
+
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+
+.profile-xp-top strong {
+    font-size: 32px;
+}
+
+
+.profile-xp-card small {
+    margin-top: 10px;
+
+    font-size: 12px;
+}
+
+
+.profile-xp-progress {
+    height: 8px;
+    margin-top: 12px;
+}
+
+
+/* =========================================================
+   КАРТКИ НИЖНІХ РОЗДІЛІВ ПРОФІЛЮ
+   ========================================================= */
+
+.profile-card,
+.profile-section-card {
+    background: rgba(255, 255, 255, 0.82);
+
+    border: 1px solid var(--app-border-soft);
+    border-radius: 28px;
+
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+}
+
+
+.profile-card-body {
+    padding: 22px;
+}
+
+
+/* ---------- Темна тема ---------- */
+
+body.app-body[data-theme="dark"] .profile-card,
+body.app-body[data-theme="dark"] .profile-section-card {
+    background: rgba(15, 23, 42, 0.72);
+
+    border-color: rgba(148, 163, 184, 0.20);
+
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.20);
+}
+
+
+/* ---------- Системна темна тема ---------- */
+
+@media (prefers-color-scheme: dark) {
+    body.app-body[data-theme="system"] .profile-card,
+    body.app-body[data-theme="system"] .profile-section-card {
+        background: rgba(15, 23, 42, 0.72);
+
+        border-color: rgba(148, 163, 184, 0.20);
+
+        box-shadow: 0 14px 34px rgba(0, 0, 0, 0.20);
+    }
+}
+
+
+/* =========================================================
+   АНІМАЦІЇ ДЕКОРАТИВНИХ СФЕР ПРОФІЛЮ
+   ========================================================= */
+
+@keyframes profileOrbFloatOne {
+    0%,
+    100% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    50% {
+        transform: translate(18px, 24px) scale(1.08);
+    }
+}
+
+
+@keyframes profileOrbFloatTwo {
+    0%,
+    100% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    50% {
+        transform: translate(-22px, 18px) scale(1.06);
+    }
+}
+
+
+@keyframes profileOrbFloatThree {
+    0%,
+    100% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    50% {
+        transform: translate(14px, -18px) scale(1.04);
+    }
+}
+
+
+@keyframes profileOrbFloatFour {
+    0%,
+    100% {
+        transform: translate(0, 0) scale(1);
+    }
+
+    50% {
+        transform: translate(-16px, -14px) scale(1.08);
+    }
+}
+
+
+/*
+ * Для користувачів зі зменшеною анімацією декоративний рух
+ * вимикається без зміни структури або вмісту сторінки.
+ */
+@media (prefers-reduced-motion: reduce) {
+    .profile-page::before,
+    .profile-page::after,
+    .profile-shell::before,
+    .profile-shell::after {
+        animation: none;
+    }
+}
+
+
+/* =========================================================
+   АДАПТИВНІСТЬ ПРОФІЛЮ
+   ========================================================= */
+
+@media (max-width: 1100px) {
+    body.app-body .app-content:has(.profile-page) {
+        width: min(100%, calc(100% - 28px));
+    }
+
+
+    .profile-shell {
+        width: min(100%, 1080px);
+    }
+
+
+    .profile-hero-content {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+
+    .profile-xp-card {
+        width: 100%;
+    }
+}
+
+
+@media (max-width: 768px) {
+    .profile-cover {
+        height: 130px;
+    }
+
+
+    .profile-hero-content {
+        margin-top: -52px;
+        padding: 0 18px 18px;
+    }
+
+
+    .profile-person {
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+
+    .profile-main-avatar-wrap {
+        flex-basis: 104px;
+
+        width: 104px;
+    }
+
+
+    .profile-main-avatar {
+        border-radius: 28px;
+    }
+
+
+    .profile-main-avatar .profile-avatar-media {
+        border-radius: 23px;
+    }
+
+
+    .profile-name-row h1 {
+        font-size: clamp(28px, 6vw, 40px);
+        line-height: 1.02;
+    }
+
+
+    .profile-avatar-edit-btn {
+        width: 34px;
+        height: 34px;
+    }
+}
+
+
+@media (max-width: 576px) {
+    body.app-body .app-content:has(.profile-page) {
+        width: min(100%, calc(100% - 18px));
+    }
+
+
+    .profile-page {
+        border-radius: 20px;
+    }
+
+
+    .profile-cover {
+        height: 112px;
+    }
+
+
+    .profile-main-avatar-wrap {
+        flex-basis: 88px;
+
+        width: 88px;
+    }
+
+
+    .profile-name-row h1 {
+        font-size: 24px;
+    }
+
+
+    .profile-card-body {
+        padding: 18px;
+    }
+}

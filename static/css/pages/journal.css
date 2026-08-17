@@ -1,0 +1,1195 @@
+/* =========================================================
+   ЖУРНАЛ EXCEL
+   Базові стилі таблиці для збереження сумісності
+   з публічним або попереднім оформленням інтерфейсу
+   ========================================================= */
+
+.excel-journal-table {
+    background: #ffffff;
+
+    font-size: 14px;
+}
+
+
+.excel-journal-table th,
+.excel-journal-table td {
+    vertical-align: middle;
+
+    text-align: center;
+}
+
+
+.excel-journal-table th {
+    background: #212529;
+
+    color: #ffffff;
+
+    white-space: nowrap;
+}
+
+
+.excel-journal-table td {
+    min-width: 90px;
+}
+
+
+/* =========================================================
+   ФІКСОВАНИЙ СТОВПЕЦЬ СТУДЕНТА
+   Sticky-позиціонування зберігає дані студента видимими
+   під час горизонтального прокручування журналу
+   ========================================================= */
+
+.excel-journal-table .student-column {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+
+    min-width: 240px;
+    max-width: 280px;
+
+    background: #ffffff;
+
+    text-align: left;
+}
+
+
+.excel-journal-table thead .student-column {
+    z-index: 3;
+
+    background: #212529;
+
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   СТОВПЦІ ЖУРНАЛУ
+   ========================================================= */
+
+.excel-journal-table .lab-column,
+.excel-journal-table .summary-column {
+    min-width: 90px;
+}
+
+
+.excel-journal-table .journal-cell {
+    min-width: 95px;
+}
+
+
+.excel-journal-table .journal-cell-edit input {
+    padding: 4px 6px;
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   ЖУРНАЛ EXCEL У ТЕМІ ЗАСТОСУНКУ
+   Кольори таблиці узгоджуються з токенами внутрішнього
+   авторизованого інтерфейсу
+   ========================================================= */
+
+body.app-body .excel-journal-table {
+    background: var(--app-surface-solid);
+
+    color: var(--app-text);
+}
+
+
+body.app-body .excel-journal-table th {
+    background: var(--app-topbar-bg);
+
+    border-color: rgba(255, 255, 255, 0.08);
+
+    color: #ffffff;
+}
+
+
+body.app-body .excel-journal-table .student-column {
+    background: var(--app-surface-solid);
+}
+
+
+body.app-body .excel-journal-table thead .student-column {
+    background: var(--app-topbar-bg);
+
+    color: #ffffff;
+}
+
+/* =========================================================
+   ЖУРНАЛ ВИКЛАДАЧА LMS / EXCEL
+   Локальні токени ізолюють оформлення журналу від глобальної
+   дизайн-системи та зберігають підтримку активної теми
+   ========================================================= */
+
+.journal-page {
+    /* ---------- Локальні псевдоніми токенів ---------- */
+
+    --journal-surface: var(--app-surface);
+    --journal-surface-strong: var(--app-surface-solid);
+
+    --journal-border: var(--app-border);
+
+    --journal-text: var(--app-text-strong);
+    --journal-muted: var(--app-text-muted);
+
+    --journal-primary: var(--app-primary);
+    --journal-primary-rgb: var(--app-primary-rgb);
+    --journal-primary-soft: var(--app-primary-soft);
+
+    --journal-accent: var(--app-accent);
+    --journal-accent-rgb: var(--app-accent-rgb);
+
+    --journal-shadow: var(--app-shadow-md);
+
+
+    /* ---------- Компонування ---------- */
+
+    display: grid;
+    gap: 20px;
+}
+
+
+/* =========================================================
+   КАРТКИ ЖУРНАЛУ
+   ========================================================= */
+
+.journal-hero,
+.journal-filter-card,
+.journal-group-section,
+.journal-empty-state {
+    background: var(--journal-surface);
+
+    border: 1px solid var(--journal-border);
+
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+
+    box-shadow: var(--journal-shadow);
+}
+
+
+/* =========================================================
+   ГОЛОВНИЙ БЛОК ЖУРНАЛУ
+   ========================================================= */
+
+.journal-hero {
+    position: relative;
+
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+
+    min-height: 210px;
+    padding: 30px;
+
+    overflow: hidden;
+
+    border-radius: 34px;
+}
+
+
+/*
+ * Декоративний фоновий шар використовує кольори активної
+ * палітри, але не впливає на взаємодію з елементами журналу.
+ */
+.journal-hero::before {
+    content: "";
+
+    position: absolute;
+    inset: -40%;
+
+    background:
+        radial-gradient(
+            circle at 18% 22%,
+            rgba(var(--journal-primary-rgb), 0.22),
+            transparent 28%
+        ),
+        radial-gradient(
+            circle at 84% 24%,
+            rgba(var(--journal-accent-rgb), 0.16),
+            transparent 24%
+        ),
+        radial-gradient(
+            circle at 70% 86%,
+            rgba(var(--journal-primary-rgb), 0.12),
+            transparent 26%
+        );
+
+    pointer-events: none;
+}
+
+
+.journal-hero > * {
+    position: relative;
+    z-index: 1;
+}
+
+
+/* ---------- Мітка журналу ---------- */
+
+.journal-kicker {
+    display: inline-flex;
+    align-items: center;
+
+    width: fit-content;
+    margin-bottom: 10px;
+    padding: 6px 10px;
+
+    background: var(--journal-primary-soft);
+
+    border-radius: var(--app-radius-pill);
+
+    color: var(--journal-primary);
+
+    font-size: 11px;
+    font-weight: 900;
+
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+
+/* ---------- Заголовок ---------- */
+
+.journal-hero h1,
+.journal-group-head h2 {
+    margin: 0;
+
+    color: var(--journal-text);
+
+    font-weight: 950;
+
+    letter-spacing: -0.04em;
+}
+
+
+.journal-hero h1 {
+    font-size: clamp(34px, 4vw, 54px);
+    line-height: 1.04;
+}
+
+
+.journal-hero p {
+    max-width: 720px;
+    margin: 10px 0 0;
+
+    color: var(--journal-muted);
+
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   ЛЕГЕНДА ЖУРНАЛУ
+   Фіксовані кольори відображають семантичні діапазони
+   результатів і не залежать від активної палітри інтерфейсу
+   ========================================================= */
+
+.journal-legend {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+
+    min-width: 320px;
+    padding: 14px;
+
+    background: var(--journal-surface-strong);
+
+    border: 1px solid var(--journal-border);
+    border-radius: 22px;
+}
+
+
+.journal-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    color: var(--journal-muted);
+
+    font-size: 13px;
+    font-weight: 800;
+}
+
+
+.legend-dot {
+    flex: 0 0 auto;
+
+    width: 11px;
+    aspect-ratio: 1;
+
+    border-radius: 50%;
+}
+
+
+.legend-good {
+    background: #22c55e;
+}
+
+
+.legend-mid {
+    background: #facc15;
+}
+
+
+.legend-bad {
+    background: #ef4444;
+}
+
+
+.legend-empty {
+    background: #94a3b8;
+}
+
+
+/* =========================================================
+   ФІЛЬТРИ ЖУРНАЛУ
+   ========================================================= */
+
+.journal-filter-card {
+    padding: 20px;
+
+    border-radius: 28px;
+}
+
+
+.journal-filter-grid {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr)
+        minmax(0, 1.3fr)
+        minmax(0, 1fr)
+        auto;
+
+    align-items: end;
+    gap: 14px;
+}
+
+
+.journal-filter-card .form-label {
+    color: var(--journal-muted);
+
+    font-size: 12px;
+    font-weight: 900;
+
+    text-transform: uppercase;
+}
+
+
+.journal-filter-actions {
+    display: flex;
+    gap: 8px;
+}
+
+
+/* =========================================================
+   РОЗДІЛ НАВЧАЛЬНОЇ ГРУПИ
+   ========================================================= */
+
+.journal-group-section {
+    padding: 22px;
+
+    border-radius: 32px;
+}
+
+
+.journal-group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+
+    margin-bottom: 18px;
+}
+
+
+.journal-group-head h2 {
+    font-size: 30px;
+}
+
+
+.journal-group-count {
+    padding: 8px 12px;
+
+    background: var(--journal-primary-soft);
+
+    border-radius: var(--app-radius-pill);
+
+    color: var(--journal-primary);
+
+    font-size: 13px;
+    font-weight: 900;
+}
+
+
+/* =========================================================
+   ЗВЕДЕНА СТАТИСТИКА ГРУПИ
+   Відображає агреговані показники журналу перед детальними
+   результатами окремих студентів і лабораторних робіт
+   ========================================================= */
+
+.journal-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+
+    margin-bottom: 18px;
+}
+
+
+.journal-summary-card {
+    padding: 18px;
+
+    background: var(--journal-surface-strong);
+
+    border: 1px solid var(--journal-border);
+    border-radius: 24px;
+}
+
+
+.journal-summary-card span {
+    display: block;
+
+    margin-bottom: 8px;
+
+    color: var(--journal-muted);
+
+    font-size: 12px;
+    font-weight: 900;
+
+    text-transform: uppercase;
+}
+
+
+.journal-summary-card strong {
+    display: block;
+
+    color: var(--journal-text);
+
+    font-size: 32px;
+    font-weight: 950;
+    line-height: 1;
+}
+
+
+.journal-summary-card small {
+    display: block;
+
+    margin-top: 8px;
+
+    color: var(--journal-muted);
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   ТАБЛИЦЯ ЖУРНАЛУ
+   Контейнер локалізує горизонтальне та вертикальне
+   прокручування Excel-подібної матриці результатів
+   ========================================================= */
+
+.journal-table-shell {
+    max-height: 68vh;
+
+    overflow: auto;
+
+    background: var(--journal-surface-strong);
+
+    border: 1px solid var(--journal-border);
+    border-radius: 24px;
+}
+
+
+.lms-journal-table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--journal-text);
+    --bs-table-border-color: var(--journal-border);
+
+    min-width: 980px;
+    margin: 0;
+
+    border-collapse: separate;
+    border-spacing: 0;
+
+    color: var(--journal-text);
+}
+
+
+.lms-journal-table th,
+.lms-journal-table td {
+    vertical-align: middle;
+    text-align: center;
+
+    border-color: var(--journal-border);
+}
+
+
+/* ---------- Закріплений заголовок ---------- */
+
+.lms-journal-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+
+    background: var(--app-topbar-bg);
+
+    border-color: rgba(255, 255, 255, 0.08);
+
+    color: #ffffff;
+
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+
+/* ---------- Закріплена колонка студента ---------- */
+
+.lms-journal-table .journal-sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 9;
+
+    min-width: 270px;
+    max-width: 300px;
+
+    background: var(--journal-surface-strong);
+
+    text-align: left;
+
+    box-shadow: 1px 0 0 var(--journal-border);
+}
+
+
+/*
+ * Комірка на перетині закріпленого заголовка та першої
+ * колонки має найвищий z-index, щоб залишатися поверх
+ * обох напрямків прокручування.
+ */
+.lms-journal-table thead .journal-sticky-col {
+    z-index: 20;
+
+    background: var(--app-topbar-bg);
+
+    color: #ffffff;
+}
+
+
+/* ---------- Колонки таблиці ---------- */
+
+.lms-journal-table .lab-column {
+    min-width: 155px;
+}
+
+
+.lms-journal-table .summary-column {
+    min-width: 105px;
+}
+
+
+/* =========================================================
+   ЗАГОЛОВОК ЛАБОРАТОРНОЇ РОБОТИ В ЖУРНАЛІ
+   ========================================================= */
+
+.journal-lab-head {
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+}
+
+
+.journal-lab-head span {
+    font-size: 11px;
+    font-weight: 800;
+
+    opacity: 0.72;
+}
+
+
+.journal-lab-head strong {
+    max-width: 140px;
+
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.25;
+
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+
+.journal-lab-head a {
+    color: #bfdbfe;
+
+    font-size: 11px;
+
+    text-decoration: none;
+}
+
+
+.journal-lab-head a:hover {
+    color: #ffffff;
+
+    text-decoration: underline;
+}
+
+
+/* =========================================================
+   ДАНІ СТУДЕНТА
+   ========================================================= */
+
+.journal-student-card {
+    display: grid;
+    gap: 3px;
+
+    min-width: 0;
+}
+
+
+.journal-student-card strong {
+    overflow: hidden;
+
+    color: var(--journal-text);
+
+    font-size: 14px;
+    font-weight: 950;
+
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+
+.journal-student-card span {
+    color: var(--journal-primary);
+
+    font-size: 12px;
+    font-weight: 800;
+}
+
+
+.journal-student-card small {
+    color: var(--journal-muted);
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   КОМІРКИ РЕЗУЛЬТАТІВ
+   ========================================================= */
+
+.lms-journal-table .journal-cell {
+    min-width: 150px;
+    padding: 10px !important;
+}
+
+
+.journal-cell-view {
+    padding: 10px;
+
+    border-radius: 18px;
+
+    cursor: pointer;
+
+    outline: none;
+
+    transition:
+        background-color var(--app-transition),
+        border-color var(--app-transition),
+        box-shadow var(--app-transition),
+        transform var(--app-transition);
+}
+
+
+.journal-cell-view:hover {
+    transform: translateY(-1px);
+}
+
+
+.journal-cell-view:focus-visible {
+    outline: 3px solid rgba(var(--app-primary-rgb), 0.24);
+    outline-offset: 2px;
+}
+
+
+/* ---------- Рівні результату ---------- */
+
+.journal-cell-good .journal-cell-view {
+    background: rgba(34, 197, 94, 0.14);
+
+    border: 1px solid rgba(34, 197, 94, 0.32);
+}
+
+
+.journal-cell-mid .journal-cell-view {
+    background: rgba(250, 204, 21, 0.16);
+
+    border: 1px solid rgba(250, 204, 21, 0.34);
+}
+
+
+.journal-cell-bad .journal-cell-view {
+    background: rgba(239, 68, 68, 0.14);
+
+    border: 1px solid rgba(239, 68, 68, 0.30);
+}
+
+
+.journal-cell-empty .journal-cell-view {
+    background: rgba(148, 163, 184, 0.13);
+
+    border: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+
+/* ---------- Оцінка ---------- */
+
+.journal-score-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+
+.journal-score-line strong {
+    color: var(--journal-text);
+
+    font-size: 22px;
+    font-weight: 950;
+    line-height: 1;
+}
+
+
+/* =========================================================
+   ДЕТАЛІ КОМІРКИ ЖУРНАЛУ
+   ========================================================= */
+
+/* ---------- Оцінка, встановлена викладачем ---------- */
+
+.journal-manual-badge {
+    padding: 3px 6px;
+
+    background: var(--journal-primary-soft);
+
+    border-radius: var(--app-radius-pill);
+
+    color: var(--journal-primary);
+
+    font-size: 10px;
+    font-weight: 900;
+}
+
+
+/* ---------- Спроби виконання ---------- */
+
+.journal-attempt-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    margin-top: 7px;
+
+    color: var(--journal-muted);
+
+    font-size: 12px;
+    font-weight: 800;
+}
+
+
+.journal-attempt-line em {
+    padding: 2px 6px;
+
+    background: rgba(14, 165, 233, 0.16);
+
+    border-radius: var(--app-radius-pill);
+
+    color: #0284c7;
+
+    font-style: normal;
+    font-weight: 900;
+}
+
+
+/* ---------- Статус ---------- */
+
+.journal-status-line {
+    margin-top: 5px;
+
+    color: var(--journal-muted);
+
+    font-size: 11px;
+    font-weight: 800;
+}
+
+
+/* =========================================================
+   РЕДАГУВАННЯ КОМІРКИ ЖУРНАЛУ
+   ========================================================= */
+
+.journal-cell-edit {
+    display: grid;
+    gap: 6px;
+
+    margin-top: 8px;
+}
+
+
+.journal-cell-edit input {
+    min-height: 32px;
+
+    border-radius: 10px;
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   ДОДАТКОВА СПРОБА
+   ========================================================= */
+
+.journal-extra-form {
+    margin-top: 7px;
+}
+
+
+.journal-extra-btn {
+    width: 100%;
+    min-height: 28px;
+
+    background: transparent;
+
+    border: 1px dashed var(--journal-border);
+    border-radius: var(--app-radius-pill);
+
+    color: var(--journal-muted);
+
+    font-size: 11px;
+    font-weight: 900;
+
+    transition:
+        background-color var(--app-transition),
+        border-color var(--app-transition),
+        color var(--app-transition);
+}
+
+
+.journal-extra-btn:hover {
+    background: var(--journal-primary-soft);
+
+    border-color: rgba(var(--app-primary-rgb), 0.34);
+
+    color: var(--journal-primary);
+}
+
+
+.journal-extra-btn:focus-visible {
+    outline: 3px solid rgba(var(--app-primary-rgb), 0.24);
+    outline-offset: 2px;
+}
+
+/* =========================================================
+   ПІДСУМКОВА КОМІРКА ЖУРНАЛУ
+   ========================================================= */
+
+.journal-summary-cell {
+    --bs-table-bg: var(--journal-surface-strong);
+
+    background: var(--journal-surface-strong) !important;
+}
+
+
+.journal-summary-cell strong {
+    color: var(--journal-text);
+
+    font-size: 18px;
+    font-weight: 950;
+}
+
+
+.journal-summary-cell span {
+    color: var(--journal-muted);
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   ПАНЕЛЬ ЗБЕРЕЖЕННЯ ЖУРНАЛУ
+   Відокремлює підтвердження змін від редагування
+   окремих комірок таблиці
+   ========================================================= */
+
+.journal-save-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+
+    margin-top: 16px;
+    padding: 16px;
+
+    background: var(--journal-surface-strong);
+
+    border: 1px solid var(--journal-border);
+    border-radius: 22px;
+}
+
+
+.journal-save-panel strong {
+    display: block;
+
+    color: var(--journal-text);
+
+    font-weight: 950;
+}
+
+
+.journal-save-panel span {
+    display: block;
+
+    margin-top: 3px;
+
+    color: var(--journal-muted);
+
+    font-size: 13px;
+}
+
+
+/* =========================================================
+   СТАН ЖУРНАЛУ ЗА ВІДСУТНОСТІ ДАНИХ
+   ========================================================= */
+
+.journal-empty-state {
+    padding: 22px;
+
+    border-radius: 24px;
+
+    color: var(--journal-muted);
+
+    font-weight: 800;
+    text-align: center;
+}
+
+
+/* =========================================================
+   АДАПТИВНІСТЬ ЖУРНАЛУ
+   Складні блоки послідовно переходять від багатоколонкового
+   до одноколонкового компонування на вузьких екранах
+   ========================================================= */
+
+@media (max-width: 1100px) {
+    .journal-hero {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+
+    .journal-legend {
+        width: 100%;
+    }
+
+
+    .journal-filter-grid,
+    .journal-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+
+    .journal-filter-actions {
+        grid-column: 1 / -1;
+    }
+}
+
+
+@media (max-width: 700px) {
+    .journal-hero,
+    .journal-group-section {
+        padding: 20px;
+
+        border-radius: 24px;
+    }
+
+
+    .journal-filter-grid,
+    .journal-summary-grid,
+    .journal-legend {
+        grid-template-columns: 1fr;
+    }
+
+
+    /*
+     * Скидання мінімальної ширини запобігає горизонтальному
+     * переповненню легенди на дуже вузьких екранах.
+     */
+    .journal-legend {
+        min-width: 0;
+    }
+
+
+    .journal-save-panel {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+
+    .journal-save-panel .btn {
+        width: 100%;
+    }
+}
+
+
+/* =========================================================
+   ПІДСУМКОВА КОМІРКА ЖУРНАЛУ
+   ========================================================= */
+
+.journal-summary-cell {
+    --bs-table-bg: var(--journal-surface-strong);
+
+    background: var(--journal-surface-strong) !important;
+}
+
+
+.journal-summary-cell strong {
+    color: var(--journal-text);
+
+    font-size: 18px;
+    font-weight: 950;
+}
+
+
+.journal-summary-cell span {
+    color: var(--journal-muted);
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   ПАНЕЛЬ ЗБЕРЕЖЕННЯ ЖУРНАЛУ
+   Відокремлює збереження змін від редагування окремих
+   комірок таблиці
+   ========================================================= */
+
+.journal-save-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+
+    margin-top: 16px;
+    padding: 16px;
+
+    background: var(--journal-surface-strong);
+
+    border: 1px solid var(--journal-border);
+    border-radius: 22px;
+}
+
+
+.journal-save-panel strong {
+    display: block;
+
+    color: var(--journal-text);
+
+    font-weight: 950;
+}
+
+
+.journal-save-panel span {
+    display: block;
+
+    margin-top: 3px;
+
+    color: var(--journal-muted);
+
+    font-size: 13px;
+}
+
+
+/* =========================================================
+   СТАН ЖУРНАЛУ ЗА ВІДСУТНОСТІ ДАНИХ
+   ========================================================= */
+
+.journal-empty-state {
+    padding: 22px;
+
+    border-radius: 24px;
+
+    color: var(--journal-muted);
+
+    font-weight: 800;
+    text-align: center;
+}
+
+
+/* =========================================================
+   АДАПТИВНІСТЬ ЖУРНАЛУ
+   Багатоколонкові блоки поступово переходять до
+   одноколонкового компонування на вузьких екранах
+   ========================================================= */
+
+@media (max-width: 1100px) {
+    .journal-hero {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+
+    .journal-legend {
+        width: 100%;
+    }
+
+
+    .journal-filter-grid,
+    .journal-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+
+    .journal-filter-actions {
+        grid-column: 1 / -1;
+    }
+}
+
+
+@media (max-width: 700px) {
+    .journal-hero,
+    .journal-group-section {
+        padding: 20px;
+
+        border-radius: 24px;
+    }
+
+
+    .journal-filter-grid,
+    .journal-summary-grid,
+    .journal-legend {
+        grid-template-columns: 1fr;
+    }
+
+
+    /*
+     * Базове значення min-width: 320px скидається, щоб
+     * легенда не створювала горизонтальне переповнення
+     * на вузьких мобільних екранах.
+     */
+    .journal-legend {
+        min-width: 0;
+    }
+
+
+    .journal-save-panel {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+
+    .journal-save-panel .btn {
+        width: 100%;
+    }
+}

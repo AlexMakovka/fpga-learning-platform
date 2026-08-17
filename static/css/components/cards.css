@@ -1,0 +1,118 @@
+/* =========================================================
+   БЛОК РЕЗУЛЬТАТІВ
+   Відображення діагностичних повідомлень і результатів перевірки
+   ========================================================= */
+
+.result-box {
+    max-height: 260px;
+    margin-top: 12px;
+    padding: 16px;
+
+    overflow: auto;
+
+    background: #111827;
+    border-radius: 12px;
+
+    color: #e5e7eb;
+    font-size: 14px;
+    line-height: 1.55;
+
+    /* Забезпечує коректне перенесення довгих шляхів,
+       ідентифікаторів і діагностичних повідомлень HDL-інструментів. */
+    overflow-wrap: anywhere;
+}
+
+
+/* =========================================================
+   РОЗГОРТУВАНА КАРТКА
+   Відображення спроб і додаткових результатів перевірки
+   ========================================================= */
+
+details.card > summary {
+    list-style: none;
+
+    cursor: pointer;
+}
+
+
+details.card > summary::-webkit-details-marker {
+    display: none;
+}
+
+
+details.card > summary::after {
+    content: "Показати спроби";
+
+    display: inline-block;
+
+    margin-top: 10px;
+
+    color: var(--app-primary);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+
+details.card[open] > summary::after {
+    content: "Згорнути спроби";
+}
+
+
+/* =========================================================
+   КАРТКИ ІНТЕРФЕЙСУ
+   ========================================================= */
+
+body.app-body .card,
+.app-card {
+    background: var(--app-surface);
+
+    border: 1px solid var(--app-border-soft);
+    border-radius: var(--app-radius-lg);
+
+    color: var(--app-text);
+
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+
+    box-shadow: var(--app-shadow-sm);
+}
+
+
+.app-card {
+    transition:
+        border-color var(--app-transition),
+        box-shadow var(--app-transition),
+        transform var(--app-transition);
+}
+
+
+.app-card:hover {
+    box-shadow: var(--app-shadow-md);
+}
+
+
+.app-card-header,
+.app-card-body {
+    padding: var(--app-card-padding);
+}
+
+
+.app-card-header {
+    border-bottom: 1px solid var(--app-border-soft);
+}
+
+
+/* =========================================================
+   ПОВЕРХНІ ДЛЯ КОДУ ТА РЕЗУЛЬТАТІВ
+   Уніфіковане оформлення результатів HDL-перевірки та блоків pre
+   ========================================================= */
+
+body.app-body .result-box,
+body.app-body pre {
+    background: var(--app-code-bg);
+
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: var(--app-radius-md);
+
+    color: var(--app-code-text);
+}

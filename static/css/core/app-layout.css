@@ -1,0 +1,990 @@
+/* =========================================================
+   ВЕРХНЯ ПАНЕЛЬ ЗАСТОСУНКУ
+   Фіксоване позиціонування зберігає основні дії доступними
+   під час прокручування вмісту сторінки
+   ========================================================= */
+
+.app-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 1025;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+
+    min-height: var(--app-topbar-height);
+    padding: 12px 24px;
+
+    background: var(--app-topbar-bg);
+    color: #ffffff;
+
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+
+    box-shadow:
+        0 10px 26px rgba(15, 23, 42, 0.14),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+}
+
+
+/* =========================================================
+   КОМПОНУВАННЯ ВЕРХНЬОЇ ПАНЕЛІ
+   ========================================================= */
+
+.app-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    min-width: 0;
+}
+
+
+/* =========================================================
+   ЗАГОЛОВОК СТОРІНКИ
+   ========================================================= */
+
+.app-page-kicker {
+    color: rgba(255, 255, 255, 0.56);
+
+    font-size: 11px;
+    font-weight: 800;
+
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+
+.app-page-title {
+    margin-top: 2px;
+
+    color: #ffffff;
+
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.2;
+
+    letter-spacing: -0.02em;
+}
+
+
+/* =========================================================
+   ДІЇ ВЕРХНЬОЇ ПАНЕЛІ
+   ========================================================= */
+
+.app-topbar-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+
+.app-user-pill {
+    display: inline-flex;
+    align-items: center;
+
+    min-height: 36px;
+    padding: 0 13px;
+
+    background: rgba(255, 255, 255, 0.08);
+
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--app-radius-pill);
+
+    color: rgba(255, 255, 255, 0.88);
+
+    font-size: 13px;
+    font-weight: 750;
+}
+
+
+/* =========================================================
+   ЗАГОЛОВНА ОБЛАСТЬ СТОРІНКИ
+   ========================================================= */
+
+.app-page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--app-space-4);
+
+    margin-bottom: var(--app-space-6);
+}
+
+
+/* =========================================================
+   ОСНОВНЕ КОМПОНУВАННЯ ЗАСТОСУНКУ
+   Двоколонкова структура поєднує бічну навігацію
+   з основною областю вмісту
+   ========================================================= */
+
+.app-shell {
+    display: grid;
+    grid-template-columns:
+        var(--app-sidebar-width)
+        minmax(0, 1fr);
+
+    min-height: 100vh;
+}
+
+
+.app-main {
+    display: flex;
+    flex-direction: column;
+
+    min-width: 0;
+    min-height: 100vh;
+}
+
+
+.app-content {
+    width: min(var(--app-content-width), calc(100% - 42px));
+    margin: 0 auto;
+    padding: 26px 0 42px;
+}
+
+
+/* =========================================================
+   БІЧНА ПАНЕЛЬ
+   Sticky-позиціонування забезпечує постійний доступ
+   до навігації незалежно від прокручування основного вмісту
+   ========================================================= */
+
+.app-sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 1035;
+
+    display: flex;
+    flex-direction: column;
+
+    height: 100vh;
+    padding: 18px 15px;
+
+    overflow-y: auto;
+
+    background: var(--app-sidebar-bg);
+
+    border-right: 1px solid var(--app-sidebar-border);
+
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+
+    box-shadow: var(--app-shadow-sm);
+}
+
+
+/* =========================================================
+   ЗАГОЛОВНА ОБЛАСТЬ БІЧНОЇ ПАНЕЛІ
+   ========================================================= */
+
+.app-sidebar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+
+    margin-bottom: 12px;
+}
+
+
+/* =========================================================
+   БРЕНД БІЧНОЇ ПАНЕЛІ
+   ========================================================= */
+
+.app-sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    flex: 1;
+    min-width: 0;
+
+    padding: 10px;
+
+    border-radius: 20px;
+
+    color: var(--app-text-strong);
+    text-decoration: none;
+
+    transition:
+        background-color var(--app-transition),
+        color var(--app-transition);
+}
+
+
+.app-sidebar-brand:hover {
+    background: var(--app-primary-soft);
+
+    color: var(--app-text-strong);
+    text-decoration: none;
+}
+
+
+.app-sidebar-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 0 0 46px;
+
+    width: 46px;
+    aspect-ratio: 1;
+
+    background: var(--app-gradient);
+
+    border-radius: 16px;
+
+    color: #ffffff;
+
+    font-size: 12px;
+    font-weight: 900;
+
+    box-shadow: 0 12px 26px rgba(var(--app-primary-rgb), 0.22);
+}
+
+
+.app-sidebar-brand-text {
+    display: flex;
+    flex-direction: column;
+
+    min-width: 0;
+
+    line-height: 1.1;
+}
+
+
+.app-sidebar-brand-text strong {
+    overflow: hidden;
+
+    color: var(--app-text-strong);
+
+    font-size: 15px;
+    font-weight: 900;
+
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+
+.app-sidebar-brand-text small {
+    margin-top: 4px;
+
+    color: var(--app-text-muted);
+
+    font-size: 10px;
+    font-weight: 800;
+
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+
+/* =========================================================
+   КНОПКА ЗАКРИТТЯ БІЧНОЇ ПАНЕЛІ
+   Використовується в мобільному режимі інтерфейсу
+   ========================================================= */
+
+.app-sidebar-close {
+    display: none;
+    align-items: center;
+    justify-content: center;
+
+    flex: 0 0 auto;
+
+    width: 38px;
+    aspect-ratio: 1;
+    padding: 0;
+
+    background: var(--app-surface-solid);
+
+    border: 1px solid var(--app-border-soft);
+    border-radius: 14px;
+
+    color: var(--app-text);
+
+    font-size: 22px;
+    line-height: 1;
+
+    cursor: pointer;
+
+    transition:
+        background-color var(--app-transition),
+        border-color var(--app-transition),
+        color var(--app-transition);
+}
+
+
+/* =========================================================
+   ІНФОРМАЦІЯ ПРО КОРИСТУВАЧА В БІЧНІЙ ПАНЕЛІ
+   ========================================================= */
+
+.app-sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    margin-bottom: 14px;
+    padding: 12px;
+
+    background: var(--app-surface-muted);
+
+    border: 1px solid var(--app-border-soft);
+    border-radius: 20px;
+}
+
+
+.app-sidebar-user-text {
+    display: flex;
+    flex-direction: column;
+
+    min-width: 0;
+}
+
+
+.app-sidebar-user-text strong {
+    overflow: hidden;
+
+    color: var(--app-text-strong);
+
+    font-size: 14px;
+    font-weight: 850;
+
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+
+.app-sidebar-user-text span {
+    margin-top: 2px;
+
+    color: var(--app-text-muted);
+
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   НАВІГАЦІЯ БІЧНОЇ ПАНЕЛІ
+   ========================================================= */
+
+.app-sidebar-nav {
+    flex: 1;
+
+    padding-right: 2px;
+
+    overflow-y: auto;
+}
+
+
+/* =========================================================
+   ЗАГОЛОВОК РОЗДІЛУ НАВІГАЦІЇ
+   ========================================================= */
+
+.app-nav-section {
+    margin: 18px 10px 8px;
+
+    color: var(--app-text-soft);
+
+    font-size: 11px;
+    font-weight: 900;
+
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+
+/* =========================================================
+   ПОСИЛАННЯ НАВІГАЦІЇ
+   ========================================================= */
+
+.app-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    min-height: 44px;
+    margin-bottom: 5px;
+    padding: 0 12px;
+
+    border-radius: 16px;
+
+    color: var(--app-text-muted);
+
+    font-size: 14px;
+    font-weight: 800;
+
+    text-decoration: none;
+
+    transition:
+        background-color var(--app-transition),
+        color var(--app-transition),
+        box-shadow var(--app-transition),
+        transform var(--app-transition);
+}
+
+
+.app-nav-link:hover {
+    background: var(--app-primary-soft);
+
+    color: var(--app-text-strong);
+    text-decoration: none;
+
+    transform: translateX(2px);
+}
+
+
+.app-nav-link.is-active {
+    background: var(--app-primary-soft);
+
+    border-color: rgba(var(--app-primary-rgb), 0.20);
+
+    color: var(--app-text-strong);
+
+    box-shadow: none;
+}
+
+
+/* =========================================================
+   ПІКТОГРАМА НАВІГАЦІЇ
+   ========================================================= */
+
+.app-nav-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 0 0 30px;
+
+    width: 30px;
+    aspect-ratio: 1;
+
+    background: var(--app-surface-solid);
+
+    border: 1px solid var(--app-border-soft);
+    border-radius: 12px;
+
+    color: var(--app-primary);
+
+    font-size: 12px;
+    font-weight: 900;
+
+    transition:
+        background-color var(--app-transition),
+        border-color var(--app-transition),
+        color var(--app-transition);
+}
+
+
+.app-nav-link:hover .app-nav-icon,
+.app-nav-link.is-active .app-nav-icon {
+    background: var(--app-gradient);
+    background-origin: border-box;
+    background-repeat: no-repeat;
+
+    border-color: transparent;
+
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   ПОЗНАЧКА НАВІГАЦІЇ
+   ========================================================= */
+
+.app-nav-badge {
+    margin-left: auto;
+    padding: 3px 7px;
+
+    background: rgba(148, 163, 184, 0.14);
+
+    border-radius: var(--app-radius-pill);
+
+    color: var(--app-text-soft);
+
+    font-size: 10px;
+    font-weight: 900;
+
+    text-transform: uppercase;
+}
+
+
+/* =========================================================
+   ВІЗУАЛЬНО НЕДОСТУПНА НАВІГАЦІЯ
+   ========================================================= */
+
+.app-nav-link-disabled {
+    opacity: 0.62;
+}
+
+
+.app-nav-link-disabled:hover {
+    transform: none;
+}
+
+
+/* =========================================================
+   НИЖНЯ ЧАСТИНА БІЧНОЇ ПАНЕЛІ
+   ========================================================= */
+
+.app-sidebar-footer {
+    margin-top: 12px;
+    padding-top: 12px;
+
+    border-top: 1px solid var(--app-border-soft);
+}
+
+
+.app-sidebar-logout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 42px;
+    padding: 0 13px;
+
+    background: rgba(239, 68, 68, 0.10);
+
+    border: 1px solid rgba(239, 68, 68, 0.22);
+    border-radius: 16px;
+
+    color: #ef4444;
+
+    font-size: 14px;
+    font-weight: 900;
+
+    text-decoration: none;
+
+    transition:
+        background-color var(--app-transition),
+        border-color var(--app-transition),
+        color var(--app-transition);
+}
+
+
+.app-sidebar-logout:hover {
+    background: rgba(239, 68, 68, 0.16);
+    border-color: rgba(239, 68, 68, 0.32);
+
+    color: #ef4444;
+    text-decoration: none;
+}
+
+
+/* =========================================================
+   КНОПКА МОБІЛЬНОГО МЕНЮ
+   ========================================================= */
+
+.app-mobile-menu-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+
+    flex: 0 0 auto;
+
+    width: 42px;
+    aspect-ratio: 1;
+    padding: 0;
+
+    background: rgba(255, 255, 255, 0.08);
+
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 15px;
+
+    color: #ffffff;
+
+    font-size: 20px;
+    font-weight: 900;
+    line-height: 1;
+
+    cursor: pointer;
+
+    transition:
+        background-color var(--app-transition),
+        border-color var(--app-transition);
+}
+
+
+.app-mobile-menu-btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+
+/* =========================================================
+   БРЕНД У ВЕРХНІЙ ПАНЕЛІ
+   ========================================================= */
+
+.app-topbar-brand {
+    display: inline-flex;
+    flex-direction: column;
+
+    min-width: 0;
+
+    color: #ffffff;
+
+    line-height: 1.08;
+    text-decoration: none;
+}
+
+
+.app-topbar-brand:hover {
+    color: #ffffff;
+    text-decoration: none;
+}
+
+
+.app-topbar-brand span {
+    overflow: hidden;
+
+    font-size: 22px;
+    font-weight: 900;
+
+    letter-spacing: -0.03em;
+
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+
+.app-topbar-brand small {
+    margin-top: 3px;
+
+    color: rgba(255, 255, 255, 0.58);
+
+    font-size: 10px;
+    font-weight: 800;
+
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+
+/* =========================================================
+   ПЕРЕМИКАЧ ТЕМИ
+   ========================================================= */
+
+.app-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    min-height: 42px;
+    padding: 0 13px;
+
+    background: rgba(255, 255, 255, 0.08);
+
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: var(--app-radius-pill);
+
+    color: rgba(255, 255, 255, 0.92);
+
+    font-size: 13px;
+    font-weight: 850;
+
+    cursor: pointer;
+
+    transition:
+        background-color var(--app-transition),
+        border-color var(--app-transition),
+        color var(--app-transition),
+        transform var(--app-transition);
+}
+
+
+.app-theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.14);
+
+    transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   КНОПКА ПРОФІЛЮ
+   Відкриває меню користувача та відображає його поточний стан
+   через клас Bootstrap .show
+   ========================================================= */
+
+.app-profile-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+
+    min-height: 46px;
+    padding: 4px 8px 4px 5px;
+
+    background: rgba(255, 255, 255, 0.08);
+
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: var(--app-radius-pill);
+
+    color: #ffffff;
+
+    transition:
+        background-color var(--app-transition),
+        border-color var(--app-transition),
+        color var(--app-transition);
+}
+
+
+.app-profile-btn:hover,
+.app-profile-btn.show {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+
+/* =========================================================
+   ТЕКСТОВА ІНФОРМАЦІЯ ПРОФІЛЮ
+   ========================================================= */
+
+.app-profile-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+
+    padding-right: 4px;
+
+    line-height: 1.1;
+}
+
+
+.app-profile-text strong {
+    max-width: 150px;
+
+    overflow: hidden;
+
+    font-size: 13px;
+    font-weight: 900;
+
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+
+.app-profile-text small {
+    margin-top: 3px;
+
+    color: rgba(255, 255, 255, 0.58);
+
+    font-size: 11px;
+    font-weight: 750;
+}
+
+
+/* =========================================================
+   ВИПАДНЕ МЕНЮ ПРОФІЛЮ
+   Змінні Bootstrap узгоджують стандартний dropdown
+   із системою тем внутрішнього інтерфейсу
+   ========================================================= */
+
+body.app-body .app-profile-menu {
+    --bs-dropdown-bg: var(--app-surface-solid);
+    --bs-dropdown-border-color: var(--app-border-soft);
+    --bs-dropdown-color: var(--app-text);
+
+    --bs-dropdown-link-color: var(--app-text);
+    --bs-dropdown-link-hover-color: var(--app-text-strong);
+    --bs-dropdown-link-hover-bg: var(--app-primary-soft);
+
+    --bs-dropdown-header-color: var(--app-text-muted);
+
+    padding: 8px;
+
+    background: var(--app-surface-solid);
+
+    border: 1px solid var(--app-border-soft);
+    border-radius: 18px;
+
+    color: var(--app-text);
+
+    box-shadow: var(--app-shadow-md);
+}
+
+
+body.app-body .app-profile-menu :is(
+    .dropdown-item,
+    .dropdown-item-text
+) {
+    color: var(--app-text);
+}
+
+
+body.app-body .app-profile-menu .dropdown-header {
+    color: var(--app-text-muted);
+}
+
+
+body.app-body .app-profile-menu .dropdown-item:hover,
+body.app-body .app-profile-menu .dropdown-item:focus {
+    background: var(--app-primary-soft);
+
+    color: var(--app-text-strong);
+}
+
+/* =========================================================
+   ЗАТЕМНЕННЯ КОМПОНУВАННЯ ЗАСТОСУНКУ
+   Використовується разом із мобільною бічною панеллю
+   ========================================================= */
+
+.app-layout-overlay {
+    display: none;
+}
+
+
+/* =========================================================
+   АДАПТИВНЕ КОМПОНУВАННЯ ЗАСТОСУНКУ
+   ========================================================= */
+
+
+/* ---------- Планшети та компактні настільні екрани ---------- */
+
+@media (max-width: 1100px) {
+    .app-shell {
+        grid-template-columns: 1fr;
+    }
+
+
+    /*
+     * На компактних екранах бічна панель переходить
+     * зі структури Grid у незалежну висувну панель.
+     */
+    .app-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+
+        width: min(320px, 86vw);
+
+        transform: translateX(-105%);
+
+        transition: transform 0.25s ease;
+    }
+
+
+    body.app-sidebar-open .app-sidebar {
+        transform: translateX(0);
+    }
+
+
+    /*
+     * Затемнення ізолює відкриту бічну панель від основного
+     * вмісту та перехоплює взаємодію лише у відкритому стані.
+     */
+    .app-layout-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1030;
+
+        display: block;
+
+        background: rgba(15, 23, 42, 0.44);
+
+        opacity: 0;
+
+        pointer-events: none;
+
+        transition: opacity 0.2s ease;
+    }
+
+
+    body.app-sidebar-open .app-layout-overlay {
+        opacity: 1;
+
+        pointer-events: auto;
+    }
+
+
+    .app-sidebar-close,
+    .app-mobile-menu-btn {
+        display: inline-flex;
+    }
+
+
+    .app-content {
+        width: calc(100% - 28px);
+    }
+}
+
+
+/* ---------- Мобільні екрани ---------- */
+
+@media (max-width: 768px) {
+    .app-topbar {
+        min-height: 64px;
+
+        padding: 10px 14px;
+    }
+
+
+    .app-topbar-brand span {
+        font-size: 18px;
+    }
+
+
+    /*
+     * Другорядні текстові елементи приховуються для збереження
+     * доступного простору верхньої панелі на вузьких екранах.
+     */
+    .app-topbar-brand small,
+    .app-theme-toggle-text,
+    .app-profile-text {
+        display: none;
+    }
+
+
+    .app-theme-toggle {
+        width: 42px;
+
+        padding: 0;
+    }
+
+
+    .app-profile-btn {
+        padding: 4px;
+    }
+
+
+    .app-content {
+        padding-top: 18px;
+        padding-bottom: 28px;
+    }
+}
+
+
+/* ---------- Малі мобільні екрани ---------- */
+
+@media (max-width: 480px) {
+    .app-topbar-actions {
+        gap: 8px;
+    }
+
+
+    .app-mobile-menu-btn,
+    .app-theme-toggle {
+        width: 38px;
+        min-height: 38px;
+        aspect-ratio: 1;
+
+        border-radius: 13px;
+    }
+
+
+    .app-sidebar {
+        width: min(300px, 88vw);
+    }
+}
+
+
+/* =========================================================
+   APP THEME TOGGLE FORM
+   ========================================================= */
+
+.app-theme-toggle-form {
+    margin: 0;
+}
+
+

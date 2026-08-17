@@ -4,187 +4,199 @@
 
 <div class="profile-page">
 
-    <!-- ================================================
-         HERO
-         ================================================ -->
+    <div class="profile-shell">
 
-    <section class="profile-hero app-card">
+        <!-- =================================================
+             HERO
+             ================================================= -->
 
-        <div class="profile-hero-cover"></div>
+        <section class="profile-hero-card">
 
-        <div class="profile-hero-content">
+            <div class="profile-cover"></div>
 
-            <div
-                class="
-                    profile-hero-avatar
-                    profile-avatar-shell
-                    {% if profile_ui %}
-                        {{ profile_ui.avatar_css_class }}
-                        {{ profile_ui.frame_css_class }}
-                    {% endif %}
-                "
-            >
-                <span class="profile-avatar-media">
+            <div class="profile-hero-content">
 
-                    {% if profile_ui and profile_ui.avatar_kind == "image" %}
+                <div class="profile-person">
 
-                        <img
-                            src="{{ profile_ui.avatar_url }}"
-                            alt="Аватар користувача"
-                        >
-
-                    {% elif profile_ui %}
-
-                        <span class="profile-avatar-symbol">
-                            {{ profile_ui.avatar_symbol }}
-                        </span>
-
-                    {% else %}
-
-                        <span class="profile-avatar-symbol">
-                            {{ profile.username[:2]|upper }}
-                        </span>
-
-                    {% endif %}
-
-                </span>
-            </div>
-
-
-            <div class="profile-identity">
-
-                <div class="profile-name-row">
-
-                    <h1>
-                        {{
-                            profile.full_name
-                            or profile.username
-                        }}
-                    </h1>
-
-                    {% if
-                        profile_ui
-                        and profile_ui.badge_symbol
-                    %}
-                        <span
-                            class="profile-equipped-badge"
-                            title="{{ profile_ui.badge_name }}"
-                        >
-                            {{ profile_ui.badge_symbol }}
-                        </span>
-                    {% endif %}
-
-                </div>
-
-                <div class="profile-username">
-                    @{{ profile.username }}
-                </div>
-
-                <div class="profile-meta">
-
-                    <span>
-                        {% if profile.role == "student" %}
-                            Студент
-                        {% elif profile.role == "teacher" %}
-                            Викладач
-                        {% else %}
-                            Адміністратор
-                        {% endif %}
-                    </span>
-
-                    {% if profile.student_group %}
-                        <span>
-                            {{ profile.student_group }}
-                        </span>
-                    {% endif %}
-
-                </div>
-
-                {% if profile.profile_status %}
-                    <div class="profile-status">
-                        {{ profile.profile_status }}
-                    </div>
-                {% endif %}
-
-            </div>
-
-
-            {% if is_student %}
-
-                <div class="profile-points-card">
-
-                    <span>
-                        Очки профілю
-                    </span>
-
-                    <strong>
-                        {{ points }}
-                    </strong>
-
-                    {% if next_unlock %}
-
-                        <small>
-                            Наступна нагорода:
-                            {{ next_unlock }} XP
-                        </small>
+                    <div class="profile-main-avatar-wrap">
 
                         <div
-                            class="profile-xp-progress"
-                            data-progress="{{ progress_percent }}"
+                            class="
+                                profile-main-avatar
+                                profile-avatar-shell
+                                {% if profile_ui %}
+                                    {{ profile_ui.avatar_css_class }}
+                                    {{ profile_ui.frame_css_class }}
+                                {% endif %}
+                            "
+                            id="profileMainAvatar"
                         >
-                            <span class="profile-xp-progress-value"></span>
+                            <span
+                                class="profile-avatar-media"
+                                id="profileMainAvatarMedia"
+                            >
+                                {% if profile_ui and profile_ui.avatar_kind == "image" %}
+
+                                    <img
+                                        src="{{ profile_ui.avatar_url }}"
+                                        alt="Аватар користувача"
+                                    >
+
+                                {% elif profile_ui %}
+
+                                    <span class="profile-avatar-symbol">
+                                        {{ profile_ui.avatar_symbol }}
+                                    </span>
+
+                                {% else %}
+
+                                    <span class="profile-avatar-symbol">
+                                        {{ profile.username[:2]|upper }}
+                                    </span>
+
+                                {% endif %}
+                            </span>
                         </div>
 
-                    {% else %}
 
-                        <small>
-                            Усі поточні нагороди відкрито
-                        </small>
+                        <button
+                            type="button"
+                            class="profile-avatar-edit-btn"
+                            data-bs-toggle="modal"
+                            data-bs-target="#profileAvatarEditorModal"
+                            aria-label="Змінити фото профілю"
+                            title="Змінити фото"
+                        >
+                            <svg
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                                focusable="false"
+                            >
+                                <path
+                                    d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8.25 17.75 4 19l1.25-4.25L16.5 3.5Zm1.94 1.06a.62.62 0 0 0-.88 0L6.37 15.75l-.5 1.75 1.75-.5L18.81 5.81a.62.62 0 0 0 0-.88l-.37-.37Z"
+                                    fill="currentColor"
+                                />
+                            </svg>
+                        </button>
 
-                    {% endif %}
+                    </div>
+
+
+                    <div class="profile-person-info">
+
+                        <div class="profile-name-row">
+
+                            <h1>
+                                {{ profile.full_name or profile.username }}
+                            </h1>
+
+                            {% if profile_ui and profile_ui.badge_symbol %}
+
+                                <span
+                                    class="profile-selected-badge"
+                                    title="{{ profile_ui.badge_name }}"
+                                >
+                                    {{ profile_ui.badge_symbol }}
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+
+                        <div class="profile-username">
+                            @{{ profile.username }}
+                        </div>
+
+
+                        <div class="profile-meta">
+
+                            <span class="profile-meta-chip">
+
+                                {% if profile.role == "student" %}
+                                    Студент
+
+                                {% elif profile.role == "teacher" %}
+                                    Викладач
+
+                                {% else %}
+                                    Адміністратор
+                                {% endif %}
+
+                            </span>
+
+
+                            {% if profile.student_group %}
+
+                                <span class="profile-meta-chip">
+                                    {{ profile.student_group }}
+                                </span>
+
+                            {% endif %}
+
+
+                            {% if profile.profile_status %}
+
+                                <span class="profile-meta-chip profile-meta-chip-accent">
+                                    {{ profile.profile_status }}
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
 
                 </div>
 
-            {% endif %}
 
-        </div>
+                {% if is_student %}
 
-    </section>
+                    <aside class="profile-xp-card">
+
+                        <div class="profile-xp-top">
+
+                            <span>
+                                Очки профілю
+                            </span>
+
+                            <strong>
+                                {{ points }}
+                            </strong>
+
+                        </div>
 
 
-    <!-- ================================================
-         ABOUT
-         ================================================ -->
+                        {% if next_unlock %}
 
-    <div class="profile-main-grid">
+                            <small>
+                                Наступна нагорода:
+                                {{ next_unlock }} XP
+                            </small>
 
-        <section class="profile-about-card app-card">
+                            <div
+                                class="profile-xp-progress"
+                                data-progress="{{ progress_percent }}"
+                            >
+                                <span class="profile-xp-progress-value"></span>
+                            </div>
 
-            <div class="app-card-body">
+                        {% else %}
 
-                <h2>
-                    Про мене
-                </h2>
+                            <small>
+                                Усі доступні нагороди відкрито
+                            </small>
 
-                {% if profile.profile_bio %}
+                            <div
+                                class="profile-xp-progress"
+                                data-progress="100"
+                            >
+                                <span class="profile-xp-progress-value"></span>
+                            </div>
 
-                    <p class="profile-bio">
-                        {{ profile.profile_bio }}
-                    </p>
+                        {% endif %}
 
-                {% else %}
-
-                    <p class="profile-empty-text">
-                        Користувач ще нічого не розповів про себе.
-                    </p>
-
-                {% endif %}
-
-                {% if profile.profile_signature %}
-
-                    <div class="profile-signature">
-                        “{{ profile.profile_signature }}”
-                    </div>
+                    </aside>
 
                 {% endif %}
 
@@ -193,35 +205,47 @@
         </section>
 
 
-        {% if is_student %}
+        <!-- =================================================
+             ABOUT + PROGRESS
+             ================================================= -->
 
-            <section class="profile-level-card app-card">
+        <div class="profile-summary-grid">
 
-                <div class="app-card-body">
+            <section class="profile-card">
 
-                    <span class="profile-card-kicker">
-                        Прогрес
-                    </span>
+                <div class="profile-card-body">
 
-                    <strong class="profile-level-points">
-                        {{ points }} XP
-                    </strong>
+                    <div class="profile-card-heading">
+                        <span class="profile-section-kicker">
+                            Профіль
+                        </span>
 
-                    {% if next_unlock %}
+                        <h2>
+                            Про мене
+                        </h2>
+                    </div>
 
-                        <p>
-                            Ще
-                            <strong>
-                                {{ next_unlock - points }}
-                            </strong>
-                            XP до наступної прикраси.
+
+                    {% if profile.profile_bio %}
+
+                        <p class="profile-bio">
+                            {{ profile.profile_bio }}
                         </p>
 
                     {% else %}
 
-                        <p>
-                            Максимальний рівень поточної колекції.
+                        <p class="profile-empty-text">
+                            Користувач ще нічого не розповів про себе.
                         </p>
+
+                    {% endif %}
+
+
+                    {% if profile.profile_signature %}
+
+                        <div class="profile-signature">
+                            {{ profile.profile_signature }}
+                        </div>
 
                     {% endif %}
 
@@ -229,463 +253,2390 @@
 
             </section>
 
-        {% endif %}
 
-    </div>
+            {% if is_student %}
 
+                <section class="profile-card profile-progress-card">
 
-    <!-- ================================================
-         EDIT
-         ================================================ -->
+                    <div class="profile-card-body">
 
-    <form
-        method="post"
-        action="{{ url_for('profile') }}"
-        enctype="multipart/form-data"
-        class="profile-edit-form"
-    >
+                        <span class="profile-section-kicker">
+                            Прогрес
+                        </span>
 
-        {% include "includes/csrf_token.html" %}
-
-
-        <section class="app-card profile-editor-card">
-
-            <div class="app-card-body">
-
-                <div class="profile-section-head">
-                    <div>
-                        <h2>
-                            Редагування профілю
-                        </h2>
-
-                        <p>
-                            Додайте трохи індивідуальності своєму профілю.
-                        </p>
-                    </div>
-                </div>
-
-
-                <div class="profile-form-grid">
-
-                    <div>
-                        <label
-                            class="form-label"
-                            for="profile-status"
-                        >
-                            Статус
-                        </label>
-
-                        <input
-                            id="profile-status"
-                            name="profile_status"
-                            type="text"
-                            maxlength="80"
-                            class="form-control"
-                            value="{{ profile.profile_status }}"
-                            placeholder="Наприклад: Verilog enjoyer ⚡"
-                        >
-                    </div>
-
-
-                    <div>
-                        <label
-                            class="form-label"
-                            for="profile-signature"
-                        >
-                            Підпис
-                        </label>
-
-                        <input
-                            id="profile-signature"
-                            name="profile_signature"
-                            type="text"
-                            maxlength="120"
-                            class="form-control"
-                            value="{{ profile.profile_signature }}"
-                            placeholder="Коротка фраза профілю"
-                        >
-                    </div>
-
-                </div>
-
-
-                <div class="mt-3">
-
-                    <label
-                        class="form-label"
-                        for="profile-bio"
-                    >
-                        Про мене
-                    </label>
-
-                    <textarea
-                        id="profile-bio"
-                        name="profile_bio"
-                        maxlength="600"
-                        rows="5"
-                        class="form-control"
-                        placeholder="Розкажіть про себе..."
-                    >{{ profile.profile_bio }}</textarea>
-
-                </div>
-
-
-                <div class="profile-upload-block">
-
-                    <div>
-                        <strong>
-                            Власний аватар
+                        <strong class="profile-progress-value">
+                            {{ points }} XP
                         </strong>
 
-                        <span>
-                            PNG, JPG або WEBP · до 220 КБ
-                        </span>
+
+                        {% if next_unlock %}
+
+                            <p>
+                                Ще
+                                <strong>
+                                    {{ next_unlock - points }}
+                                </strong>
+                                XP до наступної прикраси.
+                            </p>
+
+                        {% else %}
+
+                            <p>
+                                Поточну колекцію нагород відкрито повністю.
+                            </p>
+
+                        {% endif %}
+
+                    </div>
+
+                </section>
+
+            {% endif %}
+
+        </div>
+
+
+        <!-- =================================================
+             FORM
+             ================================================= -->
+
+        <form
+            method="post"
+            action="{{ url_for('profile') }}"
+            enctype="multipart/form-data"
+            class="profile-form"
+        >
+
+            {% include "includes/csrf_token.html" %}
+
+
+            <section class="profile-card profile-editor">
+
+                <div class="profile-card-body">
+
+                    <div class="profile-section-head">
+
+                        <div>
+                            <span class="profile-section-kicker">
+                                Налаштування
+                            </span>
+
+                            <h2>
+                                Редагування профілю
+                            </h2>
+
+                            <p>
+                                Додайте трохи індивідуальності своєму профілю.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="profile-form-grid">
+
+                        <div>
+
+                            <label
+                                class="form-label"
+                                for="profileStatus"
+                            >
+                                Статус
+                            </label>
+
+                            <input
+                                id="profileStatus"
+                                name="profile_status"
+                                type="text"
+                                maxlength="80"
+                                class="form-control"
+                                value="{{ profile.profile_status }}"
+                                placeholder="Наприклад: Verilog enjoyer ⚡"
+                            >
+
+                        </div>
+
+
+                        <div>
+
+                            <label
+                                class="form-label"
+                                for="profileSignature"
+                            >
+                                Підпис
+                            </label>
+
+                            <input
+                                id="profileSignature"
+                                name="profile_signature"
+                                type="text"
+                                maxlength="120"
+                                class="form-control"
+                                value="{{ profile.profile_signature }}"
+                                placeholder="Коротка фраза профілю"
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="profile-bio-field">
+
+                        <label
+                            class="form-label"
+                            for="profileBio"
+                        >
+                            Про мене
+                        </label>
+
+                        <textarea
+                            id="profileBio"
+                            name="profile_bio"
+                            maxlength="600"
+                            rows="4"
+                            class="form-control"
+                            placeholder="Розкажіть про себе..."
+                        >{{ profile.profile_bio }}</textarea>
+
                     </div>
 
                     <input
                         type="file"
                         name="avatar_file"
-                        class="form-control"
-                        accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                        id="profileAvatarUploadInput"
+                        accept="image/png,image/jpeg,image/webp"
+                        hidden
                     >
 
                 </div>
 
-            </div>
-
-        </section>
+            </section>
 
 
-        {% if is_student %}
+            {% if is_student %}
 
-        <!-- ============================================
-             AVATARS
-             ============================================ -->
+                <!-- =========================================
+                     AVATARS
+                     ========================================= -->
 
-        <section class="app-card profile-collection-card">
+                <section class="profile-card">
 
-            <div class="app-card-body">
+                    <div class="profile-card-body">
 
-                <div class="profile-section-head">
-                    <div>
-                        <h2>
-                            Аватари
-                        </h2>
+                        <div class="profile-section-head">
 
-                        <p>
-                            Нові аватари відкриваються за навчальні результати.
-                        </p>
-                    </div>
-                </div>
+                            <div>
+
+                                <span class="profile-section-kicker">
+                                    Колекція
+                                </span>
+
+                                <h2>
+                                    Аватари
+                                </h2>
+
+                                <p>
+                                    Нові аватари відкриваються за навчальні результати.
+                                </p>
+
+                            </div>
+
+                            <span class="profile-points-pill">
+                                {{ points }} XP
+                            </span>
+
+                        </div>
 
 
-                <div class="profile-reward-grid">
+                        <div class="profile-reward-grid">
 
-                    {% if profile.avatar_filename %}
+                            {% if profile.avatar_filename %}
 
-                        <label class="profile-reward-option">
+                                <label class="profile-reward">
 
-                            <input
-                                type="radio"
-                                name="profile_avatar"
-                                value="uploaded"
-                                {% if profile.profile_avatar == "uploaded" %}
-                                    checked
-                                {% endif %}
-                            >
+                                    <input
+                                        type="radio"
+                                        name="profile_avatar"
+                                        value="uploaded"
 
-                            <span class="profile-reward-preview">
+                                        {% if profile.profile_avatar == "uploaded" %}
+                                            checked
+                                        {% endif %}
+                                    >
 
-                                <img
-                                    src="{{
-                                        url_for(
-                                            'profile_avatar_file',
-                                            filename=profile.avatar_filename
-                                        )
-                                    }}"
-                                    alt=""
+                                    <span class="profile-reward-avatar">
+
+                                        <img
+                                            src="{{
+                                                url_for(
+                                                    'profile_avatar_file',
+                                                    filename=profile.avatar_filename
+                                                )
+                                            }}"
+                                            alt=""
+                                        >
+
+                                    </span>
+
+                                    <span class="profile-reward-info">
+
+                                        <strong>
+                                            Моє фото
+                                        </strong>
+
+                                        <small>
+                                            Завантажений аватар
+                                        </small>
+
+                                    </span>
+
+                                </label>
+
+                            {% endif %}
+
+
+                            {% for item in avatar_options %}
+
+                                <label
+                                    class="
+                                        profile-reward
+
+                                        {% if not item.unlocked %}
+                                            is-locked
+                                        {% endif %}
+                                    "
                                 >
 
-                            </span>
+                                    <input
+                                        type="radio"
+                                        name="profile_avatar"
+                                        value="{{ item.key }}"
 
-                            <strong>
-                                Моє фото
-                            </strong>
+                                        {% if profile.profile_avatar == item.key %}
+                                            checked
+                                        {% endif %}
 
-                            <small>
-                                Завантажений аватар
-                            </small>
-
-                        </label>
-
-                    {% endif %}
-
-
-                    {% for item in avatar_options %}
-
-                        <label
-                            class="
-                                profile-reward-option
-                                {% if not item.unlocked %}
-                                    is-locked
-                                {% endif %}
-                            "
-                        >
-
-                            <input
-                                type="radio"
-                                name="profile_avatar"
-                                value="{{ item.key }}"
-                                {% if profile.profile_avatar == item.key %}
-                                    checked
-                                {% endif %}
-                                {% if not item.unlocked %}
-                                    disabled
-                                {% endif %}
-                            >
-
-                            <span
-                                class="
-                                    profile-reward-preview
-                                    {{ item.css_class }}
-                                "
-                            >
-                                {{
-                                    item.symbol
-                                    or profile.username[:2]|upper
-                                }}
-                            </span>
-
-                            <strong>
-                                {{ item.name }}
-                            </strong>
-
-                            <small>
-                                {% if item.unlocked %}
-                                    {{ item.description }}
-                                {% else %}
-                                    🔒 {{ item.required_points }} XP
-                                {% endif %}
-                            </small>
-
-                        </label>
-
-                    {% endfor %}
-
-                </div>
-
-            </div>
-
-        </section>
+                                        {% if not item.unlocked %}
+                                            disabled
+                                        {% endif %}
+                                    >
 
 
-        <!-- ============================================
-             FRAMES
-             ============================================ -->
+                                    <span
+                                        class="
+                                            profile-reward-avatar
+                                            {{ item.css_class }}
+                                        "
+                                    >
+                                        {{
+                                            item.symbol
+                                            or profile.username[:2]|upper
+                                        }}
+                                    </span>
 
-        <section class="app-card profile-collection-card">
 
-            <div class="app-card-body">
+                                    <span class="profile-reward-info">
 
-                <div class="profile-section-head">
-                    <div>
-                        <h2>
-                            Рамки
-                        </h2>
+                                        <strong>
+                                            {{ item.name }}
+                                        </strong>
 
-                        <p>
-                            Прикраса навколо аватара.
-                        </p>
+                                        <small>
+
+                                            {% if item.unlocked %}
+
+                                                {{ item.description }}
+
+                                            {% else %}
+
+                                                🔒 {{ item.required_points }} XP
+
+                                            {% endif %}
+
+                                        </small>
+
+                                    </span>
+
+                                </label>
+
+                            {% endfor %}
+
+                        </div>
+
                     </div>
-                </div>
+
+                </section>
 
 
-                <div class="profile-reward-grid">
+                <!-- =========================================
+                     FRAMES
+                     ========================================= -->
 
-                    {% for item in frame_options %}
+                <section class="profile-card">
 
-                        <label
-                            class="
-                                profile-reward-option
-                                {% if not item.unlocked %}
-                                    is-locked
-                                {% endif %}
-                            "
-                        >
+                    <div class="profile-card-body">
 
-                            <input
-                                type="radio"
-                                name="profile_frame"
-                                value="{{ item.key }}"
-                                {% if profile.profile_frame == item.key %}
-                                    checked
-                                {% endif %}
-                                {% if not item.unlocked %}
-                                    disabled
-                                {% endif %}
-                            >
+                        <div class="profile-section-head">
 
-                            <span
-                                class="
-                                    profile-reward-preview
-                                    profile-frame-preview
-                                    {{ item.css_class }}
-                                "
-                            >
-                                {{ profile.username[:2]|upper }}
-                            </span>
+                            <div>
 
-                            <strong>
-                                {{ item.name }}
-                            </strong>
+                                <span class="profile-section-kicker">
+                                    Оформлення
+                                </span>
 
-                            <small>
-                                {% if item.unlocked %}
-                                    Доступно
-                                {% else %}
-                                    🔒 {{ item.required_points }} XP
-                                {% endif %}
-                            </small>
+                                <h2>
+                                    Рамки
+                                </h2>
 
-                        </label>
+                                <p>
+                                    Прикраси навколо аватара.
+                                </p>
 
-                    {% endfor %}
+                            </div>
 
-                </div>
-
-            </div>
-
-        </section>
+                        </div>
 
 
-        <!-- ============================================
-             BADGES
-             ============================================ -->
+                        <div class="profile-reward-grid profile-reward-grid-small">
 
-        <section class="app-card profile-collection-card">
+                            {% for item in frame_options %}
 
-            <div class="app-card-body">
+                                <label
+                                    class="
+                                        profile-reward
 
-                <div class="profile-section-head">
-                    <div>
-                        <h2>
-                            Значки
-                        </h2>
+                                        {% if not item.unlocked %}
+                                            is-locked
+                                        {% endif %}
+                                    "
+                                >
 
-                        <p>
-                            Значок показується біля імені профілю.
-                        </p>
+                                    <input
+                                        type="radio"
+                                        name="profile_frame"
+                                        value="{{ item.key }}"
+
+                                        {% if profile.profile_frame == item.key %}
+                                            checked
+                                        {% endif %}
+
+                                        {% if not item.unlocked %}
+                                            disabled
+                                        {% endif %}
+                                    >
+
+
+                                    <span
+                                        class="
+                                            profile-reward-avatar
+                                            profile-frame-preview
+                                            {{ item.css_class }}
+                                        "
+                                    >
+                                        {{ profile.username[:2]|upper }}
+                                    </span>
+
+
+                                    <span class="profile-reward-info">
+
+                                        <strong>
+                                            {{ item.name }}
+                                        </strong>
+
+                                        <small>
+
+                                            {% if item.unlocked %}
+
+                                                Доступно
+
+                                            {% else %}
+
+                                                🔒 {{ item.required_points }} XP
+
+                                            {% endif %}
+
+                                        </small>
+
+                                    </span>
+
+                                </label>
+
+                            {% endfor %}
+
+                        </div>
+
                     </div>
+
+                </section>
+
+
+                <!-- =========================================
+                     BADGES
+                     ========================================= -->
+
+                <section class="profile-card">
+
+                    <div class="profile-card-body">
+
+                        <div class="profile-section-head">
+
+                            <div>
+
+                                <span class="profile-section-kicker">
+                                    Досягнення
+                                </span>
+
+                                <h2>
+                                    Значки
+                                </h2>
+
+                                <p>
+                                    Обраний значок відображається біля імені.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="profile-reward-grid profile-reward-grid-small">
+
+                            {% for item in badge_options %}
+
+                                <label
+                                    class="
+                                        profile-reward
+
+                                        {% if not item.unlocked %}
+                                            is-locked
+                                        {% endif %}
+                                    "
+                                >
+
+                                    <input
+                                        type="radio"
+                                        name="profile_badge"
+                                        value="{{ item.key }}"
+
+                                        {% if profile.profile_badge == item.key %}
+                                            checked
+                                        {% endif %}
+
+                                        {% if not item.unlocked %}
+                                            disabled
+                                        {% endif %}
+                                    >
+
+
+                                    <span class="profile-reward-badge">
+
+                                        {{
+                                            item.symbol
+                                            or "—"
+                                        }}
+
+                                    </span>
+
+
+                                    <span class="profile-reward-info">
+
+                                        <strong>
+                                            {{ item.name }}
+                                        </strong>
+
+                                        <small>
+
+                                            {% if item.unlocked %}
+
+                                                Доступно
+
+                                            {% else %}
+
+                                                🔒 {{ item.required_points }} XP
+
+                                            {% endif %}
+
+                                        </small>
+
+                                    </span>
+
+                                </label>
+
+                            {% endfor %}
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+            {% else %}
+
+                <input
+                    type="hidden"
+                    name="profile_avatar"
+                    value="{{
+                        profile.profile_avatar
+                        if profile.profile_avatar == 'uploaded'
+                        else 'initials'
+                    }}"
+                >
+
+            {% endif %}
+
+
+            <!-- =============================================
+                 SAVE
+                 ============================================= -->
+
+            <div class="profile-save-panel">
+
+                <div>
+
+                    <strong>
+                        Готово до змін?
+                    </strong>
+
+                    <span>
+                        Збережіть налаштування профілю.
+                    </span>
+
                 </div>
 
-
-                <div class="profile-reward-grid">
-
-                    {% for item in badge_options %}
-
-                        <label
-                            class="
-                                profile-reward-option
-                                {% if not item.unlocked %}
-                                    is-locked
-                                {% endif %}
-                            "
-                        >
-
-                            <input
-                                type="radio"
-                                name="profile_badge"
-                                value="{{ item.key }}"
-                                {% if profile.profile_badge == item.key %}
-                                    checked
-                                {% endif %}
-                                {% if not item.unlocked %}
-                                    disabled
-                                {% endif %}
-                            >
-
-                            <span class="profile-badge-preview">
-                                {{
-                                    item.symbol
-                                    or "—"
-                                }}
-                            </span>
-
-                            <strong>
-                                {{ item.name }}
-                            </strong>
-
-                            <small>
-                                {% if item.unlocked %}
-                                    Доступно
-                                {% else %}
-                                    🔒 {{ item.required_points }} XP
-                                {% endif %}
-                            </small>
-
-                        </label>
-
-                    {% endfor %}
-
-                </div>
+                <button
+                    type="submit"
+                    class="btn btn-primary"
+                >
+                    Зберегти профіль
+                </button>
 
             </div>
 
-        </section>
+        </form>
 
-        {% else %}
-
-            <input
-                type="hidden"
-                name="profile_avatar"
-                value="{{
-                    profile.profile_avatar
-                    if profile.profile_avatar == 'uploaded'
-                    else 'initials'
-                }}"
-            >
-
-        {% endif %}
-
-
-        <div class="profile-save-actions">
-
-            <button
-                type="submit"
-                class="btn btn-primary"
-            >
-                Зберегти профіль
-            </button>
-
-        </div>
-
-    </form>
+    </div>
 
 </div>
 
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-    document
-        .querySelectorAll(".profile-xp-progress")
-        .forEach((progress) => {
-            const value = Number(
-                progress.dataset.progress || 0
-            );
 
-            const safeValue = Math.max(
-                0,
-                Math.min(100, value)
-            );
+<!-- =====================================================
+     AVATAR EDITOR MODAL
+     ===================================================== -->
 
-            const bar = progress.querySelector(
-                ".profile-xp-progress-value"
-            );
+<div
+    class="modal fade"
+    id="profileAvatarEditorModal"
+    tabindex="-1"
+    aria-labelledby="profileAvatarEditorTitle"
+    aria-hidden="true"
 
-            if (bar) {
-                bar.style.width = `${safeValue}%`;
+    {% if profile.avatar_filename %}
+        data-current-avatar="{{
+            url_for(
+                'profile_avatar_file',
+                filename=profile.avatar_filename
+            )
+        }}"
+    {% endif %}
+>
+
+    <div
+        class="
+            modal-dialog
+            modal-dialog-centered
+            modal-xl
+            profile-avatar-editor-dialog
+        "
+    >
+
+        <div class="modal-content profile-avatar-editor-modal">
+
+            <!-- HEADER -->
+
+            <div class="profile-avatar-editor-header">
+
+                <div>
+                    <span class="profile-section-kicker">
+                        Аватар
+                    </span>
+
+                    <h2 id="profileAvatarEditorTitle">
+                        Редактор фото
+                    </h2>
+
+                    <p>
+                        Оберіть область фото та налаштуйте його вигляд.
+                    </p>
+                </div>
+
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Закрити"
+                ></button>
+
+            </div>
+
+
+            <!-- BODY -->
+
+            <div class="profile-avatar-editor-body">
+
+                <!-- LEFT -->
+
+                <div class="profile-avatar-editor-workspace">
+
+                    <div
+                        class="profile-avatar-cropper"
+                        id="profileAvatarCropper"
+                    >
+
+                        <div class="profile-avatar-editor-empty">
+
+                            <strong>
+                                Оберіть фотографію
+                            </strong>
+
+                            <span>
+                                JPG, PNG або WEBP
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="profile-avatar-editor-toolbar">
+
+                        <label
+                            class="btn btn-outline-secondary"
+                            for="profileAvatarSourceInput"
+                        >
+                            Обрати фото
+                        </label>
+
+                        <input
+                            type="file"
+                            id="profileAvatarSourceInput"
+                            accept="image/png,image/jpeg,image/webp"
+                            hidden
+                        >
+
+
+                        <button
+                            type="button"
+                            class="profile-editor-tool"
+                            id="profileAvatarZoomOut"
+                            title="Зменшити"
+                        >
+                            −
+                        </button>
+
+                        <button
+                            type="button"
+                            class="profile-editor-tool"
+                            id="profileAvatarZoomIn"
+                            title="Збільшити"
+                        >
+                            +
+                        </button>
+
+                        <button
+                            type="button"
+                            class="profile-editor-tool"
+                            id="profileAvatarRotateLeft"
+                            title="Повернути ліворуч"
+                        >
+                            ↶
+                        </button>
+
+                        <button
+                            type="button"
+                            class="profile-editor-tool"
+                            id="profileAvatarRotateRight"
+                            title="Повернути праворуч"
+                        >
+                            ↷
+                        </button>
+
+                        <button
+                            type="button"
+                            class="profile-editor-tool"
+                            id="profileAvatarReset"
+                        >
+                            Скинути
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <!-- RIGHT / FILTERS -->
+
+                <aside class="profile-avatar-filters">
+
+                    <div class="profile-avatar-filter-title">
+
+                        <strong>
+                            Фільтри
+                        </strong>
+
+                        <span>
+                            Налаштуйте вигляд фотографії.
+                        </span>
+
+                    </div>
+
+
+                    <!-- PRESETS -->
+
+                    <div class="profile-filter-presets">
+
+                        <button
+                            type="button"
+                            data-avatar-preset="normal"
+                            class="profile-filter-preset is-active"
+                        >
+                            Оригінал
+                        </button>
+
+                        <button
+                            type="button"
+                            data-avatar-preset="bw"
+                            class="profile-filter-preset"
+                        >
+                            Ч/Б
+                        </button>
+
+                        <button
+                            type="button"
+                            data-avatar-preset="warm"
+                            class="profile-filter-preset"
+                        >
+                            Теплий
+                        </button>
+
+                        <button
+                            type="button"
+                            data-avatar-preset="vivid"
+                            class="profile-filter-preset"
+                        >
+                            Яскравий
+                        </button>
+
+                    </div>
+
+
+                    <!-- BRIGHTNESS -->
+
+                    <div class="profile-filter-control">
+
+                        <div>
+                            <label for="avatarBrightness">
+                                Яскравість
+                            </label>
+
+                            <output id="avatarBrightnessValue">
+                                100%
+                            </output>
+                        </div>
+
+                        <input
+                            id="avatarBrightness"
+                            type="range"
+                            min="50"
+                            max="150"
+                            value="100"
+                            step="1"
+                            class="form-range"
+                        >
+
+                    </div>
+
+
+                    <!-- CONTRAST -->
+
+                    <div class="profile-filter-control">
+
+                        <div>
+                            <label for="avatarContrast">
+                                Контраст
+                            </label>
+
+                            <output id="avatarContrastValue">
+                                100%
+                            </output>
+                        </div>
+
+                        <input
+                            id="avatarContrast"
+                            type="range"
+                            min="50"
+                            max="160"
+                            value="100"
+                            step="1"
+                            class="form-range"
+                        >
+
+                    </div>
+
+
+                    <!-- SATURATION -->
+
+                    <div class="profile-filter-control">
+
+                        <div>
+                            <label for="avatarSaturation">
+                                Насиченість
+                            </label>
+
+                            <output id="avatarSaturationValue">
+                                100%
+                            </output>
+                        </div>
+
+                        <input
+                            id="avatarSaturation"
+                            type="range"
+                            min="0"
+                            max="200"
+                            value="100"
+                            step="1"
+                            class="form-range"
+                        >
+
+                    </div>
+
+
+                    <!-- GRAYSCALE -->
+
+                    <div class="profile-filter-control">
+
+                        <div>
+                            <label for="avatarGrayscale">
+                                Чорно-білий
+                            </label>
+
+                            <output id="avatarGrayscaleValue">
+                                0%
+                            </output>
+                        </div>
+
+                        <input
+                            id="avatarGrayscale"
+                            type="range"
+                            min="0"
+                            max="100"
+                            value="0"
+                            step="1"
+                            class="form-range"
+                        >
+
+                    </div>
+
+
+                    <!-- SEPIA -->
+
+                    <div class="profile-filter-control">
+
+                        <div>
+                            <label for="avatarSepia">
+                                Теплий тон
+                            </label>
+
+                            <output id="avatarSepiaValue">
+                                0%
+                            </output>
+                        </div>
+
+                        <input
+                            id="avatarSepia"
+                            type="range"
+                            min="0"
+                            max="100"
+                            value="0"
+                            step="1"
+                            class="form-range"
+                        >
+
+                    </div>
+
+                </aside>
+
+            </div>
+
+
+            <!-- FOOTER -->
+
+            <div class="profile-avatar-editor-footer">
+
+                <span class="profile-avatar-editor-hint">
+                    Після застосування фото буде збережено разом із профілем.
+                </span>
+
+
+                <div>
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        data-bs-dismiss="modal"
+                    >
+                        Скасувати
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        id="profileAvatarApply"
+                        disabled
+                    >
+                        Застосувати
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script type="module">
+import Cropper from "https://cdn.jsdelivr.net/npm/cropperjs@2.1.1/dist/cropper.esm.min.js";
+
+
+/* =========================================================
+   ELEMENTS
+   ========================================================= */
+
+const modalElement = document.getElementById(
+    "profileAvatarEditorModal"
+);
+
+const cropperHost = document.getElementById(
+    "profileAvatarCropper"
+);
+
+const sourceInput = document.getElementById(
+    "profileAvatarSourceInput"
+);
+
+/*
+ * Это скрытый input основной формы:
+ *
+ * <input
+ *     type="file"
+ *     name="avatar_file"
+ *     id="profileAvatarUploadInput"
+ *     hidden
+ * >
+ *
+ * Именно сюда будет помещён обработанный JPEG,
+ * который затем получит Flask.
+ */
+const uploadInput = document.getElementById(
+    "profileAvatarUploadInput"
+);
+
+const applyButton = document.getElementById(
+    "profileAvatarApply"
+);
+
+const mainAvatarMedia = document.getElementById(
+    "profileMainAvatarMedia"
+);
+
+
+/* ---------- Transform buttons ---------- */
+
+const zoomInButton = document.getElementById(
+    "profileAvatarZoomIn"
+);
+
+const zoomOutButton = document.getElementById(
+    "profileAvatarZoomOut"
+);
+
+const rotateLeftButton = document.getElementById(
+    "profileAvatarRotateLeft"
+);
+
+const rotateRightButton = document.getElementById(
+    "profileAvatarRotateRight"
+);
+
+const resetButton = document.getElementById(
+    "profileAvatarReset"
+);
+
+
+/* =========================================================
+   FILTER CONTROLS
+   ========================================================= */
+
+const controls = {
+    brightness: document.getElementById(
+        "avatarBrightness"
+    ),
+
+    contrast: document.getElementById(
+        "avatarContrast"
+    ),
+
+    saturation: document.getElementById(
+        "avatarSaturation"
+    ),
+
+    grayscale: document.getElementById(
+        "avatarGrayscale"
+    ),
+
+    sepia: document.getElementById(
+        "avatarSepia"
+    ),
+};
+
+
+const outputs = {
+    brightness: document.getElementById(
+        "avatarBrightnessValue"
+    ),
+
+    contrast: document.getElementById(
+        "avatarContrastValue"
+    ),
+
+    saturation: document.getElementById(
+        "avatarSaturationValue"
+    ),
+
+    grayscale: document.getElementById(
+        "avatarGrayscaleValue"
+    ),
+
+    sepia: document.getElementById(
+        "avatarSepiaValue"
+    ),
+};
+
+
+/* =========================================================
+   STATE
+   ========================================================= */
+
+let cropper = null;
+
+let currentFile = null;
+
+let currentObjectUrl = null;
+
+let previewObjectUrl = null;
+
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+
+function clamp(
+    value,
+    min,
+    max
+) {
+    return Math.min(
+        max,
+        Math.max(
+            min,
+            value
+        )
+    );
+}
+
+
+function setApplyLoading(
+    isLoading
+) {
+    if (!applyButton) {
+        return;
+    }
+
+    applyButton.disabled =
+        isLoading || !cropper;
+
+    applyButton.textContent =
+        isLoading
+            ? "Обробка..."
+            : "Застосувати";
+}
+
+
+/* =========================================================
+   FILTER STRING
+   ========================================================= */
+
+function getFilterString() {
+    return [
+        `brightness(${controls.brightness.value}%)`,
+        `contrast(${controls.contrast.value}%)`,
+        `saturate(${controls.saturation.value}%)`,
+        `grayscale(${controls.grayscale.value}%)`,
+        `sepia(${controls.sepia.value}%)`,
+    ].join(" ");
+}
+
+
+/* =========================================================
+   FILTER OUTPUT VALUES
+   ========================================================= */
+
+function refreshFilterOutputs() {
+    Object.entries(
+        controls
+    ).forEach(
+        ([name, control]) => {
+
+            const output =
+                outputs[name];
+
+            if (
+                !control
+                || !output
+            ) {
+                return;
             }
-        });
-});
+
+            output.value =
+                `${control.value}%`;
+
+        }
+    );
+}
+
+
+/* =========================================================
+   LIVE FILTER PREVIEW
+   ========================================================= */
+
+function applyLiveFilter() {
+    if (!cropper) {
+        return;
+    }
+
+    const cropperImage =
+        cropper.getCropperImage();
+
+    if (!cropperImage) {
+        return;
+    }
+
+    cropperImage.style.filter =
+        getFilterString();
+
+    refreshFilterOutputs();
+}
+
+
+/* =========================================================
+   PRESET ACTIVE STATE
+   ========================================================= */
+
+function setActivePreset(
+    presetName
+) {
+    document
+        .querySelectorAll(
+            "[data-avatar-preset]"
+        )
+        .forEach(
+            (button) => {
+
+                button.classList.toggle(
+                    "is-active",
+                    button.dataset.avatarPreset
+                        === presetName
+                );
+
+            }
+        );
+}
+
+
+/* =========================================================
+   RESET FILTERS
+   ========================================================= */
+
+function resetFilters() {
+    if (
+        !controls.brightness
+        || !controls.contrast
+        || !controls.saturation
+        || !controls.grayscale
+        || !controls.sepia
+    ) {
+        return;
+    }
+
+    controls.brightness.value = 100;
+    controls.contrast.value = 100;
+    controls.saturation.value = 100;
+    controls.grayscale.value = 0;
+    controls.sepia.value = 0;
+
+    refreshFilterOutputs();
+    applyLiveFilter();
+
+    setActivePreset(
+        "normal"
+    );
+}
+
+
+/* =========================================================
+   DESTROY CROPPER
+   ========================================================= */
+
+function destroyCropper() {
+    if (cropper) {
+        try {
+            cropper.destroy();
+        } catch (error) {
+            console.warn(
+                "Не вдалося коректно знищити Cropper:",
+                error
+            );
+        }
+
+        cropper = null;
+    }
+
+    if (cropperHost) {
+        cropperHost.replaceChildren();
+    }
+
+    if (applyButton) {
+        applyButton.disabled = true;
+    }
+}
+
+
+/* =========================================================
+   CREATE EMPTY PLACEHOLDER
+   ========================================================= */
+
+function showCropperPlaceholder() {
+    if (!cropperHost) {
+        return;
+    }
+
+    cropperHost.replaceChildren();
+
+    const placeholder =
+        document.createElement(
+            "div"
+        );
+
+    placeholder.className =
+        "profile-avatar-editor-empty";
+
+    const title =
+        document.createElement(
+            "strong"
+        );
+
+    title.textContent =
+        "Оберіть фотографію";
+
+    const subtitle =
+        document.createElement(
+            "span"
+        );
+
+    subtitle.textContent =
+        "JPG, PNG або WEBP";
+
+
+    placeholder.append(
+        title,
+        subtitle
+    );
+
+    cropperHost.appendChild(
+        placeholder
+    );
+}
+
+
+/* =========================================================
+   CREATE CROPPER
+   ========================================================= */
+
+async function createCropper(
+    file
+) {
+    if (
+        !file
+        || !cropperHost
+    ) {
+        return;
+    }
+
+
+    destroyCropper();
+
+
+    currentFile = file;
+
+
+    /* ---------- Revoke previous URL ---------- */
+
+    if (currentObjectUrl) {
+        URL.revokeObjectURL(
+            currentObjectUrl
+        );
+
+        currentObjectUrl = null;
+    }
+
+
+    currentObjectUrl =
+        URL.createObjectURL(
+            file
+        );
+
+
+    /* ---------- Image ---------- */
+
+    const image =
+        new Image();
+
+    image.src =
+        currentObjectUrl;
+
+    image.alt =
+        "Редагування аватара";
+
+    image.decoding =
+        "async";
+
+
+    /* ---------- Cropper ---------- */
+
+    cropper =
+        new Cropper(
+            image,
+            {
+                container:
+                    cropperHost,
+            }
+        );
+
+
+    const cropperImage =
+        cropper.getCropperImage();
+
+
+    if (!cropperImage) {
+        destroyCropper();
+
+        showCropperPlaceholder();
+
+        throw new Error(
+            "CropperImage не створено."
+        );
+    }
+
+
+    /*
+     * Разрешаем:
+     * - перемещение;
+     * - масштаб;
+     * - поворот.
+     */
+
+    cropperImage.rotatable = true;
+    cropperImage.scalable = true;
+    cropperImage.translatable = true;
+
+    await cropperImage.$ready();
+
+
+
+
+/*
+ * Даём Cropper время определить размеры контейнера.
+ */
+
+await new Promise(
+    (resolve) => {
+        requestAnimationFrame(
+            () => {
+                requestAnimationFrame(
+                    resolve
+                );
+            }
+        );
+    }
+);
+
+
+/*
+ * Масштабируем изображение так,
+ * чтобы оно нормально заполняло рабочую область.
+ */
+
+cropperImage.$center(
+    "contain"
+);
+
+/*
+ * Небольшой стартовый zoom,
+ * чтобы портрет не выглядел слишком маленьким.
+ */
+
+cropperImage.$zoom(
+    0.18
+);
+
+
+const selection =
+    cropper.getCropperSelection();
+
+
+if (!selection) {
+    throw new Error(
+        "CropperSelection не створено."
+    );
+}
+
+
+/*
+ * Квадратный crop 1:1.
+ */
+
+selection.aspectRatio = 1;
+selection.initialAspectRatio = 1;
+
+selection.movable = true;
+selection.resizable = true;
+selection.zoomable = true;
+selection.keyboard = true;
+
+
+/*
+ * Размер рамки — примерно 70% от меньшей стороны
+ * рабочего пространства.
+ */
+
+const hostRect =
+    cropperHost.getBoundingClientRect();
+
+
+const cropSize =
+    Math.max(
+        160,
+        Math.min(
+            hostRect.width,
+            hostRect.height
+        ) * 0.70
+    );
+
+
+selection.$change(
+    0,
+    0,
+    cropSize,
+    cropSize,
+    1
+);
+
+
+selection.$center();
+
+
+/*
+ * Центрируем изображение относительно crop.
+ */
+
+cropperImage.$center(
+    "contain"
+);
+
+    resetFilters();
+
+    applyButton.disabled =
+        false;
+}
+
+
+/* =========================================================
+   SOURCE FILE VALIDATION
+   ========================================================= */
+
+function isAllowedImage(
+    file
+) {
+    const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+    ];
+
+    return (
+        file
+        && allowedTypes.includes(
+            file.type
+        )
+    );
+}
+
+
+/* =========================================================
+   USER SELECTS IMAGE
+   ========================================================= */
+
+if (sourceInput) {
+    sourceInput.addEventListener(
+        "change",
+        async () => {
+
+            const file =
+                sourceInput.files?.[0];
+
+            if (!file) {
+                return;
+            }
+
+
+            /* ---------- Type ---------- */
+
+            if (!isAllowedImage(file)) {
+                window.alert(
+                    "Оберіть зображення у форматі JPG, PNG або WEBP."
+                );
+
+                sourceInput.value = "";
+
+                return;
+            }
+
+
+            /*
+             * Это ограничение только для браузерного
+             * редактора.
+             *
+             * После обработки Flask получит уже
+             * уменьшенный файл примерно до 220 КБ.
+             */
+
+            const editorMaxBytes =
+                12 * 1024 * 1024;
+
+
+            if (
+                file.size >
+                editorMaxBytes
+            ) {
+                window.alert(
+                    "Файл завеликий. Максимальний розмір вихідного фото — 12 МБ."
+                );
+
+                sourceInput.value = "";
+
+                return;
+            }
+
+
+            try {
+                await createCropper(
+                    file
+                );
+            } catch (error) {
+                console.error(
+                    error
+                );
+
+                window.alert(
+                    "Не вдалося відкрити зображення у редакторі."
+                );
+            }
+
+        }
+    );
+}
+
+
+/* =========================================================
+   TRANSFORM CONTROLS
+   ========================================================= */
+
+/* ---------- Zoom in ---------- */
+
+zoomInButton?.addEventListener(
+    "click",
+    () => {
+
+        const image =
+            cropper
+                ?.getCropperImage();
+
+        image?.$zoom(
+            0.1
+        );
+
+    }
+);
+
+
+/* ---------- Zoom out ---------- */
+
+zoomOutButton?.addEventListener(
+    "click",
+    () => {
+
+        const image =
+            cropper
+                ?.getCropperImage();
+
+        image?.$zoom(
+            -0.1
+        );
+
+    }
+);
+
+
+/* ---------- Rotate left ---------- */
+
+rotateLeftButton?.addEventListener(
+    "click",
+    () => {
+
+        const image =
+            cropper
+                ?.getCropperImage();
+
+        image?.$rotate(
+            "-90deg"
+        );
+
+    }
+);
+
+
+/* ---------- Rotate right ---------- */
+
+rotateRightButton?.addEventListener(
+    "click",
+    () => {
+
+        const image =
+            cropper
+                ?.getCropperImage();
+
+        image?.$rotate(
+            "90deg"
+        );
+
+    }
+);
+
+
+/* =========================================================
+   FILTER INPUT EVENTS
+   ========================================================= */
+
+Object.values(
+    controls
+).forEach(
+    (control) => {
+
+        if (!control) {
+            return;
+        }
+
+        control.addEventListener(
+            "input",
+            () => {
+
+                applyLiveFilter();
+
+                /*
+                 * Пользователь вручную изменил
+                 * параметры — preset больше не активен.
+                 */
+
+                setActivePreset(
+                    null
+                );
+
+            }
+        );
+
+    }
+);
+
+
+/* =========================================================
+   FILTER PRESETS
+   ========================================================= */
+
+const filterPresets = {
+
+    normal: {
+        brightness: 100,
+        contrast: 100,
+        saturation: 100,
+        grayscale: 0,
+        sepia: 0,
+    },
+
+    bw: {
+        brightness: 102,
+        contrast: 112,
+        saturation: 0,
+        grayscale: 100,
+        sepia: 0,
+    },
+
+    warm: {
+        brightness: 104,
+        contrast: 104,
+        saturation: 112,
+        grayscale: 0,
+        sepia: 22,
+    },
+
+    vivid: {
+        brightness: 104,
+        contrast: 112,
+        saturation: 145,
+        grayscale: 0,
+        sepia: 0,
+    },
+};
+
+
+document
+    .querySelectorAll(
+        "[data-avatar-preset]"
+    )
+    .forEach(
+        (button) => {
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    const presetName =
+                        button.dataset.avatarPreset;
+
+                    const preset =
+                        filterPresets[
+                            presetName
+                        ];
+
+
+                    if (!preset) {
+                        return;
+                    }
+
+
+                    Object.entries(
+                        preset
+                    ).forEach(
+                        ([name, value]) => {
+
+                            const control =
+                                controls[name];
+
+                            if (control) {
+                                control.value =
+                                    value;
+                            }
+
+                        }
+                    );
+
+
+                    setActivePreset(
+                        presetName
+                    );
+
+                    applyLiveFilter();
+
+                }
+            );
+
+        }
+    );
+
+
+/* =========================================================
+   RESET EDITOR
+   ========================================================= */
+
+resetButton?.addEventListener(
+    "click",
+    async () => {
+
+        if (!currentFile) {
+            resetFilters();
+
+            return;
+        }
+
+
+        try {
+            /*
+             * Полный rebuild надёжнее:
+             * возвращает оригинальный scale,
+             * rotation, position и crop.
+             */
+
+            await createCropper(
+                currentFile
+            );
+
+        } catch (error) {
+            console.error(
+                error
+            );
+        }
+
+    }
+);
+
+
+/* =========================================================
+   CANVAS -> BLOB
+   ========================================================= */
+
+function canvasToBlob(
+    canvas,
+    quality = 0.88
+) {
+    return new Promise(
+        (resolve) => {
+
+            canvas.toBlob(
+                (blob) => {
+                    resolve(
+                        blob
+                    );
+                },
+                "image/jpeg",
+                quality
+            );
+
+        }
+    );
+}
+
+
+/* =========================================================
+   EXPORT / APPLY
+   ========================================================= */
+
+applyButton?.addEventListener(
+    "click",
+    async () => {
+
+        if (
+            !cropper
+            || !uploadInput
+            || !mainAvatarMedia
+        ) {
+            return;
+        }
+
+
+        const selection =
+            cropper.getCropperSelection();
+
+
+        if (!selection) {
+            window.alert(
+                "Не вдалося знайти область кадрування."
+            );
+
+            return;
+        }
+
+
+        try {
+            setApplyLoading(
+                true
+            );
+
+
+            /*
+             * Генерируем финальный квадратный avatar.
+             *
+             * 512x512 достаточно для:
+             * - профиля;
+             * - sidebar;
+             * - topbar;
+             * - Retina экранов.
+             *
+             * Фильтры применяются прямо к Canvas.
+             */
+
+            const canvas =
+                await selection.$toCanvas({
+                    width: 512,
+                    height: 512,
+
+                    beforeDraw(
+                        context
+                    ) {
+                        context.filter =
+                            getFilterString();
+                    },
+                });
+
+
+            /* =================================================
+               COMPRESS
+               ================================================= */
+
+            /*
+             * Backend сейчас принимает avatar примерно
+             * до 220 КБ.
+             *
+             * Целимся немного ниже, чтобы оставить запас.
+             */
+
+            const targetBytes =
+                205 * 1024;
+
+            const absoluteMaxBytes =
+                220 * 1024;
+
+
+            let quality =
+                0.9;
+
+            let blob =
+                await canvasToBlob(
+                    canvas,
+                    quality
+                );
+
+
+            /*
+             * Постепенно снижаем JPEG quality,
+             * пока не получим нужный размер.
+             */
+
+            while (
+                blob
+                && blob.size > targetBytes
+                && quality > 0.5
+            ) {
+                quality -=
+                    0.07;
+
+                blob =
+                    await canvasToBlob(
+                        canvas,
+                        quality
+                    );
+            }
+
+
+            if (!blob) {
+                throw new Error(
+                    "Canvas.toBlob повернув null."
+                );
+            }
+
+
+            if (
+                blob.size >
+                absoluteMaxBytes
+            ) {
+                window.alert(
+                    "Не вдалося достатньо стиснути фото. Спробуйте інше зображення."
+                );
+
+                return;
+            }
+
+
+            /* =================================================
+               BLOB -> FILE
+               ================================================= */
+
+            const avatarFile =
+                new File(
+                    [blob],
+                    "profile-avatar.jpg",
+                    {
+                        type:
+                            "image/jpeg",
+
+                        lastModified:
+                            Date.now(),
+                    }
+                );
+
+
+            /* =================================================
+               PUT FILE INTO FORM INPUT
+               ================================================= */
+
+            const transfer =
+                new DataTransfer();
+
+            transfer.items.add(
+                avatarFile
+            );
+
+            uploadInput.files =
+                transfer.files;
+
+
+            /* =================================================
+               PAGE PREVIEW
+               ================================================= */
+
+            if (previewObjectUrl) {
+                URL.revokeObjectURL(
+                    previewObjectUrl
+                );
+
+                previewObjectUrl =
+                    null;
+            }
+
+
+            previewObjectUrl =
+                URL.createObjectURL(
+                    blob
+                );
+
+
+            mainAvatarMedia.replaceChildren();
+
+
+            const previewImage =
+                document.createElement(
+                    "img"
+                );
+
+            previewImage.src =
+                previewObjectUrl;
+
+            previewImage.alt =
+                "Новий аватар";
+
+
+            mainAvatarMedia.appendChild(
+                previewImage
+            );
+
+
+            /* =================================================
+               CLOSE MODAL
+               ================================================= */
+
+            if (
+                window.bootstrap
+                && modalElement
+            ) {
+                const modal =
+                    window.bootstrap.Modal
+                        .getOrCreateInstance(
+                            modalElement
+                        );
+
+                modal.hide();
+            }
+
+
+        } catch (error) {
+
+            console.error(
+                "Помилка обробки аватара:",
+                error
+            );
+
+            window.alert(
+                "Не вдалося обробити фотографію."
+            );
+
+        } finally {
+
+            setApplyLoading(
+                false
+            );
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   LOAD CURRENT AVATAR INTO EDITOR
+   ========================================================= */
+
+modalElement?.addEventListener(
+    "shown.bs.modal",
+    async () => {
+
+        /*
+         * Если редактор уже открыт с фотографией,
+         * не создаём его повторно.
+         */
+
+        if (
+            cropper
+            || currentFile
+        ) {
+            return;
+        }
+
+
+        /*
+         * В modal должен быть:
+         *
+         * data-current-avatar="..."
+         *
+         * Атрибут создаётся только если у пользователя
+         * уже есть загруженная фотография.
+         */
+
+        const currentAvatarUrl =
+            modalElement.dataset.currentAvatar;
+
+
+        if (!currentAvatarUrl) {
+            showCropperPlaceholder();
+
+            return;
+        }
+
+
+        try {
+
+            const response =
+                await fetch(
+                    currentAvatarUrl,
+                    {
+                        credentials:
+                            "same-origin",
+                    }
+                );
+
+
+            if (!response.ok) {
+                throw new Error(
+                    `HTTP ${response.status}`
+                );
+            }
+
+
+            const blob =
+                await response.blob();
+
+
+            if (
+                !blob.type.startsWith(
+                    "image/"
+                )
+            ) {
+                throw new Error(
+                    "Отримано не зображення."
+                );
+            }
+
+
+            const extension =
+                blob.type === "image/png"
+                    ? "png"
+                    : blob.type === "image/webp"
+                        ? "webp"
+                        : "jpg";
+
+
+            const currentAvatarFile =
+                new File(
+                    [blob],
+                    `current-avatar.${extension}`,
+                    {
+                        type:
+                            blob.type
+                            || "image/jpeg",
+                    }
+                );
+
+
+            await createCropper(
+                currentAvatarFile
+            );
+
+
+        } catch (error) {
+
+            console.warn(
+                "Не вдалося завантажити поточний аватар:",
+                error
+            );
+
+            showCropperPlaceholder();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   MODAL CLOSED
+   ========================================================= */
+
+modalElement?.addEventListener(
+    "hidden.bs.modal",
+    () => {
+
+        /*
+         * File input выбора исходника очищаем,
+         * чтобы можно было повторно выбрать
+         * тот же самый файл.
+         */
+
+        if (sourceInput) {
+            sourceInput.value = "";
+        }
+
+    }
+);
+
+
+/* =========================================================
+   INITIAL FILTER OUTPUTS
+   ========================================================= */
+
+refreshFilterOutputs();
+
+
+/* =========================================================
+   INITIAL PLACEHOLDER
+   ========================================================= */
+
+if (
+    cropperHost
+    && !modalElement?.dataset.currentAvatar
+) {
+    showCropperPlaceholder();
+}
+
+
+/* =========================================================
+   XP PROGRESS
+   ========================================================= */
+
+document
+    .querySelectorAll(
+        ".profile-xp-progress"
+    )
+    .forEach(
+        (progress) => {
+
+            const rawValue =
+                Number(
+                    progress.dataset.progress
+                    || 0
+                );
+
+
+            const safeValue =
+                Number.isFinite(
+                    rawValue
+                )
+                    ? clamp(
+                        rawValue,
+                        0,
+                        100
+                    )
+                    : 0;
+
+
+            const bar =
+                progress.querySelector(
+                    ".profile-xp-progress-value"
+                );
+
+
+            if (!bar) {
+                return;
+            }
+
+
+            /*
+             * Небольшая задержка нужна,
+             * чтобы transition width был виден
+             * после загрузки страницы.
+             */
+
+            requestAnimationFrame(
+                () => {
+
+                    requestAnimationFrame(
+                        () => {
+                            bar.style.width =
+                                `${safeValue}%`;
+                        }
+                    );
+
+                }
+            );
+
+        }
+    );
+
+
+/* =========================================================
+   CLEANUP
+   ========================================================= */
+
+window.addEventListener(
+    "beforeunload",
+    () => {
+
+        if (currentObjectUrl) {
+            URL.revokeObjectURL(
+                currentObjectUrl
+            );
+        }
+
+
+        if (previewObjectUrl) {
+            URL.revokeObjectURL(
+                previewObjectUrl
+            );
+        }
+
+
+        if (cropper) {
+            try {
+                cropper.destroy();
+            } catch {
+                /* Nothing to do. */
+            }
+        }
+
+    }
+);
+
 </script>
 
 {% endblock %}

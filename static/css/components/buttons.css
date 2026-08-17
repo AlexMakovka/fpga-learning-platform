@@ -1,0 +1,108 @@
+/* =========================================================
+   КНОПКИ ІНТЕРФЕЙСУ
+   Спільні стилі власних кнопок і компонентів Bootstrap
+   ========================================================= */
+
+.app-btn,
+body.app-body .btn {
+    min-height: var(--app-control-height);
+
+    border-radius: 14px;
+
+    font-weight: 800;
+
+    transition:
+        background-color var(--app-transition),
+        border-color var(--app-transition),
+        color var(--app-transition),
+        box-shadow var(--app-transition),
+        transform var(--app-transition);
+}
+
+
+.app-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    padding: 0 16px;
+
+    border: 1px solid transparent;
+
+    text-decoration: none;
+}
+
+
+.app-btn:hover,
+body.app-body .btn:hover {
+    transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   ОСНОВНА КНОПКА
+   ========================================================= */
+
+.app-btn-primary,
+body.app-body .btn-primary {
+    background: var(--app-primary);
+    border-color: var(--app-primary);
+
+    color: #ffffff;
+
+    box-shadow: 0 10px 24px rgba(var(--app-primary-rgb), 0.22);
+}
+
+
+.app-btn-primary:hover,
+body.app-body .btn-primary:hover {
+    background: var(--app-primary-hover);
+    border-color: var(--app-primary-hover);
+
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   КОНТУРНА КНОПКА
+   ========================================================= */
+
+.app-btn-outline,
+body.app-body .btn-outline-secondary {
+    background: transparent;
+    border-color: var(--app-border);
+
+    color: var(--app-text);
+}
+
+
+.app-btn-outline:hover,
+body.app-body .btn-outline-secondary:hover {
+    background: var(--app-primary-soft);
+    border-color: rgba(var(--app-primary-rgb), 0.28);
+
+    color: var(--app-text-strong);
+}
+
+
+/* =========================================================
+   КНОПКА НЕБЕЗПЕЧНОЇ ДІЇ
+   ========================================================= */
+
+.app-btn-danger,
+body.app-body .btn-outline-danger {
+    background: rgba(239, 68, 68, 0.10);
+    border-color: rgba(239, 68, 68, 0.28);
+
+    color: #ef4444;
+}
+
+
+.app-btn-danger:hover,
+body.app-body .btn-outline-danger:hover {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.38);
+
+    color: #ef4444;
+}

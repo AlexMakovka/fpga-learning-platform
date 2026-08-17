@@ -1,0 +1,887 @@
+/* =========================================================
+   ІНСТРУМЕНТИ СТУДЕНТА
+   Допоміжні стилі для службових і статистичних компонентів
+   ========================================================= */
+
+.stat-card {
+    background: linear-gradient(135deg, #ffffff, #eef2ff);
+}
+
+
+.student-tools-card h3 {
+    font-size: 24px;
+    font-weight: 900;
+}
+
+
+/* =========================================================
+   РОЗДІЛИ ІНСТРУМЕНТІВ
+   Візуально відокремлюють незалежні операції в межах
+   панелі керування студента
+   ========================================================= */
+
+.tool-section {
+    padding: 18px;
+
+    background: #f8fafc;
+
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+}
+
+
+.tool-section.danger-section {
+    background: #fff7f7;
+
+    border-color: #fecaca;
+}
+
+
+.section-label {
+    margin-bottom: 12px;
+
+    color: #64748b;
+
+    font-size: 12px;
+    font-weight: 800;
+
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+
+/* =========================================================
+   ФОРМИ ІНСТРУМЕНТІВ СТУДЕНТА
+   ========================================================= */
+
+.student-tools-card .form-label {
+    margin-bottom: 6px;
+}
+
+
+.student-tools-card .btn {
+    white-space: nowrap;
+}
+
+
+/* =========================================================
+   ДІЇ ПОШУКУ СТУДЕНТІВ
+   Компактне горизонтальне компонування забезпечує
+   узгоджене розташування пов'язаних команд пошуку
+   ========================================================= */
+
+.student-search-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+
+.student-search-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-width: 78px;
+    height: 38px;
+
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+
+/* =========================================================
+   ПАНЕЛЬ СТУДЕНТА
+   Локальні токени відокремлюють оформлення студентського
+   модуля від глобальної дизайн-системи застосунку
+   ========================================================= */
+
+.student-dashboard {
+    /* ---------- Локальні псевдоніми токенів ---------- */
+
+    --student-bg: var(--app-bg);
+
+    --student-surface: var(--app-surface);
+    --student-surface-strong: var(--app-surface-solid);
+
+    --student-border: var(--app-border);
+
+    --student-text: var(--app-text-strong);
+    --student-muted: var(--app-text-muted);
+
+    --student-primary: var(--app-primary);
+    --student-primary-rgb: var(--app-primary-rgb);
+    --student-primary-soft: var(--app-primary-soft);
+
+    --student-accent: var(--app-accent);
+    --student-accent-rgb: var(--app-accent-rgb);
+
+    --student-shadow: var(--app-shadow-md);
+
+
+    /* ---------- Компонування ---------- */
+
+    display: grid;
+    gap: 22px;
+}
+
+
+/* =========================================================
+   КАРТКИ ПАНЕЛІ СТУДЕНТА
+   Спільна поверхня забезпечує однакове оформлення основних
+   інформаційних і статистичних блоків
+   ========================================================= */
+
+.student-hero-card,
+.student-section-card,
+.student-stat-card {
+    background: var(--student-surface);
+
+    border: 1px solid var(--student-border);
+
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+
+    box-shadow: var(--student-shadow);
+}
+
+
+/* =========================================================
+   ГОЛОВНА КАРТКА СТУДЕНТА
+   ========================================================= */
+
+.student-hero-card {
+    position: relative;
+
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1.3fr)
+        minmax(220px, 0.7fr);
+
+    align-items: center;
+    gap: 24px;
+
+    min-height: 260px;
+    padding: 34px;
+
+    overflow: hidden;
+
+    border-radius: 34px;
+}
+
+
+/*
+ * Декоративний фоновий шар використовує кольори активної
+ * палітри, але не бере участі у взаємодії з користувачем.
+ */
+.student-hero-card::before {
+    content: "";
+
+    position: absolute;
+    inset: -40%;
+
+    background:
+        radial-gradient(
+            circle at 20% 20%,
+            rgba(var(--student-primary-rgb), 0.22),
+            transparent 28%
+        ),
+        radial-gradient(
+            circle at 82% 28%,
+            rgba(var(--student-accent-rgb), 0.18),
+            transparent 24%
+        ),
+        radial-gradient(
+            circle at 64% 82%,
+            rgba(var(--student-primary-rgb), 0.12),
+            transparent 26%
+        );
+
+    pointer-events: none;
+}
+
+
+.student-hero-content,
+.student-hero-visual {
+    position: relative;
+    z-index: 1;
+}
+
+
+/* ---------- Мітка головної картки ---------- */
+
+.student-kicker {
+    display: inline-flex;
+    align-items: center;
+
+    width: fit-content;
+    margin-bottom: 10px;
+    padding: 6px 10px;
+
+    background: var(--student-primary-soft);
+
+    border-radius: var(--app-radius-pill);
+
+    color: var(--student-primary);
+
+    font-size: 11px;
+    font-weight: 900;
+
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+
+/* =========================================================
+   ТЕКСТ ГОЛОВНОЇ КАРТКИ СТУДЕНТА
+   ========================================================= */
+
+.student-hero-card h1 {
+    margin: 0 0 12px;
+
+    color: var(--student-text);
+
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 950;
+    line-height: 1.02;
+
+    letter-spacing: -0.04em;
+}
+
+
+.student-hero-card p {
+    max-width: 620px;
+    margin: 0;
+
+    color: var(--student-muted);
+
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   ДІЇ ГОЛОВНОЇ КАРТКИ СТУДЕНТА
+   ========================================================= */
+
+.student-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    margin-top: 24px;
+}
+
+
+.student-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 42px;
+    padding: 0 16px;
+
+    border: 1px solid transparent;
+    border-radius: 14px;
+
+    font-size: 14px;
+    font-weight: 900;
+
+    text-decoration: none;
+
+    transition:
+        background-color var(--app-transition),
+        border-color var(--app-transition),
+        color var(--app-transition),
+        box-shadow var(--app-transition),
+        transform var(--app-transition);
+}
+
+
+.student-btn:hover {
+    text-decoration: none;
+
+    transform: translateY(-1px);
+}
+
+
+/* ---------- Основна кнопка ---------- */
+
+.student-btn-primary {
+    background: var(--app-gradient);
+    background-origin: border-box;
+    background-repeat: no-repeat;
+
+    color: #ffffff;
+
+    box-shadow: 0 14px 32px rgba(var(--app-primary-rgb), 0.26);
+}
+
+
+.student-btn-primary:hover {
+    color: #ffffff;
+}
+
+
+/* ---------- М'яка акцентна кнопка ---------- */
+
+.student-btn-soft {
+    background: var(--student-primary-soft);
+
+    border-color: rgba(var(--app-primary-rgb), 0.18);
+
+    color: var(--student-primary);
+}
+
+
+/* ---------- Візуально недоступна кнопка ---------- */
+
+.student-btn-disabled {
+    background: rgba(148, 163, 184, 0.16);
+
+    border-color: transparent;
+
+    color: var(--student-muted);
+
+    cursor: not-allowed;
+}
+
+
+.student-btn-disabled:hover {
+    transform: none;
+}
+
+
+/* =========================================================
+   ІНДИКАТОР ПРОГРЕСУ СТУДЕНТА
+   Відокремлює числове значення прогресу від декоративного
+   кільцевого оформлення на основі кольорів активної палітри
+   ========================================================= */
+
+.student-hero-visual {
+    display: flex;
+    justify-content: center;
+}
+
+
+.student-progress-orb {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    width: 185px;
+    aspect-ratio: 1;
+
+    background:
+        radial-gradient(
+            circle at center,
+            var(--student-surface-strong) 0 56%,
+            transparent 57%
+        ),
+        conic-gradient(
+            var(--student-primary),
+            var(--student-accent),
+            var(--student-primary)
+        );
+
+    border-radius: 50%;
+
+    box-shadow: 0 24px 60px rgba(var(--app-primary-rgb), 0.22);
+}
+
+
+.student-progress-orb span {
+    color: var(--student-text);
+
+    font-size: 42px;
+    font-weight: 950;
+    line-height: 1;
+}
+
+
+.student-progress-orb small {
+    margin-top: 6px;
+
+    color: var(--student-muted);
+
+    font-size: 12px;
+    font-weight: 800;
+}
+
+
+/* =========================================================
+   СТАТИСТИКА СТУДЕНТА
+   ========================================================= */
+
+.student-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+}
+
+
+.student-stat-card {
+    padding: 20px;
+
+    border-radius: 24px;
+}
+
+
+.student-stat-label {
+    display: block;
+
+    margin-bottom: 10px;
+
+    color: var(--student-muted);
+
+    font-size: 12px;
+    font-weight: 900;
+
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+
+.student-stat-card strong {
+    display: block;
+
+    color: var(--student-text);
+
+    font-size: 32px;
+    font-weight: 950;
+    line-height: 1;
+}
+
+
+.student-stat-card small {
+    display: block;
+
+    margin-top: 8px;
+
+    color: var(--student-muted);
+
+    font-size: 13px;
+}
+
+
+/* =========================================================
+   ОСНОВНА СІТКА ПАНЕЛІ СТУДЕНТА
+   Основний робочий вміст має більшу ширину, а допоміжні
+   інформаційні блоки розміщуються в окремій бічній колонці
+   ========================================================= */
+
+.student-dashboard-grid {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1.45fr)
+        minmax(340px, 0.55fr);
+
+    align-items: start;
+    gap: 20px;
+}
+
+
+.student-main-column,
+.student-side-column {
+    display: grid;
+    gap: 20px;
+}
+
+
+/* =========================================================
+   STUDENT SECTION CARD
+   ========================================================= */
+
+.student-section-card {
+    padding: 24px;
+    border-radius: 28px;
+}
+
+.student-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+
+    margin-bottom: 18px;
+}
+
+.student-section-head h2 {
+    margin: 0;
+
+    color: var(--student-text);
+    font-size: 24px;
+    font-weight: 950;
+
+    letter-spacing: -0.02em;
+}
+
+
+/* =========================================================
+   ACTIVE LAB
+   ========================================================= */
+
+.student-active-lab {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr)
+        auto;
+
+    align-items: center;
+    gap: 18px;
+
+    padding: 20px;
+
+    background: var(--student-surface-strong);
+    border: 1px solid var(--student-border);
+    border-radius: 24px;
+}
+
+.student-active-lab h3,
+.student-lab-card h3,
+.student-attempt-card h3 {
+    margin: 0;
+
+    color: var(--student-text);
+    font-weight: 900;
+}
+
+.student-active-lab h3 {
+    font-size: 22px;
+}
+
+.student-active-lab p {
+    margin: 8px 0 14px;
+
+    color: var(--student-muted);
+}
+
+
+/* ---------- Lab metadata ---------- */
+
+.student-lab-meta,
+.student-lab-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    margin-bottom: 10px;
+}
+
+.student-lab-meta span,
+.student-lab-details span {
+    padding: 5px 9px;
+
+    background: rgba(148, 163, 184, 0.12);
+    border-radius: var(--app-radius-pill);
+
+    color: var(--student-muted);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+
+/* ---------- Progress line ---------- */
+
+.student-progress-line {
+    height: 9px;
+
+    overflow: hidden;
+
+    background: rgba(148, 163, 184, 0.20);
+    border-radius: var(--app-radius-pill);
+}
+
+.student-progress-line span {
+    display: block;
+
+    height: 100%;
+
+    background: var(--app-gradient);
+    border-radius: inherit;
+}
+
+
+/* =========================================================
+   STUDENT LABS GRID
+   ========================================================= */
+
+.student-labs-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 14px;
+}
+
+
+/* =========================================================
+   STUDENT LAB CARDS
+   ========================================================= */
+
+.student-lab-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    min-height: 210px;
+    padding: 18px;
+
+    background: var(--student-surface-strong);
+    border: 1px solid var(--student-border);
+    border-radius: 24px;
+}
+
+.student-lab-card-top,
+.student-lab-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+
+/* ---------- Status / score ---------- */
+
+.student-status-pill,
+.student-score-pill {
+    padding: 5px 9px;
+
+    border-radius: var(--app-radius-pill);
+
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.student-status-passed {
+    background: rgba(34, 197, 94, 0.14);
+
+    color: #16a34a;
+}
+
+.student-status-in_progress {
+    background: rgba(245, 158, 11, 0.16);
+
+    color: #d97706;
+}
+
+.student-status-not_started {
+    background: rgba(148, 163, 184, 0.16);
+
+    color: var(--student-muted);
+}
+
+.student-score-pill {
+    background: var(--student-primary-soft);
+
+    color: var(--student-primary);
+}
+
+
+/* =========================================================
+   НИЖНЯ ЧАСТИНА КАРТКИ ЛАБОРАТОРНОЇ РОБОТИ
+   ========================================================= */
+
+.student-lab-footer {
+    margin-top: auto;
+}
+
+
+.student-lab-footer small {
+    color: var(--student-muted);
+}
+
+
+.student-lab-footer a {
+    color: var(--student-primary);
+
+    font-weight: 900;
+
+    text-decoration: none;
+}
+
+
+.student-lab-footer a:hover {
+    text-decoration: underline;
+}
+
+
+/* =========================================================
+   СПРОБИ ВИКОНАННЯ ЛАБОРАТОРНИХ РОБІТ
+   Картки відображають результат, оцінку та доступ до
+   детальної інформації про окрему спробу
+   ========================================================= */
+
+.student-attempts-list {
+    display: grid;
+    gap: 12px;
+}
+
+
+.student-attempt-card {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr)
+        auto;
+
+    align-items: center;
+    gap: 12px;
+
+    padding: 14px;
+
+    background: var(--student-surface-strong);
+
+    border: 1px solid var(--student-border);
+    border-radius: 20px;
+}
+
+
+.student-attempt-card h3 {
+    font-size: 14px;
+}
+
+
+.student-attempt-card p {
+    margin: 5px 0 0;
+
+    color: var(--student-muted);
+
+    font-size: 12px;
+}
+
+
+.student-attempt-right {
+    display: grid;
+    gap: 4px;
+
+    text-align: right;
+}
+
+
+.student-attempt-right span {
+    font-size: 11px;
+    font-weight: 900;
+}
+
+
+.student-attempt-right strong {
+    color: var(--student-text);
+
+    font-size: 14px;
+}
+
+
+.student-attempt-right a {
+    color: var(--student-primary);
+
+    font-size: 12px;
+    font-weight: 900;
+
+    text-decoration: none;
+}
+
+
+.student-attempt-right a:hover {
+    text-decoration: underline;
+}
+
+
+/* ---------- Статус спроби ---------- */
+
+.student-attempt-success .student-attempt-right span {
+    color: #16a34a;
+}
+
+
+.student-attempt-warning .student-attempt-right span {
+    color: #d97706;
+}
+
+
+.student-attempt-danger .student-attempt-right span {
+    color: #dc2626;
+}
+
+
+/* ---------- Стан за відсутності даних ---------- */
+
+.student-empty-state {
+    padding: 18px;
+
+    background: rgba(148, 163, 184, 0.10);
+
+    border: 1px dashed var(--student-border);
+    border-radius: 20px;
+
+    color: var(--student-muted);
+
+    font-weight: 700;
+    text-align: center;
+}
+
+
+/* =========================================================
+   АДАПТИВНІСТЬ ПАНЕЛІ СТУДЕНТА
+   Складні багатоколонкові блоки послідовно переходять
+   до одноколонкового компонування на вузьких екранах
+   ========================================================= */
+
+@media (max-width: 1200px) {
+    .student-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+
+    .student-stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+
+@media (max-width: 900px) {
+    .student-hero-card {
+        grid-template-columns: 1fr;
+    }
+
+
+    .student-hero-visual {
+        justify-content: flex-start;
+    }
+
+
+    .student-labs-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+@media (max-width: 576px) {
+    .student-hero-card,
+    .student-section-card {
+        padding: 20px;
+
+        border-radius: 24px;
+    }
+
+
+    .student-stat-grid {
+        grid-template-columns: 1fr;
+    }
+
+
+    .student-active-lab,
+    .student-attempt-card {
+        grid-template-columns: 1fr;
+    }
+
+
+    .student-attempt-right {
+        text-align: left;
+    }
+
+
+    .student-hero-actions .student-btn {
+        width: 100%;
+    }
+}
