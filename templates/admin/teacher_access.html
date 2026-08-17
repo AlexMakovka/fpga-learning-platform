@@ -2,37 +2,76 @@
 
 {% block content %}
 
-<a href="{{ url_for('admin_panel') }}" class="btn btn-outline-secondary btn-sm mb-3">
-    ← Назад в панель администратора
+<a
+    href="{{ url_for('admin_panel') }}"
+    class="btn btn-outline-secondary btn-sm mb-3"
+>
+    ← Назад до панелі адміністратора
 </a>
 
-<h1 class="mb-4">Доступ преподавателей</h1>
+<h1 class="mb-4">Доступ викладачів</h1>
 
 <div class="card shadow-sm border-0 rounded-4 mb-4">
     <div class="card-body p-4">
-        <h3 class="mb-3">Назначить преподавателя на предмет и группу</h3>
+        <h3 class="mb-3">
+            Призначити викладача для дисципліни та навчальної групи
+        </h3>
 
-        <form method="post" action="{{ url_for('admin_teacher_access') }}">
+        <form
+            method="post"
+            action="{{ url_for('admin_teacher_access') }}"
+        >
             {% include "includes/csrf_token.html" %}
 
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label class="form-label">Преподаватель</label>
-                    <select name="teacher_username" class="form-select" required>
-                        <option value="">Выберите преподавателя</option>
+                    <label
+                        for="teacher-username"
+                        class="form-label"
+                    >
+                        Викладач
+                    </label>
+
+                    <select
+                        id="teacher-username"
+                        name="teacher_username"
+                        class="form-select"
+                        required
+                    >
+                        <option value="" selected disabled>
+                            Виберіть викладача
+                        </option>
 
                         {% for teacher in teachers %}
                             <option value="{{ teacher['username'] }}">
-                                {{ teacher["full_name"] }} — {{ teacher["username"] }}
+                                {{
+                                    teacher["full_name"]
+                                    or teacher["username"]
+                                }}
+                                — {{ teacher["username"] }}
                             </option>
                         {% endfor %}
                     </select>
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">Предмет</label>
-                    <select name="discipline" class="form-select" required>
-                        <option value="">Выберите предмет</option>
+                    <label
+                        for="discipline"
+                        class="form-label"
+                    >
+                        Навчальна дисципліна
+                    </label>
+
+                    <select
+                        id="discipline"
+                        name="discipline"
+                        class="form-select"
+                        required
+                        aria-describedby="discipline-help"
+                    >
+                        <option value="" selected disabled>
+                            Виберіть дисципліну
+                        </option>
 
                         {% for item in disciplines %}
                             <option value="{{ item['discipline'] }}">
@@ -40,15 +79,33 @@
                             </option>
                         {% endfor %}
                     </select>
-                    <div class="form-text">
-                        Предметы берутся из паспортов лабораторных работ.
+
+                    <div
+                        id="discipline-help"
+                        class="form-text"
+                    >
+                        Доступні дисципліни визначаються адміністративним
+                        довідником навчальних дисциплін.
                     </div>
                 </div>
 
                 <div class="col-md-4">
-                    <label class="form-label">Группа</label>
-                    <select name="student_group" class="form-select" required>
-                        <option value="">Выберите группу</option>
+                    <label
+                        for="student-group"
+                        class="form-label"
+                    >
+                        Навчальна група
+                    </label>
+
+                    <select
+                        id="student-group"
+                        name="student_group"
+                        class="form-select"
+                        required
+                    >
+                        <option value="" selected disabled>
+                            Виберіть групу
+                        </option>
 
                         {% for group in groups %}
                             <option value="{{ group['student_group'] }}">
@@ -59,64 +116,85 @@
                 </div>
 
                 <div class="col-md-12">
-                    <button class="btn btn-primary" type="submit">
-                        Добавить доступ
+                    <button
+                        class="btn btn-primary"
+                        type="submit"
+                        {% if not teachers or not disciplines or not groups %}
+                            disabled
+                        {% endif %}
+                    >
+                        Додати доступ
                     </button>
                 </div>
-
             </div>
         </form>
+
+        {% if not teachers or not disciplines or not groups %}
+            <div class="alert alert-warning mt-3 mb-0">
+                Для створення призначення необхідна наявність
+                принаймні одного викладача, навчальної дисципліни
+                та навчальної групи.
+            </div>
+        {% endif %}
     </div>
 </div>
 
-<h3 class="mb-3">Текущие назначения</h3>
+<h3 class="mb-3">Поточні призначення</h3>
 
-{% if access_rows and access_rows|length > 0 %}
+{% if access_rows %}
 
     <div class="card shadow-sm border-0 rounded-4">
         <div class="card-body p-0">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Преподаватель</th>
-                        <th>Предмет</th>
-                        <th>Группа</th>
-                        <th>Дата назначения</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    {% for row in access_rows %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
                         <tr>
-                            <td>
-                                <b>{{ row["teacher_full_name"] or row["teacher_username"] }}</b>
-                                <div class="text-muted small">
-                                    {{ row["teacher_username"] }}
-                                </div>
-                            </td>
-
-                            <td>
-                                {{ row["discipline"] }}
-                            </td>
-
-                            <td>
-                                {{ row["student_group"] }}
-                            </td>
-
-                            <td>
-                                {{ row["created_at"] }}
-                            </td>
+                            <th scope="col">Викладач</th>
+                            <th scope="col">Дисципліна</th>
+                            <th scope="col">Група</th>
+                            <th scope="col">Дата призначення</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+
+                    <tbody>
+                        {% for row in access_rows %}
+                            <tr>
+                                <td>
+                                    <strong>
+                                        {{
+                                            row["teacher_full_name"]
+                                            or row["teacher_username"]
+                                        }}
+                                    </strong>
+
+                                    <div class="text-muted small">
+                                        {{ row["teacher_username"] }}
+                                    </div>
+                                </td>
+
+                                <td>
+                                    {{ row["discipline"] or "—" }}
+                                </td>
+
+                                <td>
+                                    {{ row["student_group"] or "—" }}
+                                </td>
+
+                                <td>
+                                    {{ row["created_at"] or "—" }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
 {% else %}
 
     <div class="alert alert-info rounded-4">
-        Назначения преподавателей пока не добавлены.
+        Призначення викладачів ще не додано.
     </div>
 
 {% endif %}

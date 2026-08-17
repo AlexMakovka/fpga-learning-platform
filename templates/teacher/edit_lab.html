@@ -1,16 +1,34 @@
 {% extends "layouts/base.html" %}
 
+{% block title %}Редагування лабораторної роботи{% endblock %}
+
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div
+    class="
+        d-flex
+        flex-wrap
+        justify-content-between
+        align-items-center
+        gap-3
+        mb-4
+    "
+>
     <div>
-        <h1 class="mb-1">Редактирование лабораторной работы</h1>
+        <h1 class="mb-1">
+            Редагування лабораторної роботи
+        </h1>
+
         <p class="text-muted mb-0">
-            Изменение описания, проверочного сценария и паспорта лабораторной работы.
+            Зміна опису, перевірочних сценаріїв і паспорта
+            лабораторної роботи.
         </p>
     </div>
 
-    <a href="{{ url_for('teacher_panel') }}" class="btn btn-outline-secondary">
+    <a
+        href="{{ url_for('teacher_panel') }}"
+        class="btn btn-outline-secondary"
+    >
         Назад
     </a>
 </div>
@@ -22,185 +40,450 @@
             {% include "includes/csrf_token.html" %}
 
             <div class="mb-3">
-                <label class="form-label">Название</label>
-                <input type="text"
-                       name="title"
-                       class="form-control"
-                       value="{{ lab['title'] }}"
-                       required>
+                <label
+                    class="form-label"
+                    for="labTitle"
+                >
+                    Назва
+                </label>
+
+                <input
+                    type="text"
+                    id="labTitle"
+                    name="title"
+                    class="form-control"
+                    value="{{ lab['title'] }}"
+                    required
+                >
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Описание</label>
-                <textarea name="description"
-                          rows="4"
-                          class="form-control"
-                          required>{{ lab["description"] }}</textarea>
+                <label
+                    class="form-label"
+                    for="labDescription"
+                >
+                    Опис
+                </label>
+
+                <textarea
+                    id="labDescription"
+                    name="description"
+                    rows="4"
+                    class="form-control"
+                    required
+                >{{ lab["description"] }}</textarea>
             </div>
 
             <hr class="my-4">
 
-            <h4 class="mb-3">Паспорт лабораторной работы</h4>
+            <h4 class="mb-3">
+                Паспорт лабораторної роботи
+            </h4>
 
             <div class="row">
+
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Дисциплина</label>
-                    <input type="text"
-                           name="discipline"
-                           class="form-control"
-                           value="{{ lab['discipline'] or 'FPGA-проектирование' }}">
+                    <label
+                        class="form-label"
+                        for="labDiscipline"
+                    >
+                        Дисципліна
+                    </label>
+
+                    <input
+                        type="text"
+                        id="labDiscipline"
+                        name="discipline"
+                        class="form-control"
+                        value="{{ lab['discipline'] or 'FPGA-проєктування' }}"
+                    >
                 </div>
 
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Язык / технология</label>
-                    <select name="programming_language" class="form-select">
-                        <option value="Verilog" {% if lab["programming_language"] == "Verilog" %}selected{% endif %}>Verilog</option>
-                        <option value="Python" {% if lab["programming_language"] == "Python" %}selected{% endif %}>Python</option>
-                        <option value="SQL" {% if lab["programming_language"] == "SQL" %}selected{% endif %}>SQL</option>
-                        <option value="C++" {% if lab["programming_language"] == "C++" %}selected{% endif %}>C++</option>
+                    <label
+                        class="form-label"
+                        for="programmingLanguage"
+                    >
+                        Мова / технологія
+                    </label>
+
+                    <select
+                        id="programmingLanguage"
+                        name="programming_language"
+                        class="form-select"
+                    >
+                        <option
+                            value="Verilog"
+                            {% if lab["programming_language"] == "Verilog" %}
+                                selected
+                            {% endif %}
+                        >
+                            Verilog
+                        </option>
+
+                        <option
+                            value="Python"
+                            {% if lab["programming_language"] == "Python" %}
+                                selected
+                            {% endif %}
+                        >
+                            Python
+                        </option>
+
+                        <option
+                            value="SQL"
+                            {% if lab["programming_language"] == "SQL" %}
+                                selected
+                            {% endif %}
+                        >
+                            SQL
+                        </option>
+
+                        <option
+                            value="C++"
+                            {% if lab["programming_language"] == "C++" %}
+                                selected
+                            {% endif %}
+                        >
+                            C++
+                        </option>
                     </select>
                 </div>
 
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Тип проверки</label>
-                    <select name="checker_type" class="form-select">
-                        <option value="hdl_testbench" {% if lab["checker_type"] == "hdl_testbench" %}selected{% endif %}>HDL testbench</option>
-                        <option value="python_unit_tests" {% if lab["checker_type"] == "python_unit_tests" %}selected{% endif %}>Python unit tests</option>
-                        <option value="sql_query" {% if lab["checker_type"] == "sql_query" %}selected{% endif %}>SQL query check</option>
-                        <option value="cpp_tests" {% if lab["checker_type"] == "cpp_tests" %}selected{% endif %}>C++ tests</option>
+                    <label
+                        class="form-label"
+                        for="checkerType"
+                    >
+                        Тип перевірки
+                    </label>
+
+                    <select
+                        id="checkerType"
+                        name="checker_type"
+                        class="form-select"
+                    >
+                        <option
+                            value="hdl_testbench"
+                            {% if lab["checker_type"] == "hdl_testbench" %}
+                                selected
+                            {% endif %}
+                        >
+                            HDL testbench
+                        </option>
+
+                        <option
+                            value="python_unit_tests"
+                            {% if lab["checker_type"] == "python_unit_tests" %}
+                                selected
+                            {% endif %}
+                        >
+                            Python unit tests
+                        </option>
+
+                        <option
+                            value="sql_query"
+                            {% if lab["checker_type"] == "sql_query" %}
+                                selected
+                            {% endif %}
+                        >
+                            SQL query check
+                        </option>
+
+                        <option
+                            value="cpp_tests"
+                            {% if lab["checker_type"] == "cpp_tests" %}
+                                selected
+                            {% endif %}
+                        >
+                            C++ tests
+                        </option>
                     </select>
                 </div>
+
             </div>
 
             <div class="row">
+
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Тема задания</label>
-                    <input type="text"
-                           name="topic"
-                           class="form-control"
-                           value="{{ lab['topic'] or '' }}"
-                           placeholder="Например: mux, adder, counter, loops">
+                    <label
+                        class="form-label"
+                        for="labTopic"
+                    >
+                        Тема завдання
+                    </label>
+
+                    <input
+                        type="text"
+                        id="labTopic"
+                        name="topic"
+                        class="form-control"
+                        value="{{ lab['topic'] or '' }}"
+                        placeholder="Наприклад: mux, adder, counter, loops"
+                    >
                 </div>
 
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Сложность</label>
-                    <select name="difficulty" class="form-select">
-                        <option value="basic" {% if lab["difficulty"] == "basic" %}selected{% endif %}>Базовая</option>
-                        <option value="medium" {% if lab["difficulty"] == "medium" %}selected{% endif %}>Средняя</option>
-                        <option value="hard" {% if lab["difficulty"] == "hard" %}selected{% endif %}>Высокая</option>
+                    <label
+                        class="form-label"
+                        for="labDifficulty"
+                    >
+                        Складність
+                    </label>
+
+                    <select
+                        id="labDifficulty"
+                        name="difficulty"
+                        class="form-select"
+                    >
+                        <option
+                            value="basic"
+                            {% if lab["difficulty"] == "basic" %}
+                                selected
+                            {% endif %}
+                        >
+                            Базова
+                        </option>
+
+                        <option
+                            value="medium"
+                            {% if lab["difficulty"] == "medium" %}
+                                selected
+                            {% endif %}
+                        >
+                            Середня
+                        </option>
+
+                        <option
+                            value="hard"
+                            {% if lab["difficulty"] == "hard" %}
+                                selected
+                            {% endif %}
+                        >
+                            Висока
+                        </option>
                     </select>
                 </div>
 
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Ключевые понятия</label>
-                    <input type="text"
-                           name="concepts"
-                           class="form-control"
-                           value="{{ lab['concepts'] or '' }}"
-                           placeholder="sel, assign, d0, d1">
+                    <label
+                        class="form-label"
+                        for="labConcepts"
+                    >
+                        Ключові поняття
+                    </label>
+
+                    <input
+                        type="text"
+                        id="labConcepts"
+                        name="concepts"
+                        class="form-control"
+                        value="{{ lab['concepts'] or '' }}"
+                        placeholder="Наприклад: sel, assign, d0, d1"
+                    >
                 </div>
+
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Критерии оценивания</label>
-                <textarea name="grading_policy"
-                          class="form-control"
-                          rows="3"
-                          placeholder="Например: 80% — прохождение testbench, 20% — дополнительные вопросы">{{ lab["grading_policy"] or "" }}</textarea>
+                <label
+                    class="form-label"
+                    for="gradingPolicy"
+                >
+                    Критерії оцінювання
+                </label>
+
+                <textarea
+                    id="gradingPolicy"
+                    name="grading_policy"
+                    class="form-control"
+                    rows="3"
+                    placeholder="Опишіть критерії та складові підсумкового оцінювання лабораторної роботи"
+                >{{ lab["grading_policy"] or "" }}</textarea>
             </div>
 
             <div class="mb-3">
-                <div class="mb-3">
-                    <label class="form-label">Стартовый шаблон кода для HDL-редактора</label>
-                    <textarea name="starter_code"
-                            class="form-control code-area"
-                            rows="8"
-                            placeholder="Этот код студент увидит во встроенном редакторе">{{ lab["starter_code"] or "" }}</textarea>
+                <label
+                    class="form-label"
+                    for="starterCode"
+                >
+                    Початковий шаблон коду для HDL-редактора
+                </label>
 
-                    <div class="form-text">
-                        Для Verilog-заданий этот код автоматически подставляется студенту во встроенный HDL-редактор на странице лабораторной работы.
-                    </div>
+                <textarea
+                    id="starterCode"
+                    name="starter_code"
+                    class="form-control code-area"
+                    rows="8"
+                    placeholder="Цей код студент побачить у вбудованому редакторі"
+                >{{ lab["starter_code"] or "" }}</textarea>
+
+                <div class="form-text">
+                    Для завдань Verilog цей код автоматично
+                    підставляється студенту у вбудований HDL-редактор
+                    на сторінці лабораторної роботи.
                 </div>
             </div>
 
             <hr class="my-4">
 
+            <h4 class="mb-3">
+                Перевірочні сценарії
+            </h4>
+
             <div class="mb-3">
-                <label class="form-label">Открытый testbench</label>
-                <textarea name="public_testbench"
-                        rows="12"
-                        class="form-control code-area"
-                        required>{{ lab["public_testbench"] or lab["testbench"] or "" }}</textarea>
+                <label
+                    class="form-label"
+                    for="publicTestbench"
+                >
+                    Відкритий testbench
+                </label>
+
+                <textarea
+                    id="publicTestbench"
+                    name="public_testbench"
+                    rows="12"
+                    class="form-control code-area"
+                    required
+                >{{ lab["public_testbench"] or lab["testbench"] or "" }}</textarea>
 
                 <div class="form-text">
-                    Открытые тесты показываются студенту подробно и используются для учебной диагностики ошибок.
+                    Відкриті тести детально відображаються студенту
+                    та використовуються для навчальної діагностики
+                    помилок.
                 </div>
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Скрытый testbench</label>
-                <textarea name="hidden_testbench"
-                        rows="12"
-                        class="form-control code-area">{{ lab["hidden_testbench"] or "" }}</textarea>
+                <label
+                    class="form-label"
+                    for="hiddenTestbench"
+                >
+                    Прихований testbench
+                </label>
+
+                <textarea
+                    id="hiddenTestbench"
+                    name="hidden_testbench"
+                    rows="12"
+                    class="form-control code-area"
+                >{{ lab["hidden_testbench"] or "" }}</textarea>
 
                 <div class="form-text">
-                    Скрытые тесты используются для итоговой оценки. Студент по умолчанию видит только количество пройденных скрытых тестов.
+                    Приховані тести використовуються для додаткової
+                    перевірки та підсумкового оцінювання.
+                    За замовчуванням студент отримує лише дозволену
+                    узагальнену інформацію про результат їх виконання.
                 </div>
             </div>
 
             <div class="mb-3">
                 <div class="form-check">
-                    <input class="form-check-input"
+                    <input
+                        class="form-check-input"
                         type="checkbox"
                         name="show_hidden_details"
-                        id="show_hidden_details"
-                        {% if lab["show_hidden_details"] %}checked{% endif %}>
+                        id="showHiddenDetails"
+                        {% if lab["show_hidden_details"] %}
+                            checked
+                        {% endif %}
+                    >
 
-                    <label class="form-check-label" for="show_hidden_details">
-                        Показывать студенту подробности скрытых тестов
+                    <label
+                        class="form-check-label"
+                        for="showHiddenDetails"
+                    >
+                        Показувати студенту розширені результати
+                        прихованих тестів
                     </label>
                 </div>
 
                 <div class="form-text">
-                    Обычно эту настройку лучше не включать, чтобы скрытые проверки оставались закрытыми.
+                    Рекомендується залишати цю опцію вимкненою.
+                    Незалежно від її стану студенту не повинні
+                    розкриватися код прихованого testbench або дані,
+                    що дають змогу відновити приховані перевірки.
                 </div>
             </div>
 
             <div class="row">
+
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Максимальное количество попыток</label>
-                    <input type="number"
-                           name="max_attempts"
-                           class="form-control"
-                           value="{{ lab['max_attempts'] or 3 }}"
-                           min="1">
+                    <label
+                        class="form-label"
+                        for="maxAttempts"
+                    >
+                        Максимальна кількість спроб
+                    </label>
+
+                    <input
+                        type="number"
+                        id="maxAttempts"
+                        name="max_attempts"
+                        class="form-control"
+                        value="{{
+                            lab['max_attempts']
+                            if lab['max_attempts'] is not none
+                            else 3
+                        }}"
+                        min="1"
+                        step="1"
+                    >
+
                     <div class="form-text">
-                        Если студент уже использовал больше попыток, старые попытки сохранятся, но новые будут ограничены этим числом.
+                        Якщо студент уже використав більше спроб,
+                        попередні результати зберігаються, але нові
+                        спроби обмежуються вказаним значенням.
                     </div>
                 </div>
 
-                <div class="col-md-6 mb-3 d-flex align-items-end">
+                <div
+                    class="
+                        col-md-6
+                        mb-3
+                        d-flex
+                        align-items-end
+                    "
+                >
                     <div class="form-check">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               name="allow_extra_questions"
-                               id="allow_extra_questions"
-                               {% if lab["allow_extra_questions"] %}checked{% endif %}>
-                        <label class="form-check-label" for="allow_extra_questions">
-                            Разрешить улучшение оценки через дополнительные вопросы
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            name="allow_extra_questions"
+                            id="allowExtraQuestions"
+                            {% if lab["allow_extra_questions"] %}
+                                checked
+                            {% endif %}
+                        >
+
+                        <label
+                            class="form-check-label"
+                            for="allowExtraQuestions"
+                        >
+                            Дозволити покращення оцінки за допомогою
+                            додаткових запитань
                         </label>
                     </div>
                 </div>
+
             </div>
 
-            <div class="d-flex gap-2 mt-4">
-                <button class="btn btn-primary" type="submit">
-                    Сохранить изменения
+            <div class="d-flex flex-wrap gap-2 mt-4">
+
+                <button
+                    class="btn btn-primary"
+                    type="submit"
+                >
+                    Зберегти зміни
                 </button>
 
-                <a href="{{ url_for('teacher_panel') }}" class="btn btn-outline-secondary">
-                    Отмена
+                <a
+                    href="{{ url_for('teacher_panel') }}"
+                    class="btn btn-outline-secondary"
+                >
+                    Скасувати
                 </a>
+
             </div>
 
         </form>

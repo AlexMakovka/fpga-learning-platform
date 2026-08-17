@@ -1,21 +1,30 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}Карта компетенций{% endblock %}
+{% block title %}Карта компетентностей{% endblock %}
 
 {% block content %}
 
 <div class="container py-4">
 
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div
+        class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4"
+    >
         <div>
-            <h1 class="mb-1">Карта компетенций</h1>
+            <h1 class="mb-1">
+                Карта компетентностей
+            </h1>
+
             <p class="text-muted mb-0">
-                Индивидуальная карта освоения тем FPGA-проектирования на основе истории лабораторных работ.
+                Індивідуальна карта опанування тем FPGA-проєктування
+                на основі історії виконання лабораторних робіт.
             </p>
         </div>
 
-        <a href="{{ url_for('student_gradebook') }}" class="btn btn-outline-secondary">
-            Вернуться в зачётку
+        <a
+            href="{{ url_for('student_gradebook') }}"
+            class="btn btn-outline-secondary"
+        >
+            Повернутися до залікової книжки
         </a>
     </div>
 
@@ -24,9 +33,17 @@
         <div class="col-md-4">
             <div class="card border-0 shadow-sm rounded-4 h-100">
                 <div class="card-body">
-                    <div class="text-muted small">Студент</div>
-                    <h4 class="mb-1">{{ student["full_name"] or student["username"] }}</h4>
-                    <div class="text-muted">{{ student["student_group"] or "Без группы" }}</div>
+                    <div class="text-muted small">
+                        Студент
+                    </div>
+
+                    <h4 class="mb-1">
+                        {{ student["full_name"] or student["username"] }}
+                    </h4>
+
+                    <div class="text-muted">
+                        {{ student["student_group"] or "Без навчальної групи" }}
+                    </div>
                 </div>
             </div>
         </div>
@@ -34,17 +51,23 @@
         <div class="col-md-4">
             <div class="card border-0 shadow-sm rounded-4 h-100">
                 <div class="card-body">
-                    <div class="text-muted small">Средний уровень компетенций</div>
+                    <div class="text-muted small">
+                        Середній рівень компетентностей
+                    </div>
 
                     {% if competency_map.average_competency_score is not none %}
                         <div class="display-6 fw-bold">
                             {{ competency_map.average_competency_score }}%
                         </div>
                     {% else %}
-                        <div class="display-6 fw-bold">—</div>
+                        <div class="display-6 fw-bold">
+                            —
+                        </div>
                     {% endif %}
 
-                    <div class="text-muted small">по доступным данным</div>
+                    <div class="text-muted small">
+                        за наявними навчальними даними
+                    </div>
                 </div>
             </div>
         </div>
@@ -52,12 +75,24 @@
         <div class="col-md-4">
             <div class="card border-0 shadow-sm rounded-4 h-100">
                 <div class="card-body">
-                    <div class="text-muted small">Учебные данные</div>
-                    <div class="h4 mb-1">
-                        {{ competency_map.completed_labs_count }} лабораторных
+                    <div class="text-muted small">
+                        Навчальні дані
                     </div>
-                    <div class="text-muted">
-                        {{ competency_map.total_attempts_count }} попыток
+
+                    <div class="h4 mb-1">
+                        {{ competency_map.completed_labs_count }}
+                    </div>
+
+                    <div class="text-muted small">
+                        зараховано лабораторних робіт
+                    </div>
+
+                    <div class="h5 mt-3 mb-1">
+                        {{ competency_map.total_attempts_count }}
+                    </div>
+
+                    <div class="text-muted small">
+                        загальна кількість спроб
                     </div>
                 </div>
             </div>
@@ -66,13 +101,21 @@
     </div>
 
     {% if competency_map.weak_competencies %}
-        <div class="alert alert-warning rounded-4 border-0 shadow-sm mb-4">
-            <h5 class="mb-2">Зоны для повторения</h5>
+        <div
+            class="alert alert-warning rounded-4 border-0 shadow-sm mb-4"
+            role="alert"
+        >
+            <h5 class="mb-2">
+                Теми для повторення
+            </h5>
 
             <ul class="mb-0">
                 {% for item in competency_map.weak_competencies[:3] %}
                     <li>
-                        <b>{{ item.title }}</b> — {{ item.score }}%.
+                        <strong>
+                            {{ item.title }}
+                        </strong>
+                        — {{ item.score }}%.
                         {{ item.recommendation }}
                     </li>
                 {% endfor %}
@@ -81,8 +124,13 @@
     {% endif %}
 
     {% if competency_map.strong_competencies %}
-        <div class="alert alert-success rounded-4 border-0 shadow-sm mb-4">
-            <h5 class="mb-2">Сильные стороны</h5>
+        <div
+            class="alert alert-success rounded-4 border-0 shadow-sm mb-4"
+            role="status"
+        >
+            <h5 class="mb-2">
+                Сильні сторони
+            </h5>
 
             <div>
                 {% for item in competency_map.strong_competencies %}
@@ -96,17 +144,39 @@
 
     <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-body">
-            <h4 class="mb-3">Освоение компетенций</h4>
+            <h4 class="mb-3">
+                Опанування компетентностей
+            </h4>
 
             {% if competency_map.competencies %}
                 <div class="table-responsive">
                     <table class="table align-middle">
                         <thead>
                             <tr>
-                                <th style="width: 26%;">Компетенция</th>
-                                <th style="width: 34%;">Уровень освоения</th>
-                                <th style="width: 18%;">Статус</th>
-                                <th>Рекомендация</th>
+                                <th
+                                    scope="col"
+                                    style="width: 26%;"
+                                >
+                                    Компетентність
+                                </th>
+
+                                <th
+                                    scope="col"
+                                    style="width: 34%;"
+                                >
+                                    Рівень опанування
+                                </th>
+
+                                <th
+                                    scope="col"
+                                    style="width: 18%;"
+                                >
+                                    Статус
+                                </th>
+
+                                <th scope="col">
+                                    Рекомендація
+                                </th>
                             </tr>
                         </thead>
 
@@ -114,7 +184,10 @@
                             {% for item in competency_map.competencies %}
                                 <tr>
                                     <td>
-                                        <b>{{ item.title }}</b>
+                                        <strong>
+                                            {{ item.title }}
+                                        </strong>
+
                                         <div class="text-muted small">
                                             {{ item.description }}
                                         </div>
@@ -123,21 +196,32 @@
                                     <td>
                                         {% if item.score is not none %}
                                             <div class="d-flex align-items-center gap-2">
-                                                <div class="progress flex-grow-1" style="height: 10px;">
-                                                    <div class="progress-bar competency-progress-bar"
-                                                         role="progressbar"
-                                                         data-progress="{{ item.score }}"
-                                                         aria-valuemin="0"
-                                                         aria-valuemax="100">
-                                                    </div>
+                                                <div
+                                                    class="progress flex-grow-1"
+                                                    style="height: 10px;"
+                                                >
+                                                    <div
+                                                        class="progress-bar competency-progress-bar"
+                                                        role="progressbar"
+                                                        data-progress="{{ item.score }}"
+                                                        aria-valuenow="{{ item.score }}"
+                                                        aria-valuemin="0"
+                                                        aria-valuemax="100"
+                                                        aria-label="Рівень опанування компетентності {{ item.title }}"
+                                                    ></div>
                                                 </div>
 
-                                                <span class="fw-bold" style="min-width: 48px;">
+                                                <span
+                                                    class="fw-bold"
+                                                    style="min-width: 48px;"
+                                                >
                                                     {{ item.score }}%
                                                 </span>
                                             </div>
                                         {% else %}
-                                            <span class="text-muted">Нет данных</span>
+                                            <span class="text-muted">
+                                                Немає даних
+                                            </span>
                                         {% endif %}
                                     </td>
 
@@ -155,32 +239,46 @@
                                 </tr>
 
                                 <tr>
-                                    <td colspan="4" class="pt-0">
+                                    <td
+                                        colspan="4"
+                                        class="pt-0"
+                                    >
                                         <details>
-                                            <summary class="text-primary small" style="cursor: pointer;">
-                                                Подробнее по компетенции
+                                            <summary
+                                                class="text-primary small"
+                                                style="cursor: pointer;"
+                                            >
+                                                Докладніше про компетентність
                                             </summary>
 
                                             <div class="row g-3 mt-2">
 
                                                 <div class="col-md-6">
                                                     <div class="border rounded-4 p-3 h-100">
-                                                        <h6>Связанные лабораторные</h6>
+                                                        <h6>
+                                                            Пов'язані лабораторні роботи
+                                                        </h6>
 
                                                         {% if item.labs %}
                                                             <ul class="mb-0 small">
                                                                 {% for lab in item.labs %}
                                                                     <li>
-                                                                        <b>{{ lab.lab_title }}</b>:
-                                                                        лучший балл {{ lab.best_score }},
-                                                                        попыток {{ lab.attempts_count }},
-                                                                        статус {{ lab.last_status }}
+                                                                        <strong>
+                                                                            {{ lab.lab_title }}
+                                                                        </strong>:
+                                                                        найкращий бал —
+                                                                        {{ lab.best_score }};
+                                                                        кількість спроб —
+                                                                        {{ lab.attempts_count }};
+                                                                        статус —
+                                                                        {{ lab.last_status }}
                                                                     </li>
                                                                 {% endfor %}
                                                             </ul>
                                                         {% else %}
                                                             <p class="text-muted small mb-0">
-                                                                Пока нет связанных лабораторных.
+                                                                Пов'язаних лабораторних робіт
+                                                                ще немає.
                                                             </p>
                                                         {% endif %}
                                                     </div>
@@ -188,19 +286,24 @@
 
                                                 <div class="col-md-6">
                                                     <div class="border rounded-4 p-3 h-100">
-                                                        <h6>Частые ошибки</h6>
+                                                        <h6>
+                                                            Поширені помилки
+                                                        </h6>
 
                                                         {% if item.frequent_errors %}
                                                             <ul class="mb-0 small">
                                                                 {% for error in item.frequent_errors %}
                                                                     <li>
-                                                                        {{ error.title }} — {{ error.count }} раз.
+                                                                        {{ error.title }}
+                                                                        — кількість:
+                                                                        {{ error.count }}.
                                                                     </li>
                                                                 {% endfor %}
                                                             </ul>
                                                         {% else %}
                                                             <p class="text-muted small mb-0">
-                                                                По этой компетенции типовые ошибки не накоплены.
+                                                                Для цієї компетентності
+                                                                типові помилки ще не зафіксовано.
                                                             </p>
                                                         {% endif %}
                                                     </div>
@@ -214,9 +317,11 @@
                         </tbody>
                     </table>
                 </div>
+
             {% else %}
                 <p class="text-muted mb-0">
-                    Пока недостаточно данных для построения карты компетенций.
+                    Наразі недостатньо даних для побудови
+                    карти компетентностей.
                 </p>
             {% endif %}
         </div>
@@ -224,36 +329,56 @@
 
     <div class="card border-0 shadow-sm rounded-4">
         <div class="card-body">
-            <h4 class="mb-3">Как читать карту</h4>
+            <h4 class="mb-3">
+                Як читати карту
+            </h4>
 
             <div class="row g-3">
+
                 <div class="col-md-3">
-                    <span class="badge bg-success mb-2">85–100%</span>
+                    <span class="badge bg-success mb-2">
+                        85–100%
+                    </span>
+
                     <p class="small text-muted mb-0">
-                        Тема освоена хорошо, можно переходить к более сложным заданиям.
+                        Тему опановано на високому рівні, можна переходити
+                        до складніших завдань.
                     </p>
                 </div>
 
                 <div class="col-md-3">
-                    <span class="badge bg-primary mb-2">70–84%</span>
+                    <span class="badge bg-primary mb-2">
+                        70–84%
+                    </span>
+
                     <p class="small text-muted mb-0">
-                        Хороший уровень, но отдельные ошибки ещё возможны.
+                        Рівень опанування достатньо високий, однак окремі
+                        помилки ще можливі.
                     </p>
                 </div>
 
                 <div class="col-md-3">
-                    <span class="badge bg-warning text-dark mb-2">50–69%</span>
+                    <span class="badge bg-warning text-dark mb-2">
+                        50–69%
+                    </span>
+
                     <p class="small text-muted mb-0">
-                        Базовое понимание есть, но тему лучше повторить.
+                        Базове розуміння сформовано, але тему рекомендовано
+                        додатково повторити.
                     </p>
                 </div>
 
                 <div class="col-md-3">
-                    <span class="badge bg-danger mb-2">0–49%</span>
+                    <span class="badge bg-danger mb-2">
+                        0–49%
+                    </span>
+
                     <p class="small text-muted mb-0">
-                        Проблемная зона: желательно повторить теорию и разобрать ошибки.
+                        Тема потребує додаткового опрацювання теоретичного
+                        матеріалу та аналізу допущених помилок.
                     </p>
                 </div>
+
             </div>
         </div>
     </div>
@@ -262,21 +387,30 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    const progressBars = document.querySelectorAll(".competency-progress-bar");
+    const progressBars = document.querySelectorAll(
+        ".competency-progress-bar"
+    );
 
     progressBars.forEach(function (bar) {
-        const rawValue = bar.dataset.progress || "0";
+        const rawValue = bar.dataset.progress ?? "0";
         const normalizedValue = rawValue.replace(",", ".");
-        let value = parseFloat(normalizedValue);
+        let value = Number.parseFloat(normalizedValue);
 
-        if (Number.isNaN(value)) {
+        if (!Number.isFinite(value)) {
             value = 0;
         }
 
-        value = Math.max(0, Math.min(100, value));
+        value = Math.max(
+            0,
+            Math.min(100, value)
+        );
 
-        bar.style.width = value + "%";
-        bar.setAttribute("aria-valuenow", value);
+        bar.style.width = `${value}%`;
+
+        bar.setAttribute(
+            "aria-valuenow",
+            String(value)
+        );
     });
 });
 </script>

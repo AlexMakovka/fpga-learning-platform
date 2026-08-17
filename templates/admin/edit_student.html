@@ -2,62 +2,129 @@
 
 {% block content %}
 
-<a href="{{ url_for('manage_students') }}" class="btn btn-outline-secondary btn-sm mb-3">
-    ← Назад к студентам
+<a
+    href="{{ url_for('manage_students') }}"
+    class="btn btn-outline-secondary btn-sm mb-3"
+>
+    ← Назад до списку студентів
 </a>
 
 <div class="card shadow-sm border-0 rounded-4">
     <div class="card-body p-4">
 
-        <h1 class="mb-3">Редактирование студента</h1>
+        <h1 class="mb-3">Редагування даних студента</h1>
 
-        <form method="post" action="{{ url_for('edit_student', user_id=student['id']) }}">
+        <form
+            method="post"
+            action="{{ url_for('edit_student', user_id=student['id']) }}"
+        >
             {% include "includes/csrf_token.html" %}
+
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Логин</label>
-                    <input type="text"
-                           name="username"
-                           class="form-control"
-                           value="{{ student['username'] }}">
+                    <label
+                        for="student-username"
+                        class="form-label"
+                    >
+                        Логін
+                    </label>
+
+                    <input
+                        type="text"
+                        id="student-username"
+                        name="username"
+                        class="form-control"
+                        value="{{ student['username'] }}"
+                        autocomplete="username"
+                        required
+                    >
                 </div>
 
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Новый пароль</label>
-                    <input type="password"
+                    <label
+                        for="student-password"
+                        class="form-label"
+                    >
+                        Новий пароль
+                    </label>
+
+                    <input
+                        type="password"
+                        id="student-password"
                         name="password"
                         class="form-control"
-                        placeholder="Оставьте пустым, если пароль менять не нужно">
+                        autocomplete="new-password"
+                        aria-describedby="student-password-help"
+                    >
 
-                    <div class="form-text">
-                        Оставьте поле пустым, если не нужно менять пароль.
+                    <div
+                        id="student-password-help"
+                        class="form-text"
+                    >
+                        Залиште поле порожнім, якщо пароль змінювати не потрібно.
                     </div>
                 </div>
             </div>
 
             <div class="mb-3">
-                <label class="form-label">ФИО студента</label>
-                <input type="text"
-                       name="full_name"
-                       class="form-control"
-                       value="{{ student['full_name'] }}">
+                <label
+                    for="student-full-name"
+                    class="form-label"
+                >
+                    Повне ім'я студента
+                </label>
+
+                <input
+                    type="text"
+                    id="student-full-name"
+                    name="full_name"
+                    class="form-control"
+                    value="{{ student['full_name'] }}"
+                    autocomplete="name"
+                    required
+                >
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Группа</label>
-                <input type="text"
-                       name="student_group"
-                       class="form-control"
-                       value="{{ student['student_group'] }}">
+                <label
+                    for="student-group"
+                    class="form-label"
+                >
+                    Навчальна група
+                </label>
+
+                <select
+                    id="student-group"
+                    name="student_group"
+                    class="form-select"
+                    required
+                >
+                    {% for group in groups %}
+                        <option
+                            value="{{ group['student_group'] }}"
+                            {% if group['student_group'] == student['student_group'] %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ group["student_group"] }}
+                        </option>
+                    {% endfor %}
+                </select>
             </div>
 
-            <div class="d-flex gap-2">
-                <button class="btn btn-primary" type="submit">
-                    Сохранить изменения
+            <div class="d-flex flex-wrap gap-2">
+                <button
+                    class="btn btn-primary"
+                    type="submit"
+                >
+                    Зберегти зміни
                 </button>
 
-                <a href="{{ url_for('manage_students') }}" class="btn btn-outline-secondary">
-                    Отмена
+                <a
+                    href="{{ url_for('manage_students') }}"
+                    class="btn btn-outline-secondary"
+                >
+                    Скасувати
                 </a>
             </div>
 

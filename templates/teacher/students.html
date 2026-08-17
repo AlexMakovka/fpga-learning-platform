@@ -1,58 +1,112 @@
 {% extends "layouts/base.html" %}
 
+{% block title %}Керування студентами{% endblock %}
+
 {% block content %}
 
-<a href="{{ url_for('teacher_panel') }}" class="btn btn-outline-secondary btn-sm mb-3">
-    ← Назад в панель преподавателя
+<a
+    href="{{ url_for('teacher_panel') }}"
+    class="btn btn-outline-secondary btn-sm mb-3"
+>
+    ← Назад до панелі викладача
 </a>
 
-<h1 class="mb-4">Управление студентами</h1>
+<h1 class="mb-4">
+    Керування студентами
+</h1>
 
 <div class="card shadow-sm border-0 rounded-4 mb-4">
     <div class="card-body p-4">
 
-        <h3 class="mb-3">Добавить студента</h3>
+        <h3 class="mb-3">
+            Додати студента
+        </h3>
 
-        <form method="post" action="{{ url_for('manage_students') }}">
+        <form
+            method="post"
+            action="{{ url_for('manage_students') }}"
+        >
             {% include "includes/csrf_token.html" %}
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="row">
+
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Логин</label>
-                    <input type="text"
-                           name="username"
-                           class="form-control"
-                           placeholder="Например: petrov">
+                    <label
+                        class="form-label"
+                        for="studentUsername"
+                    >
+                        Логін
+                    </label>
+
+                    <input
+                        type="text"
+                        id="studentUsername"
+                        name="username"
+                        class="form-control"
+                        placeholder="Наприклад: petrov"
+                        autocomplete="username"
+                    >
                 </div>
 
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Пароль</label>
-                    <input type="text"
-                           name="password"
-                           class="form-control"
-                           placeholder="Например: student123">
+                    <label
+                        class="form-label"
+                        for="studentPassword"
+                    >
+                        Пароль
+                    </label>
+
+                    <input
+                        type="password"
+                        id="studentPassword"
+                        name="password"
+                        class="form-control"
+                        placeholder="Введіть початковий пароль"
+                        autocomplete="new-password"
+                    >
                 </div>
+
             </div>
 
             <div class="mb-3">
-                <label class="form-label">ФИО студента</label>
-                <input type="text"
-                       name="full_name"
-                       class="form-control"
-                       placeholder="Например: Петров Пётр Петрович">
+                <label
+                    class="form-label"
+                    for="studentFullName"
+                >
+                    ПІБ студента
+                </label>
+
+                <input
+                    type="text"
+                    id="studentFullName"
+                    name="full_name"
+                    class="form-control"
+                    placeholder="Наприклад: Петренко Петро Петрович"
+                >
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Группа</label>
-                <input type="text"
-                       name="student_group"
-                       class="form-control"
-                       placeholder="Например: ІПЗ-5.01">
+                <label
+                    class="form-label"
+                    for="studentGroup"
+                >
+                    Група
+                </label>
+
+                <input
+                    type="text"
+                    id="studentGroup"
+                    name="student_group"
+                    class="form-control"
+                    placeholder="Наприклад: ІПЗ-5.01"
+                >
             </div>
 
-            <button class="btn btn-primary" type="submit">
-                Добавить студента
+            <button
+                class="btn btn-primary"
+                type="submit"
+            >
+                Додати студента
             </button>
 
         </form>
@@ -63,11 +117,25 @@
 <div class="card student-tools-card shadow-sm border-0 rounded-4 mb-4">
     <div class="card-body p-4">
 
-        <div class="d-flex justify-content-between align-items-start mb-3">
+        <div
+            class="
+                d-flex
+                flex-wrap
+                justify-content-between
+                align-items-start
+                gap-3
+                mb-3
+            "
+        >
             <div>
-                <h3 class="mb-1">Поиск и управление группами</h3>
+                <h3 class="mb-1">
+                    Пошук і керування групами
+                </h3>
+
                 <p class="text-muted mb-0">
-                    Найдите студента по ФИО, отфильтруйте список по группе или удалите завершившую обучение группу.
+                    Знайдіть студента за ПІБ, відфільтруйте список
+                    за групою або видаліть дані студентів групи,
+                    яка завершила навчання.
                 </p>
             </div>
         </div>
@@ -76,30 +144,60 @@
 
             <div class="col-lg-8">
                 <div class="tool-section h-100">
-                    <div class="section-label">Поиск студентов</div>
 
-                    <form method="get" action="{{ url_for('manage_students') }}">
+                    <div class="section-label">
+                        Пошук студентів
+                    </div>
+
+                    <form
+                        method="get"
+                        action="{{ url_for('manage_students') }}"
+                    >
                         <div class="row g-2 align-items-end">
 
                             <div class="col-md-5">
-                                <label class="form-label small text-muted">Фамилия, ФИО или логин</label>
-                                <input type="text"
-                                       name="q"
-                                       class="form-control"
-                                       value="{{ search_query }}"
-                                       placeholder="Например: Петров">
+                                <label
+                                    class="form-label small text-muted"
+                                    for="studentSearchQuery"
+                                >
+                                    Прізвище, ПІБ або логін
+                                </label>
+
+                                <input
+                                    type="search"
+                                    id="studentSearchQuery"
+                                    name="q"
+                                    class="form-control"
+                                    value="{{ search_query or '' }}"
+                                    placeholder="Наприклад: Петренко"
+                                    autocomplete="off"
+                                >
                             </div>
 
                             <div class="col-md-4">
-                                <label class="form-label small text-muted">Группа</label>
-                                <select name="group" class="form-select">
-                                    <option value="">Все группы</option>
+                                <label
+                                    class="form-label small text-muted"
+                                    for="studentSearchGroup"
+                                >
+                                    Група
+                                </label>
+
+                                <select
+                                    id="studentSearchGroup"
+                                    name="group"
+                                    class="form-select"
+                                >
+                                    <option value="">
+                                        Усі групи
+                                    </option>
 
                                     {% for group in groups %}
-                                        <option value="{{ group['student_group'] }}"
+                                        <option
+                                            value="{{ group['student_group'] }}"
                                             {% if selected_group == group['student_group'] %}
                                                 selected
-                                            {% endif %}>
+                                            {% endif %}
+                                        >
                                             {{ group["student_group"] }}
                                         </option>
                                     {% endfor %}
@@ -107,57 +205,89 @@
                             </div>
 
                             <div class="col-md-3">
-                                <label class="form-label small text-muted d-none d-md-block">&nbsp;</label>
-
                                 <div class="student-search-actions">
-                                    <button class="btn btn-dark" type="submit">
-                                        Найти
+                                    <button
+                                        class="btn btn-dark"
+                                        type="submit"
+                                    >
+                                        Знайти
                                     </button>
 
-                                    <a href="{{ url_for('manage_students') }}" class="btn btn-outline-secondary">
-                                        Сброс
+                                    <a
+                                        href="{{ url_for('manage_students') }}"
+                                        class="btn btn-outline-secondary"
+                                    >
+                                        Скинути
                                     </a>
                                 </div>
                             </div>
 
                         </div>
                     </form>
+
                 </div>
             </div>
 
             <div class="col-lg-4">
                 <div class="tool-section danger-section h-100">
-                    <div class="section-label text-danger">Удаление группы</div>
 
-                    <form method="post"
-                          action="{{ url_for('delete_group_students') }}"
-                          onsubmit="return confirm('Удалить всю группу студентов вместе с их попытками и файлами?');">
+                    <div class="section-label text-danger">
+                        Видалення студентів групи
+                    </div>
 
-                          {% include "includes/csrf_token.html" %}
+                    <form
+                        method="post"
+                        action="{{ url_for('delete_group_students') }}"
+                        onsubmit="return confirm(
+                            'Видалити всіх студентів вибраної групи разом з їхніми спробами та файлами?'
+                        );"
+                    >
+                        {% include "includes/csrf_token.html" %}
 
-                        <label class="form-label small text-muted">Завершившая курс группа</label>
+                        <label
+                            class="form-label small text-muted"
+                            for="deleteStudentGroup"
+                        >
+                            Група, що завершила навчання
+                        </label>
 
                         <div class="d-flex gap-2">
-                            <select name="student_group" class="form-select">
-                                <option value="">Выберите группу</option>
+
+                            <select
+                                id="deleteStudentGroup"
+                                name="student_group"
+                                class="form-select"
+                            >
+                                <option value="">
+                                    Виберіть групу
+                                </option>
 
                                 {% for group in groups %}
-                                    <option value="{{ group['student_group'] }}">
+                                    <option
+                                        value="{{ group['student_group'] }}"
+                                    >
                                         {{ group["student_group"] }}
                                     </option>
                                 {% endfor %}
                             </select>
 
-                            <button class="btn btn-outline-danger" type="submit">
-                                Удалить
+                            <button
+                                class="btn btn-outline-danger"
+                                type="submit"
+                            >
+                                Видалити
                             </button>
+
                         </div>
 
                         <div class="small text-muted mt-2">
-                            Будут удалены студенты группы, их попытки и загруженные HDL-файлы.
+                            Буде видалено студентів вибраної групи,
+                            їхні спроби та пов'язані завантажені
+                            HDL-файли.
                         </div>
 
                     </form>
+
                 </div>
             </div>
 
@@ -166,82 +296,175 @@
     </div>
 </div>
 
-<h3 class="mb-3">Список студентов</h3>
+<h3 class="mb-3">
+    Список студентів
+</h3>
 
-{% if students and students|length > 0 %}
+{% if students %}
 
     <div class="card shadow-sm border-0 rounded-4">
         <div class="card-body p-0">
 
             <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle mb-0">
+
+                <table
+                    class="
+                        table
+                        table-sm
+                        table-hover
+                        align-middle
+                        mb-0
+                    "
+                >
                     <thead class="table-dark">
                         <tr>
-                            <th>ФИО</th>
-                            <th>Группа</th>
-                            <th>Попыток</th>
-                            <th>Средний балл</th>
-                            <th>Лучший балл</th>
-                            <th>Действия</th>
+                            <th scope="col">
+                                ПІБ
+                            </th>
+
+                            <th scope="col">
+                                Група
+                            </th>
+
+                            <th scope="col">
+                                Спроби
+                            </th>
+
+                            <th scope="col">
+                                Середній бал
+                            </th>
+
+                            <th scope="col">
+                                Найкращий бал
+                            </th>
+
+                            <th scope="col">
+                                Дії
+                            </th>
                         </tr>
                     </thead>
 
                     <tbody>
+
                         {% for student in students %}
                             <tr>
+
                                 <td>
-                                    <b>{{ student["full_name"] }}</b>
+                                    <strong>
+                                        {{
+                                            student["full_name"]
+                                            or student["username"]
+                                        }}
+                                    </strong>
+
                                     <div class="text-muted small">
-                                        Логин: {{ student["username"] }}
+                                        Логін:
+                                        {{ student["username"] }}
                                     </div>
                                 </td>
 
                                 <td>
                                     <span class="badge bg-secondary">
-                                        {{ student["student_group"] }}
+                                        {{
+                                            student["student_group"]
+                                            or "Без групи"
+                                        }}
                                     </span>
                                 </td>
 
                                 <td>
-                                    <span class="badge bg-light text-dark border">
-                                        {{ student["attempts_count"] or 0 }}
+                                    <span
+                                        class="
+                                            badge
+                                            bg-light
+                                            text-dark
+                                            border
+                                        "
+                                    >
+                                        {{
+                                            student["attempts_count"]
+                                            if student["attempts_count"] is not none
+                                            else 0
+                                        }}
                                     </span>
                                 </td>
 
                                 <td>
                                     <span class="badge bg-primary">
-                                        {{ student["average_score"] or 0 }} / 100
+                                        {{
+                                            student["average_score"]
+                                            if student["average_score"] is not none
+                                            else 0
+                                        }}
+                                        / 100
                                     </span>
                                 </td>
 
                                 <td>
                                     <span class="badge bg-dark">
-                                        {{ student["best_score"] or 0 }} / 100
+                                        {{
+                                            student["best_score"]
+                                            if student["best_score"] is not none
+                                            else 0
+                                        }}
+                                        / 100
                                     </span>
                                 </td>
 
                                 <td>
-                                    <div class="d-flex gap-1">
-                                        <a href="{{ url_for('edit_student', user_id=student['id']) }}"
-                                        class="btn btn-outline-warning btn-sm">
-                                            Изм.
+                                    <div class="d-flex flex-wrap gap-1">
+
+                                        <a
+                                            href="{{
+                                                url_for(
+                                                    'edit_student',
+                                                    user_id=student['id']
+                                                )
+                                            }}"
+                                            class="
+                                                btn
+                                                btn-outline-warning
+                                                btn-sm
+                                            "
+                                        >
+                                            Редагувати
                                         </a>
 
-                                        <form method="post"
-                                            action="{{ url_for('delete_student', user_id=student['id']) }}"
-                                            onsubmit="return confirm('Удалить студента и все его попытки?');">
-
+                                        <form
+                                            method="post"
+                                            action="{{
+                                                url_for(
+                                                    'delete_student',
+                                                    user_id=student['id']
+                                                )
+                                            }}"
+                                            onsubmit="return confirm(
+                                                'Видалити студента та всі пов’язані з ним спроби?'
+                                            );"
+                                        >
                                             {% include "includes/csrf_token.html" %}
-                                            <button type="submit" class="btn btn-outline-danger btn-sm">
-                                                Удал.
+
+                                            <button
+                                                type="submit"
+                                                class="
+                                                    btn
+                                                    btn-outline-danger
+                                                    btn-sm
+                                                "
+                                            >
+                                                Видалити
                                             </button>
                                         </form>
+
                                     </div>
                                 </td>
+
                             </tr>
                         {% endfor %}
+
                     </tbody>
                 </table>
+
             </div>
 
         </div>
@@ -249,8 +472,11 @@
 
 {% else %}
 
-    <div class="alert alert-info rounded-4">
-        По заданным условиям студенты не найдены.
+    <div
+        class="alert alert-info rounded-4"
+        role="status"
+    >
+        За заданими умовами студентів не знайдено.
     </div>
 
 {% endif %}

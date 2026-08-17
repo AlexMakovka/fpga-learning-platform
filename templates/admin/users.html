@@ -2,93 +2,173 @@
 
 {% block content %}
 
-<a href="{{ url_for('admin_panel') }}" class="btn btn-outline-secondary btn-sm mb-3">
-    ← Назад в панель администратора
+{% set role_labels = {
+    "student": "Студент",
+    "teacher": "Викладач",
+    "admin": "Адміністратор"
+} %}
+
+{% set status_labels = {
+    "active": "Активний",
+    "pending": "Очікує підтвердження",
+    "blocked": "Заблокований"
+} %}
+
+<a
+    href="{{ url_for('admin_panel') }}"
+    class="btn btn-outline-secondary btn-sm mb-3"
+>
+    ← Назад до панелі адміністратора
 </a>
 
-<h1 class="mb-4">Пользователи системы</h1>
+<h1 class="mb-4">Користувачі системи</h1>
 
 <div class="card shadow-sm border-0 rounded-4">
     <div class="card-body p-0">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-dark">
-                <tr>
-                    <th>ФИО</th>
-                    <th>Логин</th>
-                    <th>Роль</th>
-                    <th>Группа</th>
-                    <th>Email</th>
-                    <th>Статус</th>
-                    <th>Действия</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {% for user in users %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
                     <tr>
-                        <td>
-                            <b>{{ user["full_name"] }}</b>
-                        </td>
-
-                        <td>
-                            {{ user["username"] }}
-                        </td>
-
-                        <td>
-                            <span class="badge bg-secondary">
-                                {{ user["role"] }}
-                            </span>
-                        </td>
-
-                        <td>
-                            {{ user["student_group"] or "—" }}
-                        </td>
-
-                        <td>
-                            {{ user["email"] or "—" }}
-                        </td>
-
-                        <td>
-                            {% if user["status"] == "active" %}
-                                <span class="badge bg-success">active</span>
-                            {% elif user["status"] == "pending" %}
-                                <span class="badge bg-warning text-dark">pending</span>
-                            {% elif user["status"] == "blocked" %}
-                                <span class="badge bg-danger">blocked</span>
-                            {% else %}
-                                <span class="badge bg-secondary">{{ user["status"] }}</span>
-                            {% endif %}
-                        </td>
-
-                        <td>
-                            <div class="d-flex flex-wrap gap-2">
-                                {% if user["status"] != "active" %}
-                                    <form method="post"
-                                          action="{{ url_for('admin_approve_user', user_id=user['id']) }}">
-                                          {% include "includes/csrf_token.html" %}
-
-                                        <button class="btn btn-success btn-sm" type="submit">
-                                            Активировать
-                                        </button>
-                                    </form>
-                                {% endif %}
-
-                                {% if user["status"] != "blocked" and user["role"] != "admin" %}
-                                    <form method="post"
-                                          action="{{ url_for('admin_block_user', user_id=user['id']) }}">
-                                          {% include "includes/csrf_token.html" %}
-                                          
-                                        <button class="btn btn-outline-danger btn-sm" type="submit">
-                                            Заблокировать
-                                        </button>
-                                    </form>
-                                {% endif %}
-                            </div>
-                        </td>
+                        <th scope="col">Повне ім'я</th>
+                        <th scope="col">Логін</th>
+                        <th scope="col">Роль</th>
+                        <th scope="col">Група</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Статус</th>
+                        <th scope="col">Дії</th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                </thead>
+
+                <tbody>
+                    {% if users %}
+                        {% for user in users %}
+                            <tr>
+                                <td>
+                                    <strong>
+                                        {{ user["full_name"] or "—" }}
+                                    </strong>
+                                </td>
+
+                                <td>
+                                    {{ user["username"] }}
+                                </td>
+
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        {{
+                                            role_labels.get(
+                                                user["role"],
+                                                user["role"]
+                                            )
+                                        }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    {{ user["student_group"] or "—" }}
+                                </td>
+
+                                <td>
+                                    {{ user["email"] or "—" }}
+                                </td>
+
+                                <td>
+                                    {% if user["status"] == "active" %}
+                                        <span class="badge bg-success">
+                                            {{ status_labels["active"] }}
+                                        </span>
+
+                                    {% elif user["status"] == "pending" %}
+                                        <span class="badge bg-warning text-dark">
+                                            {{ status_labels["pending"] }}
+                                        </span>
+
+                                    {% elif user["status"] == "blocked" %}
+                                        <span class="badge bg-danger">
+                                            {{ status_labels["blocked"] }}
+                                        </span>
+
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            {{
+                                                status_labels.get(
+                                                    user["status"],
+                                                    user["status"] or "—"
+                                                )
+                                            }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% if user["status"] != "active" %}
+                                            <form
+                                                method="post"
+                                                action="{{
+                                                    url_for(
+                                                        'admin_approve_user',
+                                                        user_id=user['id']
+                                                    )
+                                                }}"
+                                            >
+                                                {% include "includes/csrf_token.html" %}
+
+                                                <button
+                                                    class="btn btn-success btn-sm"
+                                                    type="submit"
+                                                >
+                                                    Активувати
+                                                </button>
+                                            </form>
+                                        {% endif %}
+
+                                        {% if user["status"] != "blocked"
+                                              and user["role"] != "admin" %}
+                                            <form
+                                                method="post"
+                                                action="{{
+                                                    url_for(
+                                                        'admin_block_user',
+                                                        user_id=user['id']
+                                                    )
+                                                }}"
+                                            >
+                                                {% include "includes/csrf_token.html" %}
+
+                                                <button
+                                                    class="btn btn-outline-danger btn-sm"
+                                                    type="submit"
+                                                >
+                                                    Заблокувати
+                                                </button>
+                                            </form>
+                                        {% endif %}
+
+                                        {% if user["status"] == "active"
+                                              and user["role"] == "admin" %}
+                                            <span class="text-muted">
+                                                —
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+
+                    {% else %}
+                        <tr>
+                            <td
+                                colspan="7"
+                                class="text-center text-muted py-4"
+                            >
+                                Користувачів у системі не знайдено.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 

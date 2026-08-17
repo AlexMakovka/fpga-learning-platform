@@ -2,171 +2,298 @@
 
 {% block content %}
 
-<a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm mb-3">
-    ← Назад к заданиям
-</a>
+{% set checker_type = lab["checker_type"] or "hdl_testbench" %}
+{% set programming_language = lab["programming_language"] or "Verilog" %}
+{% set latest_submission = submissions[0] if submissions and submissions|length > 0 else none %}
 
-<div class="card shadow-sm border-0 rounded-4 mb-4">
-    <div class="card-body p-4">
-        <h1 class="mb-3">{{ lab["title"] }}</h1>
-        <p class="text-muted">{{ lab["description"] }}</p>
+{% if checker_type == "python_unit_tests" %}
+    {% set upload_title = "Загрузка Python-решения" %}
+    {% set upload_description = "Загрузите Python-файл с расширением .py. После отправки система запустит unit-тесты pytest в изолированной среде Docker." %}
+    {% set accepted_extensions = ".py" %}
+    {% set solution_file_name = "Python-файл" %}
+{% elif checker_type == "sql_query" %}
+    {% set upload_title = "Загрузка SQL-решения" %}
+    {% set upload_description = "Загрузите SQL-файл с расширением .sql. После отправки система выполнит проверку SQL-запроса." %}
+    {% set accepted_extensions = ".sql" %}
+    {% set solution_file_name = "SQL-файл" %}
+{% elif checker_type == "cpp_tests" %}
+    {% set upload_title = "Загрузка C++-решения" %}
+    {% set upload_description = "Загрузите C++-файл с расширением .cpp, .cc или .cxx. После отправки система выполнит компиляцию и тестирование." %}
+    {% set accepted_extensions = ".cpp,.cc,.cxx" %}
+    {% set solution_file_name = "C++-файл" %}
+{% else %}
+    {% set upload_title = "Загрузка Verilog HDL-решения" %}
+    {% set upload_description = "Загрузите Verilog-файл с расширением .v. После отправки система автоматически запустит testbench." %}
+    {% set accepted_extensions = ".v" %}
+    {% set solution_file_name = "HDL-файл" %}
+{% endif %}
 
-        {% set checker_type = lab["checker_type"] or "hdl_testbench" %}
-        {% set programming_language = lab["programming_language"] or "Verilog" %}
+<div class="lab-detail-page">
 
-        {% if checker_type == "python_unit_tests" %}
-            {% set upload_title = "Загрузка Python-решения" %}
-            {% set upload_description = "Загрузите Python-файл с расширением .py. После отправки система запустит unit-тесты pytest в изолированной среде Docker." %}
-            {% set accepted_extensions = ".py" %}
-            {% set solution_file_name = "Python-файл" %}
-        {% elif checker_type == "sql_query" %}
-            {% set upload_title = "Загрузка SQL-решения" %}
-            {% set upload_description = "Загрузите SQL-файл с расширением .sql. После отправки система выполнит проверку SQL-запроса." %}
-            {% set accepted_extensions = ".sql" %}
-            {% set solution_file_name = "SQL-файл" %}
-        {% elif checker_type == "cpp_tests" %}
-            {% set upload_title = "Загрузка C++-решения" %}
-            {% set upload_description = "Загрузите C++-файл с расширением .cpp, .cc или .cxx. После отправки система выполнит компиляцию и тестирование." %}
-            {% set accepted_extensions = ".cpp,.cc,.cxx" %}
-            {% set solution_file_name = "C++-файл" %}
-        {% else %}
-            {% set upload_title = "Загрузка Verilog HDL-решения" %}
-            {% set upload_description = "Загрузите Verilog-файл с расширением .v. После отправки система автоматически запустит testbench." %}
-            {% set accepted_extensions = ".v" %}
-            {% set solution_file_name = "HDL-файл" %}
-        {% endif %}
+    <a href="{{ url_for('index') }}" class="lab-back-link">
+        ← Назад к заданиям
+    </a>
 
-        {% if session.get("role") == "student" %}
-            {% if attempts_info %}
-                <div class="alert {% if attempts_info.is_limit_reached %}alert-danger{% else %}alert-light{% endif %} border rounded-4 mt-3 mb-0">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                        <div>
-                            <b>Попытки:</b>
-                            {{ attempts_info.used_attempts }} из {{ attempts_info.total_limit }}
+    <section class="lab-summary-card">
 
-                            {% if attempts_info.extra_attempts > 0 %}
-                                <span class="badge bg-info text-dark ms-2">
-                                    +{{ attempts_info.extra_attempts }} доп. попытка
-                                </span>
-                            {% endif %}
+        <div class="lab-summary-main">
+            <div class="lab-kicker">
+                Лабораторная работа
+            </div>
 
-                            {% if submissions and submissions[0]["status"] == "PASSED" %}
-                                <span class="badge bg-success ms-2">
-                                    Доп. вопросы не требуются
-                                </span>
-                            {% elif lab["allow_extra_questions"] %}
-                                <span class="badge bg-info text-dark ms-2">
-                                    Доп. вопросы доступны
-                                </span>
-                            {% else %}
-                                <span class="badge bg-secondary ms-2">
-                                    Доп. вопросы отключены
-                                </span>
-                            {% endif %}
+            <h1>{{ lab["title"] }}</h1>
 
-                            {% if attempts_info.is_limit_reached %}
-                                <div class="small mt-1">
-                                    Лимит попыток исчерпан. Для продолжения обратитесь к преподавателю.
-                                </div>
-                            {% else %}
-                                <div class="small text-muted mt-1">
-                                    Осталось попыток: {{ attempts_info.attempts_left }}
-                                </div>
-                            {% endif %}
-                        </div>
+            <div class="lab-summary-tags">
+                <span>{{ lab["topic"] or "общая тема" }}</span>
+                <span>{{ lab["difficulty"] or "basic" }}</span>
+                <span>{{ programming_language }}</span>
+            </div>
+        </div>
 
-                        <a href="{{ url_for('student_lab_history', lab_id=lab['id']) }}"
-                        class="btn btn-outline-primary btn-sm">
-                            История попыток
-                        </a>
+        <div class="lab-summary-stats">
+
+            <div class="lab-summary-stat">
+                <span>Последний статус</span>
+
+                {% if latest_submission %}
+                    <strong class="lab-status-text lab-status-{{ latest_submission['status']|lower|replace('_', '-') }}">
+                        {{ latest_submission["status"] }}
+                    </strong>
+                {% else %}
+                    <strong>Нет попыток</strong>
+                {% endif %}
+            </div>
+
+            <div class="lab-summary-stat">
+                <span>Итоговый балл</span>
+
+                {% if latest_submission %}
+                    <strong>
+                        {% if latest_submission["final_score"] %}
+                            {{ latest_submission["final_score"] }}
+                        {% else %}
+                            {{ latest_submission["score"] }}
+                        {% endif %}
+                        / 100
+                    </strong>
+                {% else %}
+                    <strong>—</strong>
+                {% endif %}
+            </div>
+
+            <div class="lab-summary-stat">
+                <span>Попытки</span>
+
+                {% if attempts_info %}
+                    <strong>
+                        {{ attempts_info.used_attempts }} / {{ attempts_info.total_limit }}
+                    </strong>
+                {% else %}
+                    <strong>
+                        {{ attempts_count or 0 }} / {{ lab["max_attempts"] or 3 }}
+                    </strong>
+                {% endif %}
+            </div>
+
+            <button type="button"
+                    class="lab-run-button"
+                    data-bs-toggle="tab"
+                    data-bs-target="#lab-editor-pane">
+                Запустить проверку
+            </button>
+
+        </div>
+
+    </section>
+
+    <ul class="nav lab-tabs" id="labDetailTabs" role="tablist">
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active"
+                    data-bs-toggle="tab"
+                    data-bs-target="#lab-condition-pane"
+                    type="button">
+                Условие
+            </button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-link"
+                    data-bs-toggle="tab"
+                    data-bs-target="#lab-editor-pane"
+                    type="button">
+                HDL-редактор
+            </button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-link"
+                    data-bs-toggle="tab"
+                    data-bs-target="#lab-results-pane"
+                    type="button">
+                Результаты
+            </button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-link"
+                    data-bs-toggle="tab"
+                    data-bs-target="#lab-errors-pane"
+                    type="button">
+                Ошибки и рекомендации
+            </button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-link"
+                    data-bs-toggle="tab"
+                    data-bs-target="#lab-history-pane"
+                    type="button">
+                История попыток
+            </button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-link"
+                    data-bs-toggle="tab"
+                    data-bs-target="#lab-waveform-pane"
+                    type="button">
+                Waveform
+            </button>
+        </li>
+
+    </ul>
+
+    <div class="tab-content lab-tab-content">
+
+        <div class="tab-pane fade show active" id="lab-condition-pane">
+
+            <section class="lab-panel-card">
+                <div class="lab-panel-head">
+                    <div>
+                        <span class="lab-kicker">Условие</span>
+                        <h2>Описание задания</h2>
                     </div>
                 </div>
-            {% endif %}
-        {% endif %}
 
-        <div class="card border-0 bg-light rounded-4 mt-3">
-            <div class="card-body">
-                <h5 class="mb-3">Паспорт лабораторной работы</h5>
+                <p class="lab-description">
+                    {{ lab["description"] }}
+                </p>
+            </section>
 
-                <div class="row">
-                    <div class="col-md-4 mb-2">
-                        <div class="text-muted small">Дисциплина</div>
-                        <b>{{ lab["discipline"] or "—" }}</b>
-                    </div>
-
-                    <div class="col-md-4 mb-2">
-                        <div class="text-muted small">Язык / технология</div>
-                        <b>{{ lab["programming_language"] or "—" }}</b>
-                    </div>
-
-                    <div class="col-md-4 mb-2">
-                        <div class="text-muted small">Тип проверки</div>
-                        <b>{{ lab["checker_type"] or "—" }}</b>
+            <section class="lab-panel-card">
+                <div class="lab-panel-head">
+                    <div>
+                        <span class="lab-kicker">Паспорт</span>
+                        <h2>Паспорт лабораторной работы</h2>
                     </div>
                 </div>
 
-                <div class="row mt-2">
-                    <div class="col-md-4 mb-2">
-                        <div class="text-muted small">Тема</div>
-                        <b>{{ lab["topic"] or "—" }}</b>
+                <div class="lab-passport-grid">
+
+                    <div class="lab-passport-item">
+                        <span>Дисциплина</span>
+                        <strong>{{ lab["discipline"] or "—" }}</strong>
                     </div>
 
-                    <div class="col-md-4 mb-2">
-                        <div class="text-muted small">Сложность</div>
-                        <b>{{ lab["difficulty"] or "—" }}</b>
+                    <div class="lab-passport-item">
+                        <span>Язык / технология</span>
+                        <strong>{{ lab["programming_language"] or "—" }}</strong>
                     </div>
 
-                    <div class="col-md-4 mb-2">
-                        <div class="text-muted small">Ключевые понятия</div>
-                        <b>{{ lab["concepts"] or "—" }}</b>
+                    <div class="lab-passport-item">
+                        <span>Тип проверки</span>
+                        <strong>{{ lab["checker_type"] or "—" }}</strong>
+                    </div>
+
+                    <div class="lab-passport-item">
+                        <span>Тема</span>
+                        <strong>{{ lab["topic"] or "—" }}</strong>
+                    </div>
+
+                    <div class="lab-passport-item">
+                        <span>Сложность</span>
+                        <strong>{{ lab["difficulty"] or "—" }}</strong>
+                    </div>
+
+                    <div class="lab-passport-item">
+                        <span>Ключевые понятия</span>
+                        <strong>{{ lab["concepts"] or "—" }}</strong>
+                    </div>
+
+                </div>
+            </section>
+
+            <section class="lab-panel-card">
+                <div class="lab-panel-head">
+                    <div>
+                        <span class="lab-kicker">Оценивание</span>
+                        <h2>Критерии оценивания</h2>
                     </div>
                 </div>
 
                 {% if lab["grading_policy"] %}
-                    <hr>
-                    <div class="text-muted small">Критерии оценивания</div>
-                    <div>{{ lab["grading_policy"] }}</div>
+                    <p class="lab-description mb-0">
+                        {{ lab["grading_policy"] }}
+                    </p>
+                {% else %}
+                    <div class="lab-empty-state">
+                        Критерии оценивания не указаны.
+                    </div>
                 {% endif %}
-            </div>
+            </section>
+
         </div>
 
-        <hr>
+        <div class="tab-pane fade" id="lab-editor-pane">
 
-        {% if session.get("role") == "student" %}
+            <section class="lab-panel-card">
 
-            {% if attempts_info and not attempts_info.is_limit_reached %}
-
-                <h4>{{ upload_title }}</h4>
-
-                <p class="text-muted">
-                    {{ upload_description }}
-                </p>
-
-{% if checker_type == "hdl_testbench" %}
-    <div class="card border-0 rounded-4 mb-4 hdl-editor-card">
-        <div class="card-body p-4">
-
-            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
-                <div>
-                    <h4 class="mb-1">Встроенный HDL-редактор</h4>
-                    <p class="text-muted mb-0">
-                        Напишите Verilog-код прямо на странице и отправьте его на автоматическую проверку.
-                    </p>
+                <div class="lab-panel-head">
+                    <div>
+                        <span class="lab-kicker">Отправка решения</span>
+                        <h2>{{ upload_title }}</h2>
+                        <p>{{ upload_description }}</p>
+                    </div>
                 </div>
 
-                <button type="button"
-                        class="btn btn-outline-secondary btn-sm"
-                        id="downloadHdlCode">
-                    Скачать решение .v
-                </button>
-            </div>
+                {% if session.get("role") == "student" %}
 
-            <form method="post"
-                  action="{{ url_for('submit_code_from_editor', lab_id=lab['id']) }}"
-                  id="hdlEditorForm">
-                  {% include "includes/csrf_token.html" %}
+                    {% if attempts_info and attempts_info.is_limit_reached %}
+                        <div class="lab-empty-state lab-warning-state">
+                            Лимит попыток по этой лабораторной работе исчерпан.
+                            Новые решения отправить нельзя.
+                        </div>
+                    {% elif (attempts_count or 0) >= (lab["max_attempts"] or 3) %}
+                        <div class="lab-empty-state lab-warning-state">
+                            Лимит попыток по этой лабораторной работе исчерпан.
+                            Новые решения отправить нельзя.
+                        </div>
+                    {% else %}
 
-                <textarea id="hdlEditor" name="code_text">{% if lab["starter_code"] %}{{ lab["starter_code"] }}{% else %}module your_module_name(
+                        {% if checker_type == "hdl_testbench" %}
+
+                            <div class="lab-editor-card">
+                                <div class="lab-editor-toolbar">
+                                    <div>
+                                        <h3>Встроенный HDL-редактор</h3>
+                                        <p>Напишите Verilog-код прямо на странице и отправьте его на автоматическую проверку.</p>
+                                    </div>
+
+                                    <button type="button"
+                                            class="btn btn-outline-secondary btn-sm"
+                                            id="downloadHdlCode">
+                                        Скачать решение .v
+                                    </button>
+                                </div>
+
+                                <form method="post"
+                                      action="{{ url_for('submit_code_from_editor', lab_id=lab['id']) }}"
+                                      id="hdlEditorForm">
+                                    {% include "includes/csrf_token.html" %}
+
+                                    <textarea id="hdlEditor"
+                                              name="code_text">{% if lab["starter_code"] %}{{ lab["starter_code"] }}{% else %}module your_module_name(
     input wire a,
     input wire b,
     output wire y
@@ -176,793 +303,489 @@ assign y = a & b;
 
 endmodule{% endif %}</textarea>
 
-                <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
-                    <button type="submit" class="btn btn-success">
-                        Запустить проверку из редактора
-                    </button>
+                                    <div class="lab-editor-actions">
+                                        <button type="submit" class="btn btn-success">
+                                            Запустить проверку
+                                        </button>
 
-                    <span class="text-muted small">
-                        Код будет сохранён как .v файл и проверен через testbench.
-                    </span>
-                </div>
-            </form>
-
-            {% if submissions and submissions|length > 0 %}
-                {% set last_submission = submissions[0] %}
-
-                        <div class="card border-0 shadow-sm rounded-4 mb-4">
-                            <div class="card-body">
-                                <h4 class="mb-3">Итоговая оценка лабораторной работы</h4>
-
-                                <div class="display-5 fw-bold">
-                                    {{ last_submission["final_score"] or last_submission["score"] }} / 100
-                                </div>
-
-                                <div class="mt-2">
-                                    <span class="badge bg-primary">
-                                        ECTS: {{ last_submission["ects_grade"] or "—" }}
-                                    </span>
-
-                                    <span class="badge bg-secondary">
-                                        {{ last_submission["national_grade"] or "—" }}
-                                    </span>
-
-                                    {% if last_submission["final_status"] == "Зачтено" %}
-                                        <span class="badge bg-success">Зачтено</span>
-                                    {% elif last_submission["final_status"] == "Требуется доработка" %}
-                                        <span class="badge bg-warning text-dark">Требуется доработка</span>
-                                    {% else %}
-                                        <span class="badge bg-danger">
-                                            {{ last_submission["final_status"] or "Не зачтено" }}
+                                        <span>
+                                            Код будет сохранён как .v файл и проверен через testbench.
                                         </span>
-                                    {% endif %}
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div class="lab-file-upload-box">
+                                <h3>Загрузить готовый .v файл</h3>
+
+                                <form method="post"
+                                      action="{{ url_for('submit_solution', lab_id=lab['id']) }}"
+                                      enctype="multipart/form-data">
+                                    {% include "includes/csrf_token.html" %}
+
+                                    <div class="mb-3">
+                                        <label class="form-label">{{ solution_file_name }}</label>
+
+                                        <input type="file"
+                                               name="solution"
+                                               accept="{{ accepted_extensions }}"
+                                               class="form-control"
+                                               required>
+
+                                        <div class="form-text">
+                                            Допустимое расширение файла: {{ accepted_extensions }}
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-outline-success">
+                                        Запустить проверку файла
+                                    </button>
+                                </form>
+                            </div>
+
+                        {% else %}
+
+                            <form method="post"
+                                  action="{{ url_for('submit_solution', lab_id=lab['id']) }}"
+                                  enctype="multipart/form-data"
+                                  class="lab-file-upload-box">
+                                {% include "includes/csrf_token.html" %}
+
+                                <div class="mb-3">
+                                    <label class="form-label">{{ solution_file_name }}</label>
+
+                                    <input type="file"
+                                           name="solution"
+                                           accept="{{ accepted_extensions }}"
+                                           class="form-control"
+                                           required>
+
+                                    <div class="form-text">
+                                        Допустимое расширение файла: {{ accepted_extensions }}
+                                    </div>
                                 </div>
 
-                                <hr>
+                                <button type="submit" class="btn btn-success">
+                                    Запустить проверку
+                                </button>
+                            </form>
 
-                                <div class="row g-3">
-                                    <div class="col-md-3">
-                                        <div class="small text-muted">Функциональная проверка</div>
-                                        <div class="fw-bold">
-                                            {{ last_submission["testbench_score"] or last_submission["score"] or 0 }} / 100
-                                        </div>
-                                        <div class="small text-muted">Вес: 70%</div>
-                                    </div>
+                        {% endif %}
 
-                                    <div class="col-md-3">
-                                        <div class="small text-muted">Качество HDL-кода</div>
-                                        <div class="fw-bold">
-                                            {% if last_submission["lint_status"] in ["UNAVAILABLE", "SYSTEM_ERROR", "TIMEOUT"] %}
-                                                не учитывается
-                                            {% else %}
-                                                {{ last_submission["lint_score"] or 0 }} / 100
-                                            {% endif %}
-                                        </div>
-                                        <div class="small text-muted">
-                                            Вес:
-                                            {% if lab["allow_extra_questions"] %}
-                                                10%
-                                            {% else %}
-                                                15%
-                                            {% endif %}
-                                        </div>
-                                    </div>
+                    {% endif %}
 
-                                    <div class="col-md-3">
-                                        <div class="small text-muted">Синтезируемость</div>
-                                        <div class="fw-bold">
-                                            {% if last_submission["synth_status"] in ["UNAVAILABLE", "SYSTEM_ERROR", "TIMEOUT"] %}
-                                                не учитывается
-                                            {% else %}
-                                                {{ last_submission["synth_score"] or 0 }} / 100
-                                            {% endif %}
-                                        </div>
-                                        <div class="small text-muted">
-                                            Вес:
-                                            {% if lab["allow_extra_questions"] %}
-                                                10%
-                                            {% else %}
-                                                15%
-                                            {% endif %}
-                                        </div>
-                                    </div>
+                {% elif session.get("role") == "teacher" %}
 
-                                    {% if lab["allow_extra_questions"] %}
-                                        <div class="col-md-3">
-                                            <div class="small text-muted">Доп. вопросы</div>
-                                            <div class="fw-bold">
-                                                {{ last_submission["questions_score"] or 0 }} / 100
-                                            </div>
-                                            <div class="small text-muted">Вес: 10%</div>
-                                        </div>
+                    <div class="lab-empty-state">
+                        Вы просматриваете лабораторную работу в режиме преподавателя.
+                        Отправка решений доступна только студентам.
+                    </div>
+
+                {% endif %}
+
+            </section>
+
+        </div>
+
+        <div class="tab-pane fade" id="lab-results-pane">
+
+            <section class="lab-panel-card">
+
+                <div class="lab-panel-head">
+                    <div>
+                        <span class="lab-kicker">Проверка</span>
+                        <h2>Результаты последней попытки</h2>
+                    </div>
+                </div>
+
+                {% if latest_submission %}
+
+                    <div class="lab-result-summary">
+                        <div>
+                            <span>Итоговый балл</span>
+                            <strong>
+                                {% if latest_submission["final_score"] %}
+                                    {{ latest_submission["final_score"] }}
+                                {% else %}
+                                    {{ latest_submission["score"] }}
+                                {% endif %}
+                                / 100
+                            </strong>
+                        </div>
+
+                        <div>
+                            <span>ECTS</span>
+                            <strong>{{ latest_submission["ects_grade"] or "—" }}</strong>
+                        </div>
+
+                        <div>
+                            <span>Статус</span>
+                            <strong>{{ latest_submission["final_status"] or latest_submission["status"] }}</strong>
+                        </div>
+                    </div>
+
+                    <div class="lab-check-grid">
+
+                        <article class="lab-check-card">
+                            <span>Testbench</span>
+                            <strong>
+                                {% if latest_submission["testbench_score"] %}
+                                    {{ latest_submission["testbench_score"] }}
+                                {% else %}
+                                    {{ latest_submission["score"] }}
+                                {% endif %}
+                                / 100
+                            </strong>
+                            <small>Тесты: {{ latest_submission["passed_tests"] }} из {{ latest_submission["total_tests"] }}</small>
+                        </article>
+
+                        <article class="lab-check-card">
+                            <span>Lint</span>
+                            <strong>{{ latest_submission["lint_score"] or 0 }} / 100</strong>
+                            <small>{{ latest_submission["lint_status"] or "не выполнялся" }}</small>
+                        </article>
+
+                        <article class="lab-check-card">
+                            <span>Synthesis</span>
+                            <strong>{{ latest_submission["synth_score"] or 0 }} / 100</strong>
+                            <small>{{ latest_submission["synth_status"] or "не выполнялся" }}</small>
+                        </article>
+
+                        <article class="lab-check-card">
+                            <span>Questions</span>
+                            <strong>{{ latest_submission["questions_score"] or 0 }} / 100</strong>
+                            <small>Дополнительные вопросы</small>
+                        </article>
+
+                    </div>
+
+                    <div class="lab-output-box">
+                        <h3>Отчёт проверки</h3>
+                        <pre>{{ latest_submission["output"] }}</pre>
+                    </div>
+
+                {% else %}
+
+                    <div class="lab-empty-state">
+                        Пока нет результатов проверки. Перейдите во вкладку «HDL-редактор» и отправьте решение.
+                    </div>
+
+                {% endif %}
+
+            </section>
+
+        </div>
+
+        <div class="tab-pane fade" id="lab-errors-pane">
+
+            <section class="lab-panel-card">
+
+                <div class="lab-panel-head">
+                    <div>
+                        <span class="lab-kicker">Диагностика</span>
+                        <h2>Ошибки и рекомендации</h2>
+                    </div>
+                </div>
+
+                {% if latest_submission %}
+
+                    {% if latest_submission["error_type"] and latest_submission["error_type"] != "NO_ERROR" %}
+
+                        <div class="lab-diagnostic-card">
+                            <div>
+                                <span>Тип ошибки</span>
+                                <h3>{{ latest_submission["error_title"] }}</h3>
+                                <p>{{ latest_submission["error_details"] }}</p>
+                            </div>
+
+                            <strong>{{ latest_submission["error_confidence"] }}%</strong>
+                        </div>
+
+                        <div class="lab-recommendation-card">
+                            <span>Рекомендация</span>
+                            <p>{{ latest_submission["recommendation"] }}</p>
+                        </div>
+
+                    {% else %}
+
+                        <div class="lab-empty-state lab-success-state">
+                            Критических ошибок не обнаружено.
+                        </div>
+
+                    {% endif %}
+
+                    {% if session.get("role") == "student" and latest_submission["status"] != "PASSED" %}
+
+                        <div class="lab-action-row">
+
+                            <a href="{{ url_for('ai_help', submission_id=latest_submission['id'], level=1) }}"
+                               class="btn btn-outline-primary">
+                                AI-подсказки
+                            </a>
+
+                            {% if lab["allow_extra_questions"] and latest_submission["extra_attempts_count"] == 0 %}
+                                <a href="{{ url_for('improve_score', submission_id=latest_submission['id']) }}"
+                                   class="btn btn-outline-success">
+                                    Улучшить оценку
+                                </a>
+                            {% elif not lab["allow_extra_questions"] %}
+                                <span class="lab-muted-pill">
+                                    Улучшение оценки отключено
+                                </span>
+                            {% else %}
+                                <span class="lab-muted-pill">
+                                    Улучшение оценки уже использовано
+                                </span>
+                            {% endif %}
+
+                            {% if attempts_info and not attempts_info.is_limit_reached %}
+                                <form method="post"
+                                      action="{{ url_for('retry_submission', submission_id=latest_submission['id']) }}">
+                                    {% include "includes/csrf_token.html" %}
+
+                                    <button type="submit" class="btn btn-outline-secondary">
+                                        Попробовать снова
+                                    </button>
+                                </form>
+                            {% endif %}
+
+                        </div>
+
+                    {% endif %}
+
+                {% else %}
+
+                    <div class="lab-empty-state">
+                        Рекомендации появятся после первой проверки решения.
+                    </div>
+
+                {% endif %}
+
+            </section>
+
+        </div>
+
+        <div class="tab-pane fade" id="lab-history-pane">
+
+            {% if session.get("role") == "teacher" %}
+
+                <section class="lab-panel-card">
+                    <div class="lab-panel-head">
+                        <div>
+                            <span class="lab-kicker">Преподаватель</span>
+                            <h2>Сводная таблица выполнения</h2>
+                        </div>
+                    </div>
+
+                    {% if student_results and student_results|length > 0 %}
+
+                        <div class="table-responsive">
+                            <table class="table lab-table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Студент</th>
+                                        <th>Группа</th>
+                                        <th>Попыток</th>
+                                        <th>Лучший балл</th>
+                                        <th>Последний статус</th>
+                                        <th>Дата</th>
+                                        <th>Файл</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {% for row in student_results %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ row["full_name"] }}</strong>
+                                                <div class="text-muted small">{{ row["username"] }}</div>
+                                            </td>
+                                            <td>{{ row["student_group"] or "—" }}</td>
+                                            <td>{{ row["attempts_count"] }}</td>
+                                            <td>{{ row["best_score"] or 0 }} / 100</td>
+                                            <td>{{ row["last_status"] or "—" }}</td>
+                                            <td>{{ row["last_created_at"] or "—" }}</td>
+                                            <td>
+                                                {% if row["last_submission_id"] %}
+                                                    <a href="{{ url_for('download_submission', submission_id=row['last_submission_id']) }}"
+                                                       class="btn btn-outline-primary btn-sm">
+                                                        Скачать
+                                                    </a>
+                                                {% else %}
+                                                    —
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                    {% else %}
+
+                        <div class="lab-empty-state">
+                            По этой лабораторной работе пока нет отправленных решений.
+                        </div>
+
+                    {% endif %}
+                </section>
+
+            {% endif %}
+
+            <section class="lab-panel-card">
+                <div class="lab-panel-head">
+                    <div>
+                        <span class="lab-kicker">История</span>
+                        <h2>
+                            {% if session.get("role") == "teacher" %}
+                                Все попытки студентов
+                            {% else %}
+                                Мои попытки
+                            {% endif %}
+                        </h2>
+                    </div>
+                </div>
+
+                <div class="lab-attempt-list">
+
+                    {% for sub in submissions %}
+
+                        <article class="lab-attempt-card">
+
+                            <div class="lab-attempt-main">
+                                <div class="lab-attempt-title">
+                                    {% if session.get("role") == "student" %}
+                                        <strong>Попытка {{ sub["attempt_number"] or loop.revindex }}</strong>
+                                    {% else %}
+                                        <strong>{{ sub["full_name"] or sub["username"] }}</strong>
+                                    {% endif %}
+
+                                    <span>{{ sub["created_at"] }}</span>
+                                </div>
+
+                                <div class="lab-attempt-file">
+                                    {% if sub["file_deleted"] %}
+                                        Файл недоступен
+                                    {% elif session.get("role") == "student" and sub["file_hidden_for_student"] %}
+                                        Файл скрыт после повторной отправки
+                                    {% else %}
+                                        {{ sub["filename"] }}
                                     {% endif %}
                                 </div>
                             </div>
+
+                            <div class="lab-attempt-meta">
+                                <span class="lab-status-pill lab-status-{{ sub['status']|lower|replace('_', '-') }}">
+                                    {{ sub["status"] }}
+                                </span>
+
+                                <strong>{{ sub["score"] }} / 100</strong>
+
+                                {% if session.get("role") == "teacher" and not sub["file_deleted"] %}
+                                    <a href="{{ url_for('download_submission', submission_id=sub['id']) }}"
+                                       class="btn btn-outline-primary btn-sm">
+                                        Скачать
+                                    </a>
+                                {% endif %}
+                            </div>
+
+                            <details class="lab-attempt-details">
+                                <summary>Показать отчёт</summary>
+                                <pre>{{ sub["output"] }}</pre>
+                            </details>
+
+                        </article>
+
+                    {% else %}
+
+                        <div class="lab-empty-state">
+                            Пока нет отправленных решений.
                         </div>
 
-                    {% if last_submission["waveform_filename"] %}
-                        <div class="mt-3 d-flex flex-wrap gap-2">
-                            <a class="btn btn-outline-primary btn-sm"
-                            href="{{ url_for('view_waveform', submission_id=last_submission['id']) }}">
-                                Открыть временную диаграмму
-                            </a>
+                    {% endfor %}
 
-                            <a class="btn btn-outline-info btn-sm"
-                            href="{{ url_for('download_waveform', submission_id=last_submission['id']) }}">
-                                Скачать .vcd
-                            </a>
-                        </div>
-                    {% endif %}
-
-                    <div class="mb-2">
-                        <b>Статус:</b> {{ last_submission["status"] }}
-                    </div>
-
-                    {% if last_submission["lint_status"] %}
-                        <div class="mb-2">
-                            <b>Качество HDL-кода:</b>
-
-                            {% if last_submission["lint_status"] not in ["UNAVAILABLE", "SYSTEM_ERROR"] %}
-                                {{ last_submission["lint_score"] }} / 100
-                            {% else %}
-                                Lint-проверка не учитывается
-                            {% endif %}
-
-                            {% if last_submission["lint_status"] == "OK" %}
-                                <span class="badge bg-success ms-1">OK</span>
-                            {% elif last_submission["lint_status"] == "WARNING" %}
-                                <span class="badge bg-warning text-dark ms-1">WARNING</span>
-                            {% elif last_submission["lint_status"] == "UNAVAILABLE" %}
-                                <span class="badge bg-secondary ms-1">Недоступно</span>
-                            {% elif last_submission["lint_status"] == "SYSTEM_ERROR" %}
-                                <span class="badge bg-secondary ms-1">Ошибка настройки</span>
-                            {% else %}
-                                <span class="badge bg-danger ms-1">{{ last_submission["lint_status"] }}</span>
-                            {% endif %}
-                        </div>
-                    {% endif %}
-
-                    {% if last_submission["error_title"] and last_submission["error_type"] != "NO_ERROR" %}
-                        <div class="mb-2">
-                            <b>Тип ошибки:</b> {{ last_submission["error_title"] }}
-                        </div>
-                    {% endif %}
-
-                    {% if last_submission["recommendation"] and last_submission["error_type"] != "NO_ERROR" %}
-                        <div class="mb-2">
-                            <b>Рекомендация:</b> {{ last_submission["recommendation"] }}
-                        </div>
-                    {% endif %}
-
-                    {% if last_submission and last_submission["error_type"] and last_submission["error_type"] != "NO_ERROR" %}
-                        <div class="alert alert-primary rounded-4 mt-3">
-                            <h5 class="mb-2">AI-рекомендация по ошибке</h5>
-
-                            <p class="mb-2">
-                                Система может подобрать материалы из интернета по ошибке:
-                                <b>{{ last_submission["error_title"] or last_submission["error_type"] }}</b>.
-                            </p>
-
-                            <a href="{{ url_for('student_learning_path_live', lab_id=lab['id'], refresh=1) }}"
-                            class="btn btn-primary btn-sm">
-                                Подобрать материалы из интернета
-                            </a>
-                        </div>
-                    {% endif %}
-
-                    {% if last_submission and last_submission["error_type"] and last_submission["error_type"] != "NO_ERROR" %}
-                        <div class="alert alert-warning rounded-4 mt-3">
-                            <h5 class="mb-2">Тренировка по ошибке</h5>
-
-                            <p class="mb-2">
-                                По этой ошибке можно сгенерировать короткие тренировочные задания.
-                            </p>
-
-                            <a href="{{ url_for('student_trainer') }}"
-                            class="btn btn-warning btn-sm">
-                                Открыть тренажёр FPGA
-                            </a>
-                        </div>
-                    {% endif %}
-
-                    <details class="mt-2">
-                        <summary class="text-primary" style="cursor: pointer;">
-                            Показать полный отчёт проверки
-                        </summary>
-
-                        <pre class="result-box mt-3 mb-0">{{ last_submission["output"] }}</pre>
-                    </details>
-            {% endif %}
+                </div>
+            </section>
 
         </div>
-    </div>
 
-    <details class="mb-3">
-        <summary class="text-muted" style="cursor: pointer;">
-            Или загрузить готовый Verilog-файл вручную
-        </summary>
+        <div class="tab-pane fade" id="lab-waveform-pane">
 
-        <div class="card border-0 bg-light rounded-4 mt-3">
-            <div class="card-body">
-                <form method="post"
-                      action="{{ url_for('submit_solution', lab_id=lab['id']) }}"
-                      enctype="multipart/form-data">
-                      {% include "includes/csrf_token.html" %}
-
-                    <div class="mb-3">
-                        <label class="form-label">{{ solution_file_name }}</label>
-                        <input type="file"
-                               name="solution"
-                               accept="{{ accepted_extensions }}"
-                               class="form-control"
-                               required>
-
-                        <div class="form-text">
-                            Допустимое расширение файла: {{ accepted_extensions }}
-                        </div>
+            <section class="lab-panel-card">
+                <div class="lab-panel-head">
+                    <div>
+                        <span class="lab-kicker">Waveform</span>
+                        <h2>Временные диаграммы</h2>
+                        <p>Временная диаграмма доступна, если testbench сформировал VCD-файл.</p>
                     </div>
-
-                    <button type="submit" class="btn btn-outline-success">
-                        Запустить проверку файла
-                    </button>
-                </form>
-            </div>
-        </div>
-    </details>
-
-            {% else %}
-
-                <form method="post"
-                    action="{{ url_for('submit_solution', lab_id=lab['id']) }}"
-                    enctype="multipart/form-data">
-                    {% include "includes/csrf_token.html" %}
-
-                    <div class="mb-3">
-                        <label class="form-label">{{ solution_file_name }}</label>
-                        <input type="file"
-                            name="solution"
-                            accept="{{ accepted_extensions }}"
-                            class="form-control"
-                            required>
-
-                        <div class="form-text">
-                            Допустимое расширение файла: {{ accepted_extensions }}
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn btn-success">
-                        Запустить проверку
-                    </button>
-                </form>
-
-            {% endif %}
-
-            {% else %}
-
-                <div class="alert alert-warning rounded-4 mb-0">
-                    Лимит попыток по этой лабораторной работе исчерпан.
-                    Новые решения отправить нельзя.
                 </div>
 
-            {% endif %}
+                <div class="lab-waveform-list">
 
-        {% elif session.get("role") == "teacher" %}
+                    {% for sub in submissions %}
 
-            <div class="alert alert-primary rounded-4 mb-0">
-                Вы просматриваете лабораторную работу в режиме преподавателя.
-                На этой странице отображаются результаты студентов по выбранному заданию.
-            </div>
+                        {% if sub["waveform_filename"] %}
 
-        {% endif %}
+                            <article class="lab-waveform-card">
+                                <div>
+                                    <strong>
+                                        {% if session.get("role") == "student" %}
+                                            Попытка {{ sub["attempt_number"] or loop.index }}
+                                        {% else %}
+                                            {{ sub["full_name"] or sub["username"] }}
+                                        {% endif %}
+                                    </strong>
+
+                                    <span>{{ sub["created_at"] }}</span>
+                                </div>
+
+                                <div class="lab-action-row">
+                                    <a href="{{ url_for('view_waveform', submission_id=sub['id']) }}"
+                                       class="btn btn-outline-primary">
+                                        Открыть временную диаграмму
+                                    </a>
+
+                                    <a href="{{ url_for('download_waveform', submission_id=sub['id']) }}"
+                                       class="btn btn-outline-secondary">
+                                        Скачать .vcd
+                                    </a>
+                                </div>
+                            </article>
+
+                        {% endif %}
+
+                    {% else %}
+
+                        <div class="lab-empty-state">
+                            Временных диаграмм пока нет.
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+            </section>
+
+        </div>
+
     </div>
+
 </div>
 
-
-{% if session.get("role") == "teacher" %}
-
-    <h3 class="mb-3">Сводная таблица выполнения задания</h3>
-
-    {% if student_results and student_results|length > 0 %}
-
-        <div class="card shadow-sm border-0 rounded-4 mb-4">
-            <div class="card-body p-0">
-
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Студент</th>
-                                <th>Группа</th>
-                                <th>Попыток</th>
-                                <th>Лучший балл</th>
-                                <th>Последний статус</th>
-                                <th>Последний файл</th>
-                                <th>Дата последней попытки</th>
-                                <th>Файл</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            {% for row in student_results %}
-                                <tr>
-                                    <td>
-                                        <b>{{ row["full_name"] }}</b>
-                                        <div class="text-muted small">
-                                            {{ row["username"] }}
-                                        </div>
-                                    </td>
-
-                                    <td>
-                                        {{ row["student_group"] or "—" }}
-                                    </td>
-
-                                    <td>
-                                        <span class="badge bg-secondary">
-                                            {{ row["attempts_count"] }}
-                                        </span>
-                                    </td>
-
-                                    <td>
-                                        <span class="badge bg-dark">
-                                            {{ row["best_score"] or 0 }} / 100
-                                        </span>
-                                    </td>
-
-                                    <td>
-                                        {% if row["last_status"] == "PASSED" %}
-                                            <span class="badge bg-success">PASSED</span>
-                                        {% elif row["last_status"] == "PARTIAL" %}
-                                            <span class="badge bg-info text-dark">PARTIAL</span>
-                                        {% elif row["last_status"] == "FAILED" %}
-                                            <span class="badge bg-danger">FAILED</span>
-                                        {% elif row["last_status"] == "COMPILE_ERROR" %}
-                                            <span class="badge bg-warning text-dark">COMPILE ERROR</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">{{ row["last_status"] }}</span>
-                                        {% endif %}
-                                    </td>
-
-                                    <td>
-                                        <span class="small">
-                                            {{ row["last_filename"] }}
-                                        </span>
-                                    </td>
-
-                                    <td>
-                                        <span class="small text-muted">
-                                            {{ row["last_created_at"] }}
-                                        </span>
-                                    </td>
-
-                                    <td>
-                                        <a class="btn btn-outline-primary btn-sm"
-                                           href="{{ url_for('download_submission', submission_id=row['last_submission_id']) }}">
-                                            Скачать
-                                        </a>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-
-            </div>
-        </div>
-
-    {% else %}
-
-        <div class="alert alert-info rounded-4">
-            По этой лабораторной работе пока нет отправленных решений.
-        </div>
-
-    {% endif %}
-
-    <h3 class="mb-3">Подробная история всех попыток</h3>
-
-{% else %}
-
-    <h3 class="mb-3">Последняя попытка</h3>
-
-{% endif %}
-
-
-{% for sub in submissions %}
-    <div class="card shadow-sm border-0 rounded-4 mb-3">
-        <div class="card-body">
-
-            <div class="d-flex justify-content-between align-items-start mb-2">
-                <div>
-                    {% if session.get("role") == "student" %}
-                        <h5 class="mb-1">Попытка {{ sub["attempt_number"] or 1 }}</h5>
-                    {% endif %}
-
-                    {% if sub["file_deleted"] %}
-                        <div class="text-muted small">
-                            Файл этой попытки недоступен.
-                        </div>
-                    {% elif session.get("role") == "student" and sub["file_hidden_for_student"] %}
-                        <div class="text-muted small">
-                            Файл этой попытки скрыт после повторной отправки.
-                        </div>
-                    {% else %}
-                        <b>{{ sub["filename"] }}</b>
-                    {% endif %}
-
-                    {% if session.get("role") == "teacher" %}
-                        <div class="text-muted small">
-                            Студент: {{ sub["full_name"] or sub["username"] }}
-                        </div>
-
-                        <div class="text-muted small">
-                            Группа: {{ sub["student_group"] or "—" }}
-                        </div>
-                    {% endif %}
-
-                    <div class="text-muted small">
-                        {{ sub["created_at"] }}
-                    </div>
-                </div>
-
-                <div class="text-end">
-                    {% if sub["status"] == "PASSED" %}
-                        <span class="badge bg-success fs-6">PASSED</span>
-                    {% elif sub["status"] == "PARTIAL" %}
-                        <span class="badge bg-info text-dark fs-6">PARTIAL</span>
-                    {% elif sub["status"] == "FAILED" %}
-                        <span class="badge bg-danger fs-6">FAILED</span>
-                    {% elif sub["status"] == "COMPILE_ERROR" %}
-                        <span class="badge bg-warning text-dark fs-6">COMPILE ERROR</span>
-                    {% elif sub["status"] == "TIMEOUT" %}
-                        <span class="badge bg-warning text-dark fs-6">TIMEOUT</span>
-                    {% elif sub["status"] == "SECURITY_BLOCK" %}
-                        <span class="badge bg-dark fs-6">SECURITY BLOCK</span>
-                    {% elif sub["status"] == "SYSTEM_ERROR" %}
-                        <span class="badge bg-secondary fs-6">SYSTEM ERROR</span>
-                    {% else %}
-                        <span class="badge bg-secondary fs-6">{{ sub["status"] }}</span>
-                    {% endif %}
-
-                    <div class="mt-2">
-                        <span class="badge bg-dark">
-                            Баллы: {{ sub["score"] }} / 100
-                        </span>
-                    </div>
-
-                    {% if sub["lint_status"] %}
-                        <div class="mt-1">
-                            {% if sub["lint_status"] == "OK" %}
-                                <span class="badge bg-success">
-                                    Качество HDL: {{ sub["lint_score"] }} / 100
-                                </span>
-                            {% elif sub["lint_status"] == "WARNING" %}
-                                <span class="badge bg-warning text-dark">
-                                    Качество HDL: {{ sub["lint_score"] }} / 100
-                                </span>
-                            {% elif sub["lint_status"] == "UNAVAILABLE" %}
-                                <span class="badge bg-secondary">
-                                    Lint недоступен
-                                </span>
-                            {% elif sub["lint_status"] == "SYSTEM_ERROR" %}
-                                <span class="badge bg-secondary">
-                                    Lint: ошибка настройки
-                                </span>
-                            {% else %}
-                                <span class="badge bg-danger">
-                                    Lint: {{ sub["lint_status"] }}
-                                </span>
-                            {% endif %}
-                        </div>
-                    {% endif %}
-
-                    {% if sub["synth_status"] %}
-                        <div class="mt-1">
-                            {% if sub["synth_status"] == "OK" %}
-                                <span class="badge bg-success">
-                                    Синтез: OK
-                                </span>
-                            {% elif sub["synth_status"] == "WARNING" %}
-                                <span class="badge bg-warning text-dark">
-                                    Синтез: WARNING
-                                </span>
-                            {% elif sub["synth_status"] == "UNAVAILABLE" %}
-                                <span class="badge bg-secondary">
-                                    Yosys недоступен
-                                </span>
-                            {% else %}
-                                <span class="badge bg-danger">
-                                    Синтез: {{ sub["synth_status"] }}
-                                </span>
-                            {% endif %}
-
-                            <span class="badge bg-light text-dark border">
-                                Ячеек: {{ sub["synth_cells_count"] }}
-                            </span>
-                        </div>
-                    {% endif %}
-
-                    <div class="mt-1">
-                        <span class="badge bg-light text-dark border">
-                            Всего тестов: {{ sub["passed_tests"] }} из {{ sub["total_tests"] }}
-                        </span>
-                    </div>
-
-                    {% if sub["public_total_tests"] %}
-                        <div class="mt-1">
-                            <span class="badge bg-primary">
-                                Открытые: {{ sub["public_passed_tests"] }} из {{ sub["public_total_tests"] }}
-                            </span>
-                        </div>
-                    {% endif %}
-
-                    {% if sub["hidden_total_tests"] %}
-                        <div class="mt-1">
-                            <span class="badge bg-secondary">
-                                Скрытые: {{ sub["hidden_passed_tests"] }} из {{ sub["hidden_total_tests"] }}
-                            </span>
-                        </div>
-                    {% endif %}
-
-                    {% if sub["waveform_filename"] %}
-                        <div class="mt-2 d-flex flex-wrap gap-2 justify-content-end">
-                            <a class="btn btn-outline-primary btn-sm"
-                            href="{{ url_for('view_waveform', submission_id=sub['id']) }}">
-                                Открыть waveform
-                            </a>
-
-                            <a class="btn btn-outline-info btn-sm"
-                            href="{{ url_for('download_waveform', submission_id=sub['id']) }}">
-                                Скачать .vcd
-                            </a>
-                        </div>
-                    {% endif %}
-
-                    {% if session.get("role") == "teacher" and not sub["file_deleted"] %}
-                        <div class="mt-2">
-                            <a class="btn btn-outline-primary btn-sm"
-                               href="{{ url_for('download_submission', submission_id=sub['id']) }}">
-                                Скачать файл
-                            </a>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-
-                    {% if sub["error_type"] and sub["error_type"] != "NO_ERROR" %}
-            <div class="alert alert-warning rounded-4 mt-3">
-                <div class="d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <h5 class="mb-2">Диагностика ошибки</h5>
-
-                        <p class="mb-1">
-                            <b>Тип ошибки:</b> {{ sub["error_title"] }}
-                        </p>
-
-                        <p class="mb-1">
-                            <b>Пояснение:</b> {{ sub["error_details"] }}
-                        </p>
-
-                        <p class="mb-0">
-                            <b>Рекомендация:</b> {{ sub["recommendation"] }}
-                        </p>
-                    </div>
-
-                    <span class="badge bg-dark">
-                        {{ sub["error_confidence"] }}%
-                    </span>
-                </div>
-            </div>
-        {% endif %}
-
-            {% if sub["lint_status"] %}
-                <div class="alert alert-light border rounded-4 mt-3">
-                    <div class="d-flex justify-content-between align-items-start gap-3">
-                        <div>
-                            <h5 class="mb-2">Анализ качества HDL-кода</h5>
-
-                            <p class="mb-1">
-                                <b>Статус:</b> {{ sub["lint_status"] }}
-                            </p>
-
-                            <p class="mb-1">
-                                <b>Оценка качества:</b>
-
-                                {% if sub["lint_status"] not in ["UNAVAILABLE", "SYSTEM_ERROR"] %}
-                                    {{ sub["lint_score"] }} / 100
-                                {% else %}
-                                    Lint-проверка не учитывается
-                                {% endif %}
-                            </p>
-
-                            <p class="mb-1">
-                                <b>Количество замечаний:</b> {{ sub["lint_issues_count"] }}
-                            </p>
-
-                            {% if sub["lint_recommendation"] %}
-                                <p class="mb-0">
-                                    <b>Рекомендация:</b> {{ sub["lint_recommendation"] }}
-                                </p>
-                            {% endif %}
-                        </div>
-
-                        {% if sub["lint_status"] == "OK" %}
-                            <span class="badge bg-success">OK</span>
-                        {% elif sub["lint_status"] == "WARNING" %}
-                            <span class="badge bg-warning text-dark">WARNING</span>
-                        {% elif sub["lint_status"] == "UNAVAILABLE" %}
-                            <span class="badge bg-secondary">Недоступно</span>
-                        {% elif sub["lint_status"] == "SYSTEM_ERROR" %}
-                            <span class="badge bg-secondary">Ошибка настройки</span>
-                        {% else %}
-                            <span class="badge bg-danger">{{ sub["lint_status"] }}</span>
-                        {% endif %}
-                    </div>
-
-                    {% if sub["lint_output"] %}
-                        <details class="mt-3">
-                            <summary class="text-primary" style="cursor: pointer;">
-                                Показать подробный lint-отчёт
-                            </summary>
-
-                            <pre class="result-box mt-3">{{ sub["lint_output"] }}</pre>
-                        </details>
-                    {% endif %}
-                </div>
-            {% endif %}
-
-            {% if sub["synth_status"] %}
-                <div class="alert alert-light border rounded-4 mt-3">
-                    <div class="d-flex justify-content-between align-items-start gap-3">
-                        <div>
-                            <h5 class="mb-2">Проверка синтезируемости HDL-кода</h5>
-
-                            <p class="mb-1">
-                                <b>Статус:</b> {{ sub["synth_status"] }}
-                            </p>
-
-                            <p class="mb-1">
-                                <b>Оценка синтезируемости:</b> {{ sub["synth_score"] }} / 100
-                            </p>
-
-                            <p class="mb-1">
-                                <b>Логических ячеек:</b> {{ sub["synth_cells_count"] }}
-                            </p>
-
-                            <p class="mb-1">
-                                <b>Проводов:</b> {{ sub["synth_wires_count"] }}
-                            </p>
-
-                            <p class="mb-1">
-                                <b>Битов проводов:</b> {{ sub["synth_wire_bits_count"] }}
-                            </p>
-
-                            <p class="mb-1">
-                                <b>Предупреждений:</b> {{ sub["synth_warnings_count"] }}
-                            </p>
-
-                            {% if sub["synth_recommendation"] %}
-                                <p class="mb-0">
-                                    <b>Рекомендация:</b> {{ sub["synth_recommendation"] }}
-                                </p>
-                            {% endif %}
-                        </div>
-
-                        {% if sub["synth_status"] == "OK" %}
-                            <span class="badge bg-success">OK</span>
-                        {% elif sub["synth_status"] == "WARNING" %}
-                            <span class="badge bg-warning text-dark">WARNING</span>
-                        {% elif sub["synth_status"] == "ERROR" %}
-                            <span class="badge bg-danger">ERROR</span>
-                        {% else %}
-                            <span class="badge bg-secondary">{{ sub["synth_status"] }}</span>
-                        {% endif %}
-                    </div>
-
-                    {% if sub["synth_output"] %}
-                        <details class="mt-3">
-                            <summary class="text-primary" style="cursor: pointer;">
-                                Показать подробный отчёт Yosys
-                            </summary>
-
-                            <pre class="result-box mt-3">{{ sub["synth_output"] }}</pre>
-                        </details>
-                    {% endif %}
-                </div>
-            {% endif %}
-
-            <pre class="result-box">{{ sub["output"] }}</pre>
-
-            {% if session.get("role") == "teacher" and sub["hidden_output"] %}
-                <details class="mt-3">
-                    <summary class="text-primary" style="cursor: pointer;">
-                        Показать подробный отчёт скрытых тестов
-                    </summary>
-
-                    <pre class="result-box mt-3">{{ sub["hidden_output"] }}</pre>
-                </details>
-            {% endif %}
-
-            {% if session.get("role") == "student" and sub["status"] != "PASSED" %}
-                <div class="d-flex flex-wrap gap-2 mt-3">
-
-                    <a href="{{ url_for('ai_help', submission_id=sub['id'], level=1) }}"
-                       class="btn btn-outline-primary btn-sm">
-                        Получить помощь ИИ
-                    </a>
-
-                    {% if lab["allow_extra_questions"] and sub["extra_attempts_count"] == 0 %}
-                        <a href="{{ url_for('improve_score', submission_id=sub['id']) }}"
-                           class="btn btn-outline-success btn-sm">
-                            Улучшить оценку
-                        </a>
-                    {% elif not lab["allow_extra_questions"] %}
-                        <span class="badge bg-secondary align-self-center">
-                            Улучшение оценки отключено преподавателем
-                        </span>
-                    {% else %}
-                        <span class="badge bg-secondary align-self-center">
-                            Улучшение оценки уже использовано
-                        </span>
-                    {% endif %}
-
-                    {% if attempts_info and not attempts_info.is_limit_reached %}
-                        <form method="post"
-                            action="{{ url_for('retry_submission', submission_id=sub['id']) }}">
-                            {% include "includes/csrf_token.html" %}
-                            
-                            <button type="submit" class="btn btn-outline-secondary btn-sm">
-                                Попробовать снова
-                            </button>
-                        </form>
-                    {% endif %}
-
-                </div>
-            {% endif %}
-
-        </div>
-    </div>
-{% endfor %}
-
-{% if submissions|length == 0 %}
-    <div class="alert alert-info rounded-4">
-        Пока нет отправленных решений.
-    </div>
-{% endif %}
-
 {% if session.get("role") == "student" and checker_type == "hdl_testbench" %}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.css">
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.css">
 
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/lib/codemirror.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.18/mode/verilog/verilog.js"></script>
 
-    <style>
-        .hdl-editor-card {
-            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-            border: 1px solid rgba(148, 163, 184, 0.35) !important;
-            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
-        }
-
-        .CodeMirror {
-            height: 430px;
-            border: 1px solid rgba(148, 163, 184, 0.55);
-            border-radius: 16px;
-            font-size: 14px;
-            font-family: Consolas, Monaco, "Courier New", monospace;
-        }
-
-        .CodeMirror-gutters {
-            border-top-left-radius: 16px;
-            border-bottom-left-radius: 16px;
-        }
-
-        .CodeMirror-scroll {
-            border-radius: 16px;
-        }
-    </style>
-
     <script>
-        const hdlTextarea = document.getElementById("hdlEditor");
+        document.addEventListener("DOMContentLoaded", function () {
+            const hdlTextarea = document.getElementById("hdlEditor");
 
-        if (hdlTextarea) {
+            if (!hdlTextarea || typeof CodeMirror === "undefined") {
+                return;
+            }
+
             const hdlEditor = CodeMirror.fromTextArea(hdlTextarea, {
                 mode: "text/x-verilog",
                 lineNumbers: true,
@@ -974,10 +797,10 @@ endmodule{% endif %}</textarea>
 
             hdlEditor.setSize("100%", "430px");
 
-            const hdlForm = document.getElementById("hdlEditorForm");
+            const form = document.getElementById("hdlEditorForm");
 
-            if (hdlForm) {
-                hdlForm.addEventListener("submit", function () {
+            if (form) {
+                form.addEventListener("submit", function () {
                     hdlEditor.save();
                 });
             }
@@ -996,12 +819,14 @@ endmodule{% endif %}</textarea>
                     const link = document.createElement("a");
                     link.href = URL.createObjectURL(blob);
                     link.download = "solution.v";
+                    document.body.appendChild(link);
                     link.click();
+                    link.remove();
 
                     URL.revokeObjectURL(link.href);
                 });
             }
-        }
+        });
     </script>
 {% endif %}
 

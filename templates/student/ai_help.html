@@ -2,62 +2,107 @@
 
 {% block content %}
 
-<a href="{{ url_for('lab_detail', lab_id=submission['lab_id']) }}" class="btn btn-outline-secondary btn-sm mb-3">
-    ← Назад к лабораторной работе
+<a
+    href="{{ url_for('lab_detail', lab_id=submission['lab_id']) }}"
+    class="btn btn-outline-secondary btn-sm mb-3"
+>
+    ← Назад до лабораторної роботи
 </a>
 
 <div class="card shadow-sm border-0 rounded-4 mb-4">
     <div class="card-body p-4">
 
-        <h1 class="mb-3">Помощь ИИ по ошибке</h1>
+        <h1 class="mb-3">
+            Допомога ШІ щодо помилки
+        </h1>
 
         <p class="text-muted">
-            ИИ-помощник анализирует результат проверки, сообщения testbench и HDL-код.
-            Он не дает готовое решение, а подсказывает направление исправления.
+            ШІ-помічник аналізує результат перевірки, повідомлення testbench
+            та HDL-код. Він не надає готового розв'язання, а допомагає визначити
+            напрям виправлення помилки.
         </p>
 
-        <div class="mb-3">
-            <span class="badge bg-secondary">Попытка #{{ submission["id"] }}</span>
-            <span class="badge bg-dark">{{ submission["score"] }} / 100 баллов</span>
-            <span class="badge bg-info text-dark">Подсказка {{ level }} уровня</span>
+        <div class="mb-3 d-flex flex-wrap gap-2">
+            <span class="badge bg-secondary">
+                Спроба №{{ submission["id"] }}
+            </span>
+
+            <span class="badge bg-dark">
+                {{ submission["score"] }} / 100 балів
+            </span>
+
+            <span class="badge bg-info text-dark">
+                Підказка рівня {{ level }}
+            </span>
 
             <span class="badge bg-warning text-dark">
                 {{ adaptive_plan["error_title"] }}
             </span>
-
         </div>
 
-        <pre class="result-box">{{ hint }}</pre>
+        <pre class="result-box">{{ hint or "Підказка наразі недоступна." }}</pre>
 
         <div class="card shadow-sm border-0 rounded-4 mt-4">
             <div class="card-body">
-                <h3>Рекомендации к повторению</h3>
+                <h3>
+                    Рекомендації для повторення
+                </h3>
 
-                <ul class="mb-0">
-                    {% for topic in adaptive_plan["repeat_topics"] %}
-                        <li>{{ topic }}</li>
-                    {% endfor %}
-                </ul>
+                {% if adaptive_plan["repeat_topics"] %}
+                    <ul class="mb-0">
+                        {% for topic in adaptive_plan["repeat_topics"] %}
+                            <li>
+                                {{ topic }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted mb-0">
+                        Додаткові теми для повторення не визначено.
+                    </p>
+                {% endif %}
             </div>
         </div>
 
-        <div class="d-flex gap-2 mt-3">
+        <div class="d-flex flex-wrap gap-2 mt-3">
 
             {% if level < 3 %}
-                <a href="{{ url_for('ai_help', submission_id=submission['id'], level=level + 1) }}"
-                   class="btn btn-primary">
-                    Получить более конкретную подсказку
+                <a
+                    href="{{
+                        url_for(
+                            'ai_help',
+                            submission_id=submission['id'],
+                            level=level + 1
+                        )
+                    }}"
+                    class="btn btn-primary"
+                >
+                    Отримати конкретнішу підказку
                 </a>
             {% endif %}
 
-            <a href="{{ url_for('improve_score', submission_id=submission['id']) }}"
-               class="btn btn-outline-success">
-                Улучшить оценку
+            <a
+                href="{{
+                    url_for(
+                        'improve_score',
+                        submission_id=submission['id']
+                    )
+                }}"
+                class="btn btn-outline-success"
+            >
+                Покращити оцінку
             </a>
 
-            <a href="{{ url_for('lab_detail', lab_id=submission['lab_id']) }}"
-               class="btn btn-outline-secondary">
-                Попробовать снова
+            <a
+                href="{{
+                    url_for(
+                        'lab_detail',
+                        lab_id=submission['lab_id']
+                    )
+                }}"
+                class="btn btn-outline-secondary"
+            >
+                Спробувати ще раз
             </a>
 
         </div>
@@ -67,8 +112,11 @@
 
 <div class="card shadow-sm border-0 rounded-4">
     <div class="card-body p-4">
-        <h3>Детали проверки</h3>
-        <pre class="result-box">{{ submission["output"] }}</pre>
+        <h3>
+            Деталі перевірки
+        </h3>
+
+        <pre class="result-box">{{ submission["output"] or "Деталі перевірки відсутні." }}</pre>
     </div>
 </div>
 

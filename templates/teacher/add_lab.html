@@ -1,213 +1,422 @@
 {% extends "layouts/base.html" %}
 
+{% block title %}Додати лабораторну роботу{% endblock %}
+
 {% block content %}
 
-<a href="{{ url_for('teacher_labs') }}" class="btn btn-outline-secondary btn-sm mb-3">
-    ← Назад к лабораторным
+<a
+    href="{{ url_for('teacher_labs') }}"
+    class="btn btn-outline-secondary btn-sm mb-3"
+>
+    ← Назад до лабораторних робіт
 </a>
 
 <div class="card shadow-sm border-0 rounded-4 mb-4">
     <div class="card-body p-4">
-        <h1 class="mb-4">Добавить лабораторную работу</h1>
 
-        <form method="post" action="{{ url_for('add_lab') }}">
+        <h1 class="mb-4">
+            Додати лабораторну роботу
+        </h1>
+
+        <form
+            method="post"
+            action="{{ url_for('add_lab') }}"
+        >
             {% include "includes/csrf_token.html" %}
-            
+
             <div class="mb-3">
-                <label class="form-label">Название</label>
-                <input type="text"
+                <label
+                    class="form-label"
+                    for="labTitle"
+                >
+                    Назва
+                </label>
+
+                <input
+                    type="text"
+                    id="labTitle"
                     name="title"
                     class="form-control"
-                    placeholder="Например: Мультиплексор 2 к 1"
-                    required>
+                    placeholder="Наприклад: Мультиплексор 2 в 1"
+                    required
+                >
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Описание</label>
-                <textarea name="description"
-                        rows="4"
-                        class="form-control"
-                        placeholder="Опишите условие лабораторной работы"
-                        required></textarea>
+                <label
+                    class="form-label"
+                    for="labDescription"
+                >
+                    Опис
+                </label>
+
+                <textarea
+                    id="labDescription"
+                    name="description"
+                    rows="4"
+                    class="form-control"
+                    placeholder="Опишіть умову лабораторної роботи"
+                    required
+                ></textarea>
             </div>
 
             <hr class="my-4">
 
-            <h4 class="mb-3">Паспорт лабораторной работы</h4>
+            <h4 class="mb-3">
+                Паспорт лабораторної роботи
+            </h4>
 
             <div class="row">
+
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Дисциплина</label>
-                    <input type="text"
+                    <label
+                        class="form-label"
+                        for="labDiscipline"
+                    >
+                        Дисципліна
+                    </label>
+
+                    <input
+                        type="text"
+                        id="labDiscipline"
                         name="discipline"
                         class="form-control"
-                        value="FPGA-проектирование">
+                        value="FPGA-проєктування"
+                    >
                 </div>
 
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Язык / технология</label>
-                    <select name="programming_language" class="form-select">
-                        <option value="Verilog" selected>Verilog</option>
-                        <option value="Python">Python</option>
-                        <option value="SQL">SQL</option>
-                        <option value="C++">C++</option>
+                    <label
+                        class="form-label"
+                        for="programmingLanguage"
+                    >
+                        Мова / технологія
+                    </label>
+
+                    <select
+                        id="programmingLanguage"
+                        name="programming_language"
+                        class="form-select"
+                    >
+                        <option value="Verilog" selected>
+                            Verilog
+                        </option>
+
+                        <option value="Python">
+                            Python
+                        </option>
+
+                        <option value="SQL">
+                            SQL
+                        </option>
+
+                        <option value="C++">
+                            C++
+                        </option>
                     </select>
                 </div>
 
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Тип проверки</label>
-                    <select name="checker_type" class="form-select">
-                        <option value="hdl_testbench" selected>HDL testbench</option>
-                        <option value="python_unit_tests">Python unit tests</option>
-                        <option value="sql_query">SQL query check</option>
-                        <option value="cpp_tests">C++ tests</option>
+                    <label
+                        class="form-label"
+                        for="checkerType"
+                    >
+                        Тип перевірки
+                    </label>
+
+                    <select
+                        id="checkerType"
+                        name="checker_type"
+                        class="form-select"
+                    >
+                        <option value="hdl_testbench" selected>
+                            HDL testbench
+                        </option>
+
+                        <option value="python_unit_tests">
+                            Python unit tests
+                        </option>
+
+                        <option value="sql_query">
+                            SQL query check
+                        </option>
+
+                        <option value="cpp_tests">
+                            C++ tests
+                        </option>
                     </select>
                 </div>
+
             </div>
 
             <div class="row">
+
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Тема задания</label>
-                    <input type="text"
+                    <label
+                        class="form-label"
+                        for="labTopic"
+                    >
+                        Тема завдання
+                    </label>
+
+                    <input
+                        type="text"
+                        id="labTopic"
                         name="topic"
                         class="form-control"
-                        placeholder="Например: mux, adder, counter">
+                        placeholder="Наприклад: mux, adder, counter"
+                    >
                 </div>
 
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Сложность</label>
-                    <select name="difficulty" class="form-select">
-                        <option value="basic" selected>Базовая</option>
-                        <option value="medium">Средняя</option>
-                        <option value="hard">Высокая</option>
+                    <label
+                        class="form-label"
+                        for="labDifficulty"
+                    >
+                        Складність
+                    </label>
+
+                    <select
+                        id="labDifficulty"
+                        name="difficulty"
+                        class="form-select"
+                    >
+                        <option value="basic" selected>
+                            Базова
+                        </option>
+
+                        <option value="medium">
+                            Середня
+                        </option>
+
+                        <option value="hard">
+                            Висока
+                        </option>
                     </select>
                 </div>
 
                 <div class="col-md-4 mb-3">
-                    <label class="form-label">Ключевые понятия</label>
-                    <input type="text"
+                    <label
+                        class="form-label"
+                        for="labConcepts"
+                    >
+                        Ключові поняття
+                    </label>
+
+                    <input
+                        type="text"
+                        id="labConcepts"
                         name="concepts"
                         class="form-control"
-                        placeholder="sel, assign, d0, d1">
+                        placeholder="Наприклад: sel, assign, d0, d1"
+                    >
                 </div>
+
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Критерии оценивания</label>
-                <textarea name="grading_policy"
-                        class="form-control"
-                        rows="3"
-                        placeholder="Например: 80% — прохождение testbench, 20% — дополнительные вопросы"></textarea>
+                <label
+                    class="form-label"
+                    for="gradingPolicy"
+                >
+                    Критерії оцінювання
+                </label>
+
+                <textarea
+                    id="gradingPolicy"
+                    name="grading_policy"
+                    class="form-control"
+                    rows="3"
+                    placeholder="Опишіть критерії та складові підсумкового оцінювання лабораторної роботи"
+                ></textarea>
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Стартовый шаблон кода для HDL-редактора</label>
-                <textarea name="starter_code"
-                        class="form-control code-area"
-                        rows="8"
-                        placeholder="Этот код студент увидит во встроенном редакторе">module mux2to1(
-                input wire d0,
-                input wire d1,
-                input wire sel,
-                output wire y
-            );
+                <label
+                    class="form-label"
+                    for="starterCode"
+                >
+                    Початковий шаблон коду для HDL-редактора
+                </label>
 
-            // Опишите логику выбора входа здесь
-            assign y = 1'b0;
+                <textarea
+                    id="starterCode"
+                    name="starter_code"
+                    class="form-control code-area"
+                    rows="8"
+                    placeholder="Цей код студент побачить у вбудованому редакторі"
+                >module mux2to1(
+    input wire d0,
+    input wire d1,
+    input wire sel,
+    output wire y
+);
 
-            endmodule</textarea>
+// Опишіть логіку вибору входу тут.
+assign y = 1'b0;
+
+endmodule</textarea>
 
                 <div class="form-text">
-                    Для Verilog-заданий этот шаблон автоматически подставится во встроенный HDL-редактор.
+                    Для завдань Verilog цей шаблон автоматично
+                    підставляється у вбудований HDL-редактор.
                 </div>
             </div>
 
             <hr class="my-4">
 
+            <h4 class="mb-3">
+                Перевірочні сценарії
+            </h4>
+
             <div class="mb-3">
-                <label class="form-label">Проверочный сценарий testbench / проверочный код</label>
-                    <div class="mb-3">
-                        <label class="form-label">Открытый testbench</label>
-                        <textarea name="public_testbench"
-                                rows="12"
-                                class="form-control code-area"
-                                required
-                                placeholder="Этот testbench студент увидит через подробный отчёт проверки"></textarea>
+                <label
+                    class="form-label"
+                    for="publicTestbench"
+                >
+                    Відкритий testbench
+                </label>
 
-                        <div class="form-text">
-                            Открытые тесты показываются студенту подробно: входные значения, ожидаемый результат и фактический результат.
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Скрытый testbench</label>
-                        <textarea name="hidden_testbench"
-                                rows="12"
-                                class="form-control code-area"
-                                placeholder="Этот testbench используется только для итоговой оценки"></textarea>
-
-                        <div class="form-text">
-                            Скрытые тесты позволяют проверить дополнительные и граничные случаи. Подробности по ним по умолчанию не показываются студенту.
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input"
-                                type="checkbox"
-                                name="show_hidden_details"
-                                id="show_hidden_details">
-
-                            <label class="form-check-label" for="show_hidden_details">
-                                Показывать студенту подробности скрытых тестов
-                            </label>
-                        </div>
-
-                        <div class="form-text">
-                            Обычно эту настройку лучше оставить выключенной, чтобы студент видел только количество пройденных скрытых тестов.
-                        </div>
-                    </div>
+                <textarea
+                    id="publicTestbench"
+                    name="public_testbench"
+                    rows="12"
+                    class="form-control code-area"
+                    placeholder="Цей testbench студент побачить у докладному звіті перевірки"
+                    required
+                ></textarea>
 
                 <div class="form-text">
-                    Для Verilog здесь указывается testbench. Именно он будет запускаться при автоматической проверке.
+                    Для відкритих тестів студенту відображаються
+                    вхідні значення, очікуваний результат і фактичний
+                    результат перевірки.
                 </div>
             </div>
 
+            <div class="mb-3">
+                <label
+                    class="form-label"
+                    for="hiddenTestbench"
+                >
+                    Прихований testbench
+                </label>
+
+                <textarea
+                    id="hiddenTestbench"
+                    name="hidden_testbench"
+                    rows="12"
+                    class="form-control code-area"
+                    placeholder="Цей testbench використовується для додаткової перевірки та підсумкового оцінювання"
+                ></textarea>
+
+                <div class="form-text">
+                    Приховані тести дають змогу перевірити додаткові
+                    та граничні випадки. Їхні внутрішні дані за
+                    замовчуванням не відображаються студенту.
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check">
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        name="show_hidden_details"
+                        id="showHiddenDetails"
+                    >
+
+                    <label
+                        class="form-check-label"
+                        for="showHiddenDetails"
+                    >
+                        Показувати студенту розширені результати
+                        прихованих тестів
+                    </label>
+                </div>
+
+                <div class="form-text">
+                    Рекомендується залишати цю опцію вимкненою.
+                    Незалежно від налаштування студенту не повинні
+                    розкриватися код прихованого testbench або дані,
+                    що дають змогу відновити приховані тести.
+                </div>
+            </div>
+
+            <div class="form-text mb-3">
+                Для завдань Verilog у цих полях задаються testbench,
+                що запускаються під час автоматичної перевірки.
+            </div>
+
             <div class="row">
+
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Максимальное количество попыток</label>
-                    <input type="number"
+                    <label
+                        class="form-label"
+                        for="maxAttempts"
+                    >
+                        Максимальна кількість спроб
+                    </label>
+
+                    <input
+                        type="number"
+                        id="maxAttempts"
                         name="max_attempts"
                         class="form-control"
                         value="3"
-                        min="1">
+                        min="1"
+                        step="1"
+                    >
                 </div>
 
-                <div class="col-md-6 mb-3 d-flex align-items-end">
+                <div
+                    class="
+                        col-md-6
+                        mb-3
+                        d-flex
+                        align-items-end
+                    "
+                >
                     <div class="form-check">
-                        <input class="form-check-input"
+                        <input
+                            class="form-check-input"
                             type="checkbox"
                             name="allow_extra_questions"
-                            id="allow_extra_questions"
-                            checked>
+                            id="allowExtraQuestions"
+                            checked
+                        >
 
-                        <label class="form-check-label" for="allow_extra_questions">
-                            Разрешить улучшение оценки через дополнительные вопросы
+                        <label
+                            class="form-check-label"
+                            for="allowExtraQuestions"
+                        >
+                            Дозволити покращення оцінки за допомогою
+                            додаткових запитань
                         </label>
                     </div>
                 </div>
+
             </div>
 
-            <div class="d-flex gap-2 mt-4">
-                <button class="btn btn-primary" type="submit">
-                    Добавить лабораторную работу
+            <div class="d-flex flex-wrap gap-2 mt-4">
+
+                <button
+                    class="btn btn-primary"
+                    type="submit"
+                >
+                    Додати лабораторну роботу
                 </button>
 
-                <a href="{{ url_for('teacher_labs') }}" class="btn btn-outline-secondary">
-                    Отмена
+                <a
+                    href="{{ url_for('teacher_labs') }}"
+                    class="btn btn-outline-secondary"
+                >
+                    Скасувати
                 </a>
+
             </div>
+
         </form>
+
     </div>
 </div>
 

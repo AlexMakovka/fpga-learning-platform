@@ -2,134 +2,267 @@
 
 {% block content %}
 
-<a href="{{ url_for('lab_detail', lab_id=submission['lab_id']) }}" class="btn btn-outline-secondary btn-sm mb-3">
-    ← Назад к лабораторной работе
+<a
+    href="{{ url_for('lab_detail', lab_id=submission['lab_id']) }}"
+    class="btn btn-outline-secondary btn-sm mb-3"
+>
+    ← Назад до лабораторної роботи
 </a>
 
 <div class="card shadow-sm border-0 rounded-4 mb-4">
     <div class="card-body p-4">
 
-        <h1 class="mb-3">Дополнительные задания для улучшения оценки</h1>
+        <h1 class="mb-3">
+            Додаткові завдання для покращення оцінки
+        </h1>
 
         <p class="text-muted">
-            Ответьте на дополнительные вопросы, которые система сформировала на основе темы лабораторной работы, результата testbench, HDL-кода и вашей истории попыток.
-            Система проверит ответы и при достаточном результате повысит учебный балл.
-            Готовое HDL-решение при этом не раскрывается.
+            Дайте відповіді на додаткові запитання, які система сформувала
+            на основі теми лабораторної роботи, результату testbench,
+            HDL-коду та історії ваших спроб. Система перевірить відповіді
+            та за достатнього результату підвищить навчальний бал.
+            Готове HDL-рішення при цьому не розкривається.
         </p>
 
-        <div class="mb-3">
-            <span class="badge bg-secondary">Попытка #{{ submission["id"] }}</span>
-            <span class="badge bg-dark">
-                Текущий результат: {{ submission["final_score"] or submission["score"] }} / 100
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <span class="badge bg-secondary">
+                Спроба №{{ submission["id"] }}
             </span>
+
+            <span class="badge bg-dark">
+                Поточний результат:
+                {{
+                    submission["final_score"]
+                    if submission["final_score"] is not none
+                    else submission["score"]
+                }}
+                / 100
+            </span>
+
             <span class="badge bg-light text-dark border">
-                Тесты: {{ submission["passed_tests"] }} из {{ submission["total_tests"] }}
+                Тести:
+                {{ submission["passed_tests"] }}
+                із
+                {{ submission["total_tests"] }}
             </span>
         </div>
 
         <div class="alert alert-light border rounded-4">
-            <h5 class="mb-2">Адаптивный анализ попытки</h5>
+            <h5 class="mb-2">
+                Адаптивний аналіз спроби
+            </h5>
 
             <p class="mb-1">
-                <b>Тема:</b> {{ adaptive_plan["topic"] }}
+                <strong>Тема:</strong>
+                {{ adaptive_plan["topic"] }}
             </p>
 
             <p class="mb-1">
-                <b>Тип ошибки:</b> {{ adaptive_plan["error_title"] }}
+                <strong>Тип помилки:</strong>
+                {{ adaptive_plan["error_title"] }}
             </p>
 
             <p class="mb-1">
-                <b>Уровень подсказки:</b> {{ adaptive_plan["hint_level"] }}
+                <strong>Рівень підказки:</strong>
+                {{ adaptive_plan["hint_level"] }}
             </p>
 
-            <div class="alert alert-info rounded-4">
-                Дополнительные вопросы учитываются как отдельный компонент итоговой оценки.
-                После отправки ответов система пересчитает итоговый балл по общей формуле:
-                функциональная проверка, качество HDL-кода, синтезируемость и дополнительные вопросы.
+            <div class="alert alert-info rounded-4 mb-0 mt-3">
+                Додаткові запитання враховуються як окремий компонент
+                підсумкової оцінки. Після надсилання відповідей система
+                повторно обчислить підсумковий бал за загальною формулою:
+                функціональна перевірка, якість HDL-коду, синтезованість
+                і додаткові запитання.
             </div>
-
         </div>
 
         <div class="card shadow-sm border-0 rounded-4 mb-3">
             <div class="card-body">
-                <h5>Рекомендации к повторению</h5>
+                <h5>
+                    Рекомендації для повторення
+                </h5>
 
-                <ul class="mb-0">
-                    {% for topic in adaptive_plan["repeat_topics"] %}
-                        <li>{{ topic }}</li>
-                    {% endfor %}
-                </ul>
+                {% if adaptive_plan["repeat_topics"] %}
+                    <ul class="mb-0">
+                        {% for topic in adaptive_plan["repeat_topics"] %}
+                            <li>
+                                {{ topic }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted mb-0">
+                        Додаткові теми для повторення не визначено.
+                    </p>
+                {% endif %}
             </div>
         </div>
 
         {% if check_result %}
+
             {% if check_result["score_after"] > check_result["score_before"] %}
-                <div class="alert alert-success rounded-4">
-                    <h5 class="mb-2">Ответы приняты</h5>
+                <div
+                    class="alert alert-success rounded-4"
+                    role="status"
+                >
+                    <h5 class="mb-2">
+                        Відповіді прийнято
+                    </h5>
+
                     <p class="mb-1">
-                        Правильных ответов: <b>{{ check_result["correct_count"] }} из 3</b>
+                        Правильних відповідей:
+                        <strong>
+                            {{ check_result["correct_count"] }} із 3
+                        </strong>
                     </p>
+
                     <p class="mb-1">
-                        Балл до выполнения заданий: <b>{{ check_result["score_before"] }} / 100</b>
+                        Бал до виконання додаткових завдань:
+                        <strong>
+                            {{ check_result["score_before"] }} / 100
+                        </strong>
                     </p>
+
                     <p class="mb-0">
-                        Новый учебный балл: <b>{{ check_result["score_after"] }} / 100</b>
+                        Новий навчальний бал:
+                        <strong>
+                            {{ check_result["score_after"] }} / 100
+                        </strong>
                     </p>
                 </div>
+
             {% else %}
-                <div class="alert alert-warning rounded-4">
-                    <h5 class="mb-2">Оценка не изменена</h5>
+                <div
+                    class="alert alert-warning rounded-4"
+                    role="status"
+                >
+                    <h5 class="mb-2">
+                        Оцінку не змінено
+                    </h5>
+
                     <p class="mb-1">
-                        Правильных ответов: <b>{{ check_result["correct_count"] }} из 3</b>
+                        Правильних відповідей:
+                        <strong>
+                            {{ check_result["correct_count"] }} із 3
+                        </strong>
                     </p>
+
                     <p class="mb-0">
-                        Ответы слишком неполные или не отражают понимание ошибки.
+                        Відповіді є недостатньо повними або не демонструють
+                        достатнього розуміння виявленої помилки.
                     </p>
                 </div>
             {% endif %}
 
-            <pre class="result-box">{{ check_result["feedback"] }}</pre>
+            <pre class="result-box">
+                {{ check_result["feedback"] }}
+            </pre>
         {% endif %}
 
-        <form method="post" action="{{ url_for('improve_score', submission_id=submission['id']) }}">
+        <form
+            method="post"
+            action="{{ url_for('improve_score', submission_id=submission['id']) }}"
+        >
             {% include "includes/csrf_token.html" %}
-            
-            {% for task in tasks %}
-                <div class="card border-0 shadow-sm rounded-4 mb-3">
-                    <div class="card-body">
-                        <h5>{{ task["title"] }}</h5>
-                        <p class="text-muted">{{ task["text"] }}</p>
 
-                        <textarea name="{{ task['field'] }}"
-                                  rows="4"
-                                  class="form-control"
-                                  placeholder="Введите ответ своими словами">{{ student_answers[task["field"]] }}</textarea>
+            {% if tasks %}
+
+                {% for task in tasks %}
+                    <div class="card border-0 shadow-sm rounded-4 mb-3">
+                        <div class="card-body">
+
+                            <h5 id="task-title-{{ loop.index }}">
+                                {{ task["title"] }}
+                            </h5>
+
+                            <p
+                                id="task-text-{{ loop.index }}"
+                                class="text-muted"
+                            >
+                                {{ task["text"] }}
+                            </p>
+
+                            <textarea
+                                name="{{ task['field'] }}"
+                                rows="4"
+                                class="form-control"
+                                placeholder="Введіть відповідь своїми словами"
+                                aria-labelledby="task-title-{{ loop.index }}"
+                                aria-describedby="task-text-{{ loop.index }}"
+                                required
+                            >{{ student_answers.get(task["field"], "") }}</textarea>
+
+                        </div>
                     </div>
+                {% endfor %}
+
+                <div
+                    class="alert alert-primary rounded-4"
+                    role="note"
+                >
+                    Додаткові запитання оцінюються як окремий компонент
+                    підсумкової оцінки. За дві правильні відповіді компонент
+                    додаткових запитань буде зараховано частково, а за три
+                    правильні відповіді — повністю. Після перевірки система
+                    повторно обчислить підсумковий бал за загальною формулою.
                 </div>
-            {% endfor %}
 
-            <div class="alert alert-primary rounded-4">
-                Дополнительные вопросы оцениваются как отдельный компонент итоговой оценки.
-                За 2 правильных ответа компонент дополнительных вопросов будет засчитан частично,
-                за 3 правильных ответа — полностью.
-                После проверки система пересчитает итоговый балл по общей формуле.
-            </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button
+                        type="submit"
+                        class="btn btn-success"
+                    >
+                        Перевірити відповіді та покращити оцінку
+                    </button>
 
-            <div class="d-flex flex-wrap gap-2">
-                <button type="submit" class="btn btn-success">
-                    Проверить ответы и улучшить оценку
-                </button>
+                    <a
+                        href="{{
+                            url_for(
+                                'ai_help',
+                                submission_id=submission['id'],
+                                level=1
+                            )
+                        }}"
+                        class="btn btn-outline-primary"
+                    >
+                        Отримати підказку ШІ
+                    </a>
 
-                <a href="{{ url_for('ai_help', submission_id=submission['id'], level=1) }}"
-                   class="btn btn-outline-primary">
-                    Получить подсказку ИИ
+                    <a
+                        href="{{
+                            url_for(
+                                'lab_detail',
+                                lab_id=submission['lab_id']
+                            )
+                        }}"
+                        class="btn btn-outline-secondary"
+                    >
+                        Повернутися до лабораторної роботи
+                    </a>
+                </div>
+
+            {% else %}
+
+                <div
+                    class="alert alert-info rounded-4"
+                    role="status"
+                >
+                    Додаткові завдання для цієї спроби не сформовано.
+                </div>
+
+                <a
+                    href="{{
+                        url_for(
+                            'lab_detail',
+                            lab_id=submission['lab_id']
+                        )
+                    }}"
+                    class="btn btn-outline-secondary"
+                >
+                    Повернутися до лабораторної роботи
                 </a>
 
-                <a href="{{ url_for('lab_detail', lab_id=submission['lab_id']) }}"
-                   class="btn btn-outline-secondary">
-                    Вернуться к лабораторной
-                </a>
-            </div>
+            {% endif %}
 
         </form>
 

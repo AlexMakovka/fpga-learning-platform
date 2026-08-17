@@ -1,12 +1,23 @@
 <!doctype html>
-<html lang="ru">
+<html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
     <title>FPGA Learning System</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/style.css', v='26') }}" rel="stylesheet">
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link
+        href="{{ url_for('static', filename='css/style.css', v='26') }}"
+        rel="stylesheet"
+    >
 </head>
 
 {% set auth_pages = [
@@ -21,18 +32,36 @@
 ] %}
 
 {% set is_auth_page = request.endpoint in auth_pages %}
-{% set is_landing_page = request.endpoint == "index" and not session.get("username") %}
-{% set is_full_page = is_auth_page or is_landing_page %}
-{% set use_app_layout = session.get("username") and not is_full_page %}
+
+{% set is_landing_page =
+    request.endpoint == "index"
+    and not session.get("username")
+%}
+
+{% set is_full_page =
+    is_auth_page
+    or is_landing_page
+%}
+
+{% set use_app_layout =
+    session.get("username")
+    and not is_full_page
+%}
 
 {% if is_full_page %}
+
 <body class="auth-body">
+
 {% else %}
-<body class="app-body"
-      data-theme="{{ session.get('ui_theme') or 'light' }}"
-      data-palette="{{ session.get('ui_palette') or 'pastel' }}"
-      data-font-size="{{ session.get('ui_font_size') or 'normal' }}"
-      data-density="{{ session.get('ui_density') or 'comfortable' }}">
+
+<body
+    class="app-body"
+    data-theme="{{ session.get('theme') or 'light' }}"
+    data-palette="{{ session.get('palette') or 'pastel' }}"
+    data-font-size="{{ session.get('font_size') or 'normal' }}"
+    data-density="{{ session.get('ui_density') or 'comfortable' }}"
+>
+
 {% endif %}
 
 {% if use_app_layout %}
@@ -41,104 +70,161 @@
 
     <aside class="app-sidebar">
 
-        <a href="{{ url_for('index') }}" class="app-sidebar-brand">
-            <span class="app-sidebar-logo">FPGA</span>
+        <a
+            href="{{ url_for('index') }}"
+            class="app-sidebar-brand"
+        >
+            <span class="app-sidebar-logo">
+                FPGA
+            </span>
+
             <span>
-                <b>FPGA Learning</b>
-                <small>учебная платформа</small>
+                <strong>
+                    FPGA Learning
+                </strong>
+
+                <small>
+                    навчальна платформа
+                </small>
             </span>
         </a>
 
-        <nav class="app-sidebar-nav">
+        <nav
+            class="app-sidebar-nav"
+            aria-label="Основна навігація"
+        >
 
             {% if session.get("role") == "student" %}
 
-                <a href="{{ url_for('index') }}"
-                   class="app-nav-link {% if request.endpoint == 'index' %}is-active{% endif %}">
-                    Лабораторные
+                <a
+                    href="{{ url_for('index') }}"
+                    class="app-nav-link {% if request.endpoint == 'index' %}is-active{% endif %}"
+                >
+                    Лабораторні роботи
                 </a>
 
-                <a href="{{ url_for('student_gradebook') }}"
-                   class="app-nav-link {% if request.endpoint == 'student_gradebook' %}is-active{% endif %}">
-                    Зачётка
+                <a
+                    href="{{ url_for('student_gradebook') }}"
+                    class="app-nav-link {% if request.endpoint == 'student_gradebook' %}is-active{% endif %}"
+                >
+                    Залікова книжка
                 </a>
 
-                <a href="{{ url_for('student_competencies') }}"
-                   class="app-nav-link {% if request.endpoint == 'student_competencies' %}is-active{% endif %}">
-                    Компетенции
+                <a
+                    href="{{ url_for('student_competencies') }}"
+                    class="app-nav-link {% if request.endpoint == 'student_competencies' %}is-active{% endif %}"
+                >
+                    Компетентності
                 </a>
 
-                <a href="{{ url_for('student_learning_path_live') }}"
-                   class="app-nav-link {% if request.endpoint == 'student_learning_path_live' %}is-active{% endif %}">
-                    AI-траектория
+                <a
+                    href="{{ url_for('student_learning_path_live') }}"
+                    class="app-nav-link {% if request.endpoint == 'student_learning_path_live' %}is-active{% endif %}"
+                >
+                    AI-траєкторія
                 </a>
 
-                <a href="{{ url_for('student_trainer') }}"
-                   class="app-nav-link {% if request.endpoint in ['student_trainer', 'student_trainer_session', 'student_trainer_task'] %}is-active{% endif %}">
-                    Тренажёр
+                <a
+                    href="{{ url_for('student_trainer') }}"
+                    class="app-nav-link {% if request.endpoint in [
+                        'student_trainer',
+                        'student_trainer_session',
+                        'student_trainer_task'
+                    ] %}is-active{% endif %}"
+                >
+                    Тренажер
                 </a>
 
             {% endif %}
 
             {% if session.get("role") == "teacher" %}
 
-                <a href="{{ url_for('teacher_panel') }}"
-                   class="app-nav-link {% if request.endpoint == 'teacher_panel' %}is-active{% endif %}">
-                    Панель преподавателя
+                <a
+                    href="{{ url_for('teacher_panel') }}"
+                    class="app-nav-link {% if request.endpoint == 'teacher_panel' %}is-active{% endif %}"
+                >
+                    Панель викладача
                 </a>
 
-                <a href="{{ url_for('teacher_journal') }}"
-                   class="app-nav-link {% if request.endpoint == 'teacher_journal' %}is-active{% endif %}">
+                <a
+                    href="{{ url_for('teacher_journal') }}"
+                    class="app-nav-link {% if request.endpoint == 'teacher_journal' %}is-active{% endif %}"
+                >
                     Журнал
                 </a>
 
-                <a href="{{ url_for('teacher_labs') }}"
-                   class="app-nav-link {% if request.endpoint in ['teacher_labs', 'add_lab', 'edit_lab'] %}is-active{% endif %}">
-                    Лабораторные
+                <a
+                    href="{{ url_for('teacher_labs') }}"
+                    class="app-nav-link {% if request.endpoint in [
+                        'teacher_labs',
+                        'add_lab',
+                        'edit_lab'
+                    ] %}is-active{% endif %}"
+                >
+                    Лабораторні роботи
                 </a>
 
-                <a href="{{ url_for('teacher_analytics') }}"
-                   class="app-nav-link {% if request.endpoint == 'teacher_analytics' %}is-active{% endif %}">
-                    Аналитика
+                <a
+                    href="{{ url_for('teacher_analytics') }}"
+                    class="app-nav-link {% if request.endpoint == 'teacher_analytics' %}is-active{% endif %}"
+                >
+                    Аналітика
                 </a>
 
-                <a href="{{ url_for('manage_students') }}"
-                   class="app-nav-link {% if request.endpoint in ['manage_students', 'edit_student'] %}is-active{% endif %}">
-                    Студенты
+                <a
+                    href="{{ url_for('manage_students') }}"
+                    class="app-nav-link {% if request.endpoint in [
+                        'manage_students',
+                        'edit_student'
+                    ] %}is-active{% endif %}"
+                >
+                    Студенти
                 </a>
 
             {% endif %}
 
             {% if session.get("role") == "admin" %}
 
-                <a href="{{ url_for('admin_panel') }}"
-                   class="app-nav-link {% if request.endpoint == 'admin_panel' %}is-active{% endif %}">
-                    Панель администратора
+                <a
+                    href="{{ url_for('admin_panel') }}"
+                    class="app-nav-link {% if request.endpoint == 'admin_panel' %}is-active{% endif %}"
+                >
+                    Панель адміністратора
                 </a>
 
-                <a href="{{ url_for('teacher_journal') }}"
-                   class="app-nav-link {% if request.endpoint == 'teacher_journal' %}is-active{% endif %}">
+                <a
+                    href="{{ url_for('teacher_journal') }}"
+                    class="app-nav-link {% if request.endpoint == 'teacher_journal' %}is-active{% endif %}"
+                >
                     Журнал
                 </a>
 
-                <a href="{{ url_for('teacher_analytics') }}"
-                   class="app-nav-link {% if request.endpoint == 'teacher_analytics' %}is-active{% endif %}">
-                    Аналитика
+                <a
+                    href="{{ url_for('teacher_analytics') }}"
+                    class="app-nav-link {% if request.endpoint == 'teacher_analytics' %}is-active{% endif %}"
+                >
+                    Аналітика
                 </a>
 
-                <a href="{{ url_for('admin_users') }}"
-                   class="app-nav-link {% if request.endpoint == 'admin_users' %}is-active{% endif %}">
-                    Пользователи
+                <a
+                    href="{{ url_for('admin_users') }}"
+                    class="app-nav-link {% if request.endpoint == 'admin_users' %}is-active{% endif %}"
+                >
+                    Користувачі
                 </a>
 
-                <a href="{{ url_for('admin_groups') }}"
-                   class="app-nav-link {% if request.endpoint == 'admin_groups' %}is-active{% endif %}">
-                    Группы
+                <a
+                    href="{{ url_for('admin_groups') }}"
+                    class="app-nav-link {% if request.endpoint == 'admin_groups' %}is-active{% endif %}"
+                >
+                    Навчальні групи
                 </a>
 
-                <a href="{{ url_for('admin_disciplines') }}"
-                   class="app-nav-link {% if request.endpoint == 'admin_disciplines' %}is-active{% endif %}">
-                    Предметы
+                <a
+                    href="{{ url_for('admin_disciplines') }}"
+                    class="app-nav-link {% if request.endpoint == 'admin_disciplines' %}is-active{% endif %}"
+                >
+                    Дисципліни
                 </a>
 
             {% endif %}
@@ -147,6 +233,7 @@
 
     </aside>
 
+    
     <div class="app-main">
 
         <header class="app-topbar">

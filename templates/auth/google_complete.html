@@ -4,14 +4,36 @@
 
 <section class="auth-page">
 
-    <div class="auth-grid-layer"></div>
+    <div
+        class="auth-grid-layer"
+        aria-hidden="true"
+    ></div>
 
-    <div class="auth-bg auth-bg-1"></div>
-    <div class="auth-bg auth-bg-2"></div>
-    <div class="auth-bg auth-bg-3"></div>
-    <div class="auth-bg auth-bg-4"></div>
+    <div
+        class="auth-bg auth-bg-1"
+        aria-hidden="true"
+    ></div>
 
-    <div class="auth-random-particles" data-particle-count="40"></div>
+    <div
+        class="auth-bg auth-bg-2"
+        aria-hidden="true"
+    ></div>
+
+    <div
+        class="auth-bg auth-bg-3"
+        aria-hidden="true"
+    ></div>
+
+    <div
+        class="auth-bg auth-bg-4"
+        aria-hidden="true"
+    ></div>
+
+    <div
+        class="auth-random-particles"
+        data-particle-count="40"
+        aria-hidden="true"
+    ></div>
 
     <div class="auth-card auth-card-wide">
 
@@ -19,51 +41,115 @@
             <div class="auth-logo-box">FPGA</div>
         </div>
 
-        <h1 class="auth-title">Завершение регистрации</h1>
+        <h1 class="auth-title">
+            Завершення реєстрації
+        </h1>
 
         <p class="auth-subtitle">
-            Google подтвердил аккаунт. Осталось указать учебную роль и данные.
+            Обліковий запис Google підтверджено.
+            Залишилося вказати роль у системі та навчальні дані.
         </p>
 
         <div class="auth-google-info">
-            <div><b>Email:</b> {{ google_data["email"] }}</div>
-            <div><b>Имя Google:</b> {{ google_data["full_name"] or "—" }}</div>
+            <div>
+                <strong>Email:</strong>
+                {{ google_data["email"] or "—" }}
+            </div>
+
+            <div>
+                <strong>Ім'я в Google:</strong>
+                {{ google_data["full_name"] or "—" }}
+            </div>
         </div>
 
-        <form method="post" action="{{ url_for('complete_google_registration') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <form
+            method="post"
+            action="{{ url_for('complete_google_registration') }}"
+        >
+            {% include "includes/csrf_token.html" %}
 
             <div class="mb-3">
-                <label class="form-label auth-label">ФИО</label>
-                <input type="text"
-                       name="full_name"
-                       class="form-control auth-input"
-                       value="{{ google_data['full_name'] or '' }}"
-                       required>
+                <label
+                    for="full-name"
+                    class="form-label auth-label"
+                >
+                    Повне ім'я
+                </label>
+
+                <input
+                    type="text"
+                    id="full-name"
+                    name="full_name"
+                    class="form-control auth-input"
+                    value="{{ google_data['full_name'] or '' }}"
+                    autocomplete="name"
+                    required
+                >
             </div>
 
             <div class="mb-3">
-                <label class="form-label auth-label">Роль</label>
-                <select name="role" class="form-select auth-input" required>
-                    <option value="student">Студент</option>
-                    <option value="teacher">Преподаватель</option>
+                <label
+                    for="registration-role"
+                    class="form-label auth-label"
+                >
+                    Роль
+                </label>
+
+                <select
+                    id="registration-role"
+                    name="role"
+                    class="form-select auth-input"
+                    required
+                >
+                    <option value="student">
+                        Студент
+                    </option>
+
+                    <option value="teacher">
+                        Викладач
+                    </option>
                 </select>
             </div>
 
             <div class="mb-3">
-                <label class="form-label auth-label">Группа</label>
-                <input type="text"
-                       name="student_group"
-                       class="form-control auth-input"
-                       placeholder="Например: ИП3-5.01">
+                <label
+                    for="student-group"
+                    class="form-label auth-label"
+                >
+                    Навчальна група
+                </label>
+
+                <input
+                    type="text"
+                    id="student-group"
+                    name="student_group"
+                    class="form-control auth-input"
+                    placeholder="Наприклад: ІП3-5.01"
+                    autocomplete="off"
+                    aria-describedby="student-group-help"
+                >
+
+                <div
+                    id="student-group-help"
+                    class="form-text"
+                >
+                    Для студента необхідно вказати навчальну групу.
+                    Для викладача поле можна залишити порожнім.
+                </div>
             </div>
 
-            <button class="btn auth-main-btn w-100" type="submit">
-                Отправить заявку
+            <button
+                class="btn auth-main-btn w-100"
+                type="submit"
+            >
+                Надіслати заявку
             </button>
 
-            <a href="{{ url_for('login') }}" class="btn auth-google-btn w-100 mt-2">
-                Отмена
+            <a
+                href="{{ url_for('login') }}"
+                class="btn auth-google-btn w-100 mt-2"
+            >
+                Скасувати
             </a>
 
         </form>

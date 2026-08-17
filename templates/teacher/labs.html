@@ -1,108 +1,233 @@
 {% extends "layouts/base.html" %}
 
+{% block title %}Лабораторні роботи{% endblock %}
+
 {% block content %}
 
-<a href="{{ url_for('teacher_panel') }}" class="btn btn-outline-secondary btn-sm mb-3">
-    ← Назад в панель преподавателя
+{% set difficulty_labels = {
+    "basic": "Базова",
+    "medium": "Середня",
+    "hard": "Висока"
+} %}
+
+{% set checker_labels = {
+    "hdl_testbench": "HDL testbench",
+    "python_unit_tests": "Python unit tests",
+    "sql_query": "SQL query check",
+    "cpp_tests": "C++ tests"
+} %}
+
+<a
+    href="{{ url_for('teacher_panel') }}"
+    class="btn btn-outline-secondary btn-sm mb-3"
+>
+    ← Назад до панелі викладача
 </a>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div
+    class="
+        d-flex
+        flex-wrap
+        justify-content-between
+        align-items-center
+        gap-3
+        mb-4
+    "
+>
     <div>
-        <h1 class="mb-1">Лабораторные работы</h1>
+        <h1 class="mb-1">
+            Лабораторні роботи
+        </h1>
+
         <p class="text-muted mb-0">
-            Управление заданиями, паспортами лабораторных и параметрами проверки.
+            Керування завданнями, паспортами лабораторних робіт
+            і параметрами автоматичної перевірки.
         </p>
     </div>
 
-    <a href="{{ url_for('add_lab') }}" class="btn btn-primary">
-        + Добавить лабораторную
+    <a
+        href="{{ url_for('add_lab') }}"
+        class="btn btn-primary"
+    >
+        + Додати лабораторну роботу
     </a>
 </div>
 
-{% if labs and labs|length > 0 %}
+{% if labs %}
 
     {% for lab in labs %}
+
+        {% set programming_language =
+            lab["programming_language"]
+            or "Verilog"
+        %}
+
+        {% set checker_type =
+            lab["checker_type"]
+            or "hdl_testbench"
+        %}
+
+        {% set difficulty =
+            lab["difficulty"]
+            or "basic"
+        %}
+
         <div class="card shadow-sm border-0 rounded-4 mb-3">
             <div class="card-body">
 
-                <div class="d-flex justify-content-between align-items-start gap-3">
-                    <div>
-                        <h5 class="mb-1">{{ lab["title"] }}</h5>
+                <div
+                    class="
+                        d-flex
+                        flex-wrap
+                        justify-content-between
+                        align-items-start
+                        gap-3
+                    "
+                >
+                    <div class="flex-grow-1">
+
+                        <h5 class="mb-1">
+                            {{ lab["title"] }}
+                        </h5>
 
                         <p class="text-muted mb-2">
                             {{ lab["description"] }}
                         </p>
 
                         <div class="d-flex flex-wrap gap-2">
+
                             <span class="badge bg-primary">
-                                {{ lab["programming_language"] or "Verilog" }}
+                                {{ programming_language }}
                             </span>
 
                             <span class="badge bg-dark">
-                                {{ lab["checker_type"] or "hdl_testbench" }}
+                                {{
+                                    checker_labels.get(
+                                        checker_type,
+                                        checker_type
+                                    )
+                                }}
                             </span>
 
                             <span class="badge bg-light text-dark border">
-                                Тема: {{ lab["topic"] or "—" }}
+                                Тема:
+                                {{ lab["topic"] or "—" }}
                             </span>
 
                             <span class="badge bg-light text-dark border">
-                                Сложность: {{ lab["difficulty"] or "basic" }}
+                                Складність:
+                                {{
+                                    difficulty_labels.get(
+                                        difficulty,
+                                        difficulty
+                                    )
+                                }}
                             </span>
 
                             <span class="badge bg-light text-dark border">
-                                Попыток: {{ lab["max_attempts"] or 3 }}
+                                Кількість спроб:
+                                {{
+                                    lab["max_attempts"]
+                                    if lab["max_attempts"] is not none
+                                    else 3
+                                }}
                             </span>
 
                             {% if lab["allow_extra_questions"] %}
                                 <span class="badge bg-success">
-                                    Доп. вопросы включены
+                                    Додаткові запитання дозволено
                                 </span>
                             {% else %}
                                 <span class="badge bg-secondary">
-                                    Доп. вопросы отключены
+                                    Додаткові запитання вимкнено
                                 </span>
                             {% endif %}
+
                         </div>
 
                         <div class="text-muted small mt-2">
-                            Отправок: {{ lab["submissions_count"] or 0 }},
-                            средний балл: {{ lab["average_score"] or 0 }},
-                            успешных решений: {{ lab["passed_count"] or 0 }}
+                            Надсилань:
+                            {{
+                                lab["submissions_count"]
+                                if lab["submissions_count"] is not none
+                                else 0
+                            }},
+                            середній бал:
+                            {{
+                                lab["average_score"]
+                                if lab["average_score"] is not none
+                                else 0
+                            }},
+                            успішних перевірок:
+                            {{
+                                lab["passed_count"]
+                                if lab["passed_count"] is not none
+                                else 0
+                            }}
                         </div>
+
                     </div>
 
                     <div class="d-flex flex-column gap-2">
-                        <a href="{{ url_for('lab_detail', lab_id=lab['id']) }}"
-                           class="btn btn-outline-primary btn-sm">
-                            Результаты
+
+                        <a
+                            href="{{
+                                url_for(
+                                    'lab_detail',
+                                    lab_id=lab['id']
+                                )
+                            }}"
+                            class="btn btn-outline-primary btn-sm"
+                        >
+                            Результати
                         </a>
 
-                        <a href="{{ url_for('edit_lab', lab_id=lab['id']) }}"
-                           class="btn btn-outline-warning btn-sm">
-                            Редактировать
+                        <a
+                            href="{{
+                                url_for(
+                                    'edit_lab',
+                                    lab_id=lab['id']
+                                )
+                            }}"
+                            class="btn btn-outline-warning btn-sm"
+                        >
+                            Редагувати
                         </a>
 
-                        <form method="post"
-                              action="{{ url_for('delete_lab', lab_id=lab['id']) }}">
-                              {% include "includes/csrf_token.html" %}
-                              
-                            <button class="btn btn-outline-danger btn-sm w-100"
-                                    type="submit">
-                                Удалить
+                        <form
+                            method="post"
+                            action="{{
+                                url_for(
+                                    'delete_lab',
+                                    lab_id=lab['id']
+                                )
+                            }}"
+                        >
+                            {% include "includes/csrf_token.html" %}
+
+                            <button
+                                class="btn btn-outline-danger btn-sm w-100"
+                                type="submit"
+                            >
+                                Видалити
                             </button>
                         </form>
+
                     </div>
                 </div>
 
             </div>
         </div>
+
     {% endfor %}
 
 {% else %}
 
-    <div class="alert alert-info rounded-4">
-        Лабораторные работы пока не добавлены.
+    <div
+        class="alert alert-info rounded-4"
+        role="status"
+    >
+        Лабораторні роботи поки не додано.
     </div>
 
 {% endif %}

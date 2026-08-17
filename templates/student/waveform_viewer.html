@@ -254,6 +254,7 @@
         return currentValue;
     }
 
+    
     function getTimeTicks(maxTime) {
         if (maxTime <= 0) {
             return [0];
@@ -377,6 +378,25 @@
     function drawSignalName(signal, rowIndex) {
         const y = topHeight + rowIndex * rowHeight;
 
+        const signalName = String(
+            signal.short_name || signal.name || "—"
+        );
+
+        const fullSignalName = String(
+            signal.name || signalName
+        );
+
+        const signalSize = Number(
+            signal.size ?? 1
+        );
+
+        const safeSignalSize = (
+            Number.isFinite(signalSize)
+            && signalSize > 0
+        )
+            ? signalSize
+            : 1;
+
         const rowLine = createSvgElement("line", {
             x1: 0,
             y1: y + rowHeight,
@@ -393,7 +413,7 @@
             class: "wf-signal-name"
         });
 
-        nameText.textContent = signal.short_name || signal.name;
+        nameText.textContent = signalName;
         svg.appendChild(nameText);
 
         const metaText = createSvgElement("text", {
@@ -402,9 +422,9 @@
             class: "wf-signal-meta"
         });
 
-        metaText.textContent = signal.size > 1
-            ? `${signal.name} [${signal.size} bit]`
-            : signal.name;
+        metaText.textContent = safeSignalSize > 1
+            ? `${fullSignalName} [розрядність: ${safeSignalSize}]`
+            : fullSignalName;
 
         svg.appendChild(metaText);
     }
@@ -415,65 +435,111 @@
         const yLow = yBase + 40;
         const yUnknown = yBase + 27;
 
-        const changes = signal.changes;
+        const changes = Array.isArray(signal.changes)
+            ? signal.changes
+            : [];
 
-        if (!changes || changes.length === 0) {
+        const numericMaxTime = Number(maxTime);
+
+        if (
+            changes.length === 0
+            || !Number.isFinite(numericMaxTime)
+            || numericMaxTime < 0
+        ) {
             return;
         }
 
-        let pathData = "";
-
-        for (let i = 0; i < changes.length; i++) {
-            const current = changes[i];
-            const next = changes[i + 1];
-
-            const startTime = current.time;
-            const endTime = next ? next.time : maxTime;
-
-            const startX = leftWidth + startTime * pixelsPerTime;
-            const endX = leftWidth + endTime * pixelsPerTime;
-
-            let y;
-
-            if (current.value === "1") {
-                y = yHigh;
-            } else if (current.value === "0") {
-                y = yLow;
-            } else {
-                y = yUnknown;
-            }
-
-            if (i === 0) {
-                pathData += `M ${startX} ${y} `;
-            } else {
-                pathData += `L ${startX} ${y} `;
-            }
-
-            pathData += `L ${endX} ${y} `;
-
-            if (next) {
-                let nextY;
-
-                if (next.value === "1") {
-                    nextY = yHigh;
-                } else if (next.value === "0") {
-                    nextY = yLow;
-                } else {
-                    nextY = yUnknown;
-                }
-
-                pathData += `L ${endX} ${nextY} `;
-            }
+        function normalizeScalarValue(value) {
+            return String(value ?? "x")
+                .trim()
+                .toLowerCase();
         }
 
-        const hasUnknown = changes.some(change => !["0", "1"].includes(change.value));
+        function getScalarY(value) {
+            const normalizedValue = normalizeScalarValue(value);
 
-        const path = createSvgElement("path", {
-            d: pathData,
-            class: hasUnknown ? "wf-wave-unknown" : "wf-wave-line"
-        });
+            if (normalizedValue === "1") {
+                return yHigh;
+            }
 
-        svg.appendChild(path);
+            if (normalizedValue === "0") {
+                return yLow;
+            }
+
+            return yUnknown;
+        }
+
+        /*
+         * Кожний часовий інтервал малюється окремо, щоб стани x/z
+         * позначалися пунктиром лише на відповідній ділянці сигналу.
+         */
+        for (let index = 0; index < changes.length; index++) {
+            const current = changes[index];
+            const next = changes[index + 1];
+
+            const startTime = Number(current.time);
+            const nextTime = next
+                ? Number(next.time)
+                : numericMaxTime;
+
+            if (
+                !Number.isFinite(startTime)
+                || !Number.isFinite(nextTime)
+            ) {
+                continue;
+            }
+
+            const safeStartTime = Math.max(
+                0,
+                Math.min(startTime, numericMaxTime)
+            );
+
+            const safeEndTime = Math.max(
+                safeStartTime,
+                Math.min(nextTime, numericMaxTime)
+            );
+
+            const startX = leftWidth
+                + safeStartTime * pixelsPerTime;
+
+            const endX = leftWidth
+                + safeEndTime * pixelsPerTime;
+
+            const currentValue = normalizeScalarValue(
+                current.value
+            );
+
+            const currentY = getScalarY(
+                currentValue
+            );
+
+            const pathClass = (
+                currentValue === "0"
+                || currentValue === "1"
+            )
+                ? "wf-wave-line"
+                : "wf-wave-unknown";
+
+            let pathData = (
+                `M ${startX} ${currentY} `
+                + `L ${endX} ${currentY} `
+            );
+
+            if (next && safeEndTime < numericMaxTime) {
+                const nextY = getScalarY(
+                    next.value
+                );
+
+                pathData += `L ${endX} ${nextY}`;
+            }
+
+            const path = createSvgElement("path", {
+                d: pathData,
+                class: pathClass
+            });
+
+            svg.appendChild(path);
+        }
     }
 
     function drawBusSignal(signal, rowIndex, maxTime) {
@@ -481,27 +547,62 @@
         const y = yBase + 12;
         const height = 24;
 
-        const changes = signal.changes;
+        const changes = Array.isArray(signal.changes)
+            ? signal.changes
+            : [];
 
-        if (!changes || changes.length === 0) {
+        const numericMaxTime = Number(maxTime);
+
+        if (
+            changes.length === 0
+            || !Number.isFinite(numericMaxTime)
+            || numericMaxTime < 0
+        ) {
             return;
         }
 
-        for (let i = 0; i < changes.length; i++) {
-            const current = changes[i];
-            const next = changes[i + 1];
+        for (let index = 0; index < changes.length; index++) {
+            const current = changes[index];
+            const next = changes[index + 1];
 
-            const startTime = current.time;
-            const endTime = next ? next.time : maxTime;
+            const startTime = Number(current.time);
+            const nextTime = next
+                ? Number(next.time)
+                : numericMaxTime;
 
-            const startX = leftWidth + startTime * pixelsPerTime;
-            const endX = leftWidth + endTime * pixelsPerTime;
-            const width = Math.max(endX - startX, 2);
+            if (
+                !Number.isFinite(startTime)
+                || !Number.isFinite(nextTime)
+            ) {
+                continue;
+            }
+
+            const safeStartTime = Math.max(
+                0,
+                Math.min(startTime, numericMaxTime)
+            );
+
+            const safeEndTime = Math.max(
+                safeStartTime,
+                Math.min(nextTime, numericMaxTime)
+            );
+
+            const startX = leftWidth
+                + safeStartTime * pixelsPerTime;
+
+            const endX = leftWidth
+                + safeEndTime * pixelsPerTime;
+
+            const intervalWidth = endX - startX;
+
+            if (intervalWidth <= 0) {
+                continue;
+            }
 
             const rect = createSvgElement("rect", {
                 x: startX,
                 y: y,
-                width: width,
+                width: Math.max(intervalWidth, 2),
                 height: height,
                 rx: 6,
                 class: "wf-bus-box"
@@ -509,18 +610,23 @@
 
             svg.appendChild(rect);
 
-            if (width > 40) {
+            if (intervalWidth > 40) {
                 const text = createSvgElement("text", {
                     x: startX + 6,
                     y: y + 17,
                     class: "wf-bus-text"
                 });
 
-                text.textContent = formatValueForDisplay(signal, current.value);
+                text.textContent = formatValueForDisplay(
+                    signal,
+                    current.value
+                );
+
                 svg.appendChild(text);
             }
         }
     }
+
 
     function drawCursor(height) {
         cursorLine = createSvgElement("line", {

@@ -1,105 +1,198 @@
 {% extends "layouts/base.html" %}
 
+{% block title %}Панель викладача{% endblock %}
+
 {% block content %}
 
-<h1 class="mb-4">Панель преподавателя</h1>
+<h1 class="mb-4">
+    Панель викладача
+</h1>
 
 <div class="mb-4 d-flex flex-wrap gap-2">
-    <a href="{{ url_for('manage_students') }}" class="btn btn-outline-primary">
-        Студенты и группы
+
+    <a
+        href="{{ url_for('manage_students') }}"
+        class="btn btn-outline-primary"
+    >
+        Студенти та групи
     </a>
 
-    <a href="{{ url_for('teacher_labs') }}" class="btn btn-outline-primary">
-        Лабораторные работы
+    <a
+        href="{{ url_for('teacher_labs') }}"
+        class="btn btn-outline-primary"
+    >
+        Лабораторні роботи
     </a>
 
-    <a href="{{ url_for('teacher_journal') }}" class="btn btn-outline-success">
-        Журнал оценок
+    <a
+        href="{{ url_for('teacher_journal') }}"
+        class="btn btn-outline-success"
+    >
+        Журнал оцінок
     </a>
 
-    <a href="{{ url_for('teacher_analytics') }}" class="btn btn-primary">
-        Аналитика по группе
+    <a
+        href="{{ url_for('teacher_analytics') }}"
+        class="btn btn-primary"
+    >
+        Аналітика за групою
     </a>
 
-    <a href="{{ url_for('teacher_submissions_history') }}" class="btn btn-outline-dark">
-        История попыток
+    <a
+        href="{{ url_for('teacher_submissions_history') }}"
+        class="btn btn-outline-dark"
+    >
+        Історія спроб
     </a>
-</div>
-
-<div class="row mb-4">
-
-    <div class="col-md-3 mb-3">
-        <div class="card stat-card border-0 shadow-sm rounded-4">
-            <div class="card-body">
-                <div class="text-muted">Всего студентов</div>
-                <div class="display-6 fw-bold">{{ stats["total_students"] or 0 }}</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3 mb-3">
-        <div class="card stat-card border-0 shadow-sm rounded-4">
-            <div class="card-body">
-                <div class="text-muted">Лабораторных работ</div>
-                <div class="display-6 fw-bold">{{ stats["total_labs"] or 0 }}</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3 mb-3">
-        <div class="card stat-card border-0 shadow-sm rounded-4">
-            <div class="card-body">
-                <div class="text-muted">Всего попыток</div>
-                <div class="display-6 fw-bold">{{ stats["total_submissions"] or 0 }}</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3 mb-3">
-        <div class="card stat-card border-0 shadow-sm rounded-4">
-            <div class="card-body">
-                <div class="text-muted">Средний балл</div>
-                <div class="display-6 fw-bold">{{ stats["average_score"] or 0 }}</div>
-            </div>
-        </div>
-    </div>
 
 </div>
 
 <div class="row mb-4">
 
     <div class="col-md-3 mb-3">
-        <div class="card border-0 shadow-sm rounded-4">
+        <div class="card stat-card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body">
-                <div class="text-muted">Успешных решений</div>
-                <div class="display-6 fw-bold text-success">{{ stats["passed"] or 0 }}</div>
+                <div class="text-muted">
+                    Усього студентів
+                </div>
+
+                <div class="display-6 fw-bold">
+                    {{
+                        stats["total_students"]
+                        if stats["total_students"] is not none
+                        else 0
+                    }}
+                </div>
             </div>
         </div>
     </div>
 
     <div class="col-md-3 mb-3">
-        <div class="card border-0 shadow-sm rounded-4">
+        <div class="card stat-card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body">
-                <div class="text-muted">Частично выполнено</div>
-                <div class="display-6 fw-bold text-info">{{ stats["partial"] or 0 }}</div>
+                <div class="text-muted">
+                    Лабораторних робіт
+                </div>
+
+                <div class="display-6 fw-bold">
+                    {{
+                        stats["total_labs"]
+                        if stats["total_labs"] is not none
+                        else 0
+                    }}
+                </div>
             </div>
         </div>
     </div>
 
     <div class="col-md-3 mb-3">
-        <div class="card border-0 shadow-sm rounded-4">
+        <div class="card stat-card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body">
-                <div class="text-muted">Непройденных тестов</div>
-                <div class="display-6 fw-bold text-danger">{{ stats["failed"] or 0 }}</div>
+                <div class="text-muted">
+                    Усього спроб
+                </div>
+
+                <div class="display-6 fw-bold">
+                    {{
+                        stats["total_submissions"]
+                        if stats["total_submissions"] is not none
+                        else 0
+                    }}
+                </div>
             </div>
         </div>
     </div>
 
     <div class="col-md-3 mb-3">
-        <div class="card border-0 shadow-sm rounded-4">
+        <div class="card stat-card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body">
-                <div class="text-muted">Ошибок компиляции</div>
-                <div class="display-6 fw-bold text-warning">{{ stats["compile_errors"] or 0 }}</div>
+                <div class="text-muted">
+                    Середній бал
+                </div>
+
+                <div class="display-6 fw-bold">
+                    {{
+                        stats["average_score"]
+                        if stats["average_score"] is not none
+                        else 0
+                    }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="row mb-4">
+
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body">
+                <div class="text-muted">
+                    Успішних перевірок
+                </div>
+
+                <div class="display-6 fw-bold text-success">
+                    {{
+                        stats["passed"]
+                        if stats["passed"] is not none
+                        else 0
+                    }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body">
+                <div class="text-muted">
+                    Частково виконаних
+                </div>
+
+                <div class="display-6 fw-bold text-info">
+                    {{
+                        stats["partial"]
+                        if stats["partial"] is not none
+                        else 0
+                    }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body">
+                <div class="text-muted">
+                    Неуспішних перевірок
+                </div>
+
+                <div class="display-6 fw-bold text-danger">
+                    {{
+                        stats["failed"]
+                        if stats["failed"] is not none
+                        else 0
+                    }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body">
+                <div class="text-muted">
+                    Помилок компіляції
+                </div>
+
+                <div class="display-6 fw-bold text-warning">
+                    {{
+                        stats["compile_errors"]
+                        if stats["compile_errors"] is not none
+                        else 0
+                    }}
+                </div>
             </div>
         </div>
     </div>
@@ -108,75 +201,151 @@
 
 <div class="card shadow-sm border-0 rounded-4 mb-4">
     <div class="card-body">
-        <h4 class="mb-2">Средний процент успешности</h4>
 
-        {% set success_percent = stats["success_percent"] or 0 %}
+        <h4 class="mb-2">
+            Відсоток успішних перевірок
+        </h4>
+
+        {% set success_percent =
+            stats["success_percent"]
+            if stats["success_percent"] is not none
+            else 0
+        %}
 
         <div class="d-flex justify-content-between mb-1">
-            <span class="text-muted">Полностью успешные проверки</span>
-            <b>{{ success_percent }}%</b>
+            <span class="text-muted">
+                Повністю успішні перевірки
+            </span>
+
+            <strong>
+                {{ success_percent }}%
+            </strong>
         </div>
 
-        <div class="progress" style="height: 24px;">
-            <div class="progress-bar bg-success"
-                 role="progressbar"
-                 data-percent="{{ success_percent }}"
-                 aria-valuenow="{{ success_percent }}"
-                 aria-valuemin="0"
-                 aria-valuemax="100">
+        <div
+            class="progress"
+            style="height: 24px;"
+        >
+            <div
+                class="progress-bar bg-success"
+                role="progressbar"
+                data-percent="{{ success_percent }}"
+                aria-valuenow="{{ success_percent }}"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-label="Відсоток повністю успішних перевірок"
+            >
                 {{ success_percent }}%
             </div>
         </div>
+
     </div>
 </div>
 
-<h3 class="mb-3">Типичные ошибки студентов</h3>
+<h3 class="mb-3">
+    Типові помилки студентів
+</h3>
 
-{% if error_summary and error_summary|length > 0 %}
+{% if error_summary %}
+
     <div class="card shadow-sm border-0 rounded-4 mb-4">
         <div class="card-body p-0">
-            <table class="table table-sm table-hover align-middle mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Тип ошибки</th>
-                        <th>Количество случаев</th>
-                    </tr>
-                </thead>
 
-                <tbody>
-                    {% for error in error_summary %}
+            <div class="table-responsive">
+                <table
+                    class="
+                        table
+                        table-sm
+                        table-hover
+                        align-middle
+                        mb-0
+                    "
+                >
+                    <thead class="table-dark">
                         <tr>
-                            <td>
-                                <b>{{ error["error_title"] }}</b>
-                                <div class="text-muted small">
-                                    {{ error["error_type"] }}
-                                </div>
-                            </td>
+                            <th scope="col">
+                                Тип помилки
+                            </th>
 
-                            <td>
-                                <span class="badge bg-dark">
-                                    {{ error["count"] }}
-                                </span>
-                            </td>
+                            <th scope="col">
+                                Кількість випадків
+                            </th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+
+                    <tbody>
+                        {% for error in error_summary %}
+                            <tr>
+                                <td>
+                                    <strong>
+                                        {{ error["error_title"] }}
+                                    </strong>
+
+                                    <div class="text-muted small">
+                                        {{ error["error_type"] }}
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <span class="badge bg-dark">
+                                        {{ error["count"] }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+
+                </table>
+            </div>
+
         </div>
     </div>
+
 {% else %}
-    <div class="alert alert-info rounded-4">
-        Пока нет данных по типичным ошибкам.
+
+    <div
+        class="alert alert-info rounded-4"
+        role="status"
+    >
+        Дані про типові помилки поки відсутні.
     </div>
+
 {% endif %}
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
-        const progressBars = document.querySelectorAll(".progress-bar[data-percent]");
+        const progressBars = document.querySelectorAll(
+            ".progress-bar[data-percent]"
+        );
 
         progressBars.forEach(function (progressBar) {
-            const percent = progressBar.dataset.percent || 0;
-            progressBar.style.width = percent + "%";
+            const rawPercent = progressBar.dataset.percent ?? "0";
+            const normalizedPercent = rawPercent.replace(",", ".");
+
+            let percent = Number.parseFloat(
+                normalizedPercent
+            );
+
+            /*
+             * Значення аналітичного показника обмежується діапазоном
+             * 0–100, щоб некоректні дані не порушували відображення
+             * індикатора та його accessibility-атрибутів.
+             */
+            if (!Number.isFinite(percent)) {
+                percent = 0;
+            }
+
+            percent = Math.max(
+                0,
+                Math.min(100, percent)
+            );
+
+            progressBar.style.width = `${percent}%`;
+
+            progressBar.setAttribute(
+                "aria-valuenow",
+                String(percent)
+            );
         });
     });
 </script>

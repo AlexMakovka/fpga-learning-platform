@@ -6,68 +6,141 @@
 
 <section class="auth-page landing-auth-page">
 
-    <div class="auth-grid-layer"></div>
+    <div
+        class="auth-grid-layer"
+        aria-hidden="true"
+    ></div>
 
-    <div class="auth-bg auth-bg-1"></div>
-    <div class="auth-bg auth-bg-2"></div>
-    <div class="auth-bg auth-bg-3"></div>
-    <div class="auth-bg auth-bg-4"></div>
+    <div
+        class="auth-bg auth-bg-1"
+        aria-hidden="true"
+    ></div>
 
-    <div class="auth-random-particles" data-particle-count="52"></div>
+    <div
+        class="auth-bg auth-bg-2"
+        aria-hidden="true"
+    ></div>
+
+    <div
+        class="auth-bg auth-bg-3"
+        aria-hidden="true"
+    ></div>
+
+    <div
+        class="auth-bg auth-bg-4"
+        aria-hidden="true"
+    ></div>
+
+    <div
+        class="auth-random-particles"
+        data-particle-count="52"
+        aria-hidden="true"
+    ></div>
 
     <div class="auth-split-shell landing-split-shell">
 
         <div class="auth-info-panel landing-info-panel">
 
             <div class="brand-mark mb-4">
-                <div class="brand-mark-icon">FPGA</div>
+                <div class="brand-mark-icon">
+                    FPGA
+                </div>
+
                 <div>
-                    <div class="brand-mark-title">FPGA Learning System</div>
-                    <div class="brand-mark-subtitle">учебная цифровая платформа</div>
+                    <div class="brand-mark-title">
+                        FPGA Learning System
+                    </div>
+
+                    <div class="brand-mark-subtitle">
+                        цифрова навчальна платформа
+                    </div>
                 </div>
             </div>
 
             <h1 class="auth-info-title">
-                Платформа для проверки лабораторных работ
+                Платформа для перевірки лабораторних робіт
             </h1>
 
             <p class="auth-info-text">
-                Система помогает студентам отправлять HDL-файлы на проверку,
-                а преподавателям — контролировать результаты, журнал оценок
-                и историю попыток.
+                Система допомагає студентам надсилати HDL-файли на перевірку,
+                а викладачам — контролювати результати, журнал оцінок
+                та історію спроб.
             </p>
 
             <div class="auth-info-list">
-                <div>Автоматическая проверка решений</div>
-                <div>Журнал оценок и зачётка студента</div>
-                <div>История попыток и аналитика ошибок</div>
-                <div>Разграничение ролей и доступов</div>
+                <div>
+                    Автоматична перевірка рішень
+                </div>
+
+                <div>
+                    Журнал оцінок та електронна залікова книжка студента
+                </div>
+
+                <div>
+                    Історія спроб та аналітика помилок
+                </div>
+
+                <div>
+                    Розмежування ролей і прав доступу
+                </div>
             </div>
 
             <div class="landing-actions">
-                <a href="{{ url_for('login') }}" class="btn auth-main-btn">
-                    Войти
+                <a
+                    href="{{ url_for('login') }}"
+                    class="btn auth-main-btn"
+                >
+                    Увійти
                 </a>
 
-                <a href="{{ url_for('register') }}" class="btn landing-outline-btn">
-                    Регистрация
+                <a
+                    href="{{ url_for('register') }}"
+                    class="btn landing-outline-btn"
+                >
+                    Реєстрація
                 </a>
 
-                <a href="{{ url_for('google_login') }}" class="btn auth-google-btn landing-google-btn">
-                    <span class="google-icon">
-                        <svg width="18" height="18" viewBox="0 0 48 48">
-                            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
-                            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
-                            <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.5-5.3l-6.2-5.2C29.3 35.1 26.8 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
-                            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.4-2.3 4.4-4.1 5.5l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/>
+                <a
+                    href="{{ url_for('google_login') }}"
+                    class="btn auth-google-btn landing-google-btn"
+                >
+                    <span
+                        class="google-icon"
+                        aria-hidden="true"
+                    >
+                        <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 48 48"
+                            aria-hidden="true"
+                            focusable="false"
+                        >
+                            <path
+                                fill="#FFC107"
+                                d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"
+                            />
+                            <path
+                                fill="#FF3D00"
+                                d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"
+                            />
+                            <path
+                                fill="#4CAF50"
+                                d="M24 44c5.2 0 10-2 13.5-5.3l-6.2-5.2C29.3 35.1 26.8 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"
+                            />
+                            <path
+                                fill="#1976D2"
+                                d="M43.6 20.5H42V20H24v8h11.3c-.8 2.4-2.3 4.4-4.1 5.5l6.2 5.2C36.9 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"
+                            />
                         </svg>
                     </span>
+
                     Google
                 </a>
             </div>
 
             <div class="auth-info-note">
-                После регистрации учетная запись проходит подтверждение администратором.
+                Після реєстрації обліковий запис проходить
+                підтвердження адміністратором.
             </div>
 
         </div>
@@ -75,40 +148,77 @@
         <div class="auth-card landing-main-card">
 
             <div class="landing-panel-card main-panel-card">
-                <div class="panel-chip">Ролевая модель</div>
+                <div class="panel-chip">
+                    Рольова модель
+                </div>
 
-                <h3>Администратор · Преподаватель · Студент</h3>
+                <h3>
+                    Адміністратор · Викладач · Студент
+                </h3>
 
                 <p>
-                    Платформа разделяет доступ к пользователям, группам,
-                    лабораторным работам, журналам и результатам проверки.
+                    Платформа розмежовує доступ до користувачів, навчальних груп,
+                    лабораторних робіт, журналів і результатів перевірки.
                 </p>
             </div>
 
             <div class="landing-feature-grid mt-3">
 
                 <div class="landing-feature-card">
-                    <div class="feature-icon">HDL</div>
-                    <h4>Автопроверка</h4>
-                    <p>Загрузка HDL-файла и запуск автоматической проверки.</p>
+                    <div class="feature-icon">
+                        HDL
+                    </div>
+
+                    <h4>
+                        Автоматична перевірка
+                    </h4>
+
+                    <p>
+                        Завантаження HDL-файла та запуск автоматичної перевірки.
+                    </p>
                 </div>
 
                 <div class="landing-feature-card">
-                    <div class="feature-icon">Ж</div>
-                    <h4>Журнал</h4>
-                    <p>Сводка оценок по группам, предметам и лабораторным.</p>
+                    <div class="feature-icon">
+                        Ж
+                    </div>
+
+                    <h4>
+                        Журнал
+                    </h4>
+
+                    <p>
+                        Підсумок оцінок за навчальними групами,
+                        дисциплінами та лабораторними роботами.
+                    </p>
                 </div>
 
                 <div class="landing-feature-card">
-                    <div class="feature-icon">AI</div>
-                    <h4>Подсказки</h4>
-                    <p>Анализ ошибок и рекомендации для исправления кода.</p>
+                    <div class="feature-icon">
+                        AI
+                    </div>
+
+                    <h4>
+                        Рекомендації
+                    </h4>
+
+                    <p>
+                        Аналіз помилок і рекомендації щодо виправлення коду.
+                    </p>
                 </div>
 
                 <div class="landing-feature-card">
-                    <div class="feature-icon">G</div>
-                    <h4>Google-вход</h4>
-                    <p>Быстрая регистрация и авторизация через Google.</p>
+                    <div class="feature-icon">
+                        G
+                    </div>
+
+                    <h4>
+                        Вхід через Google
+                    </h4>
+
+                    <p>
+                        Швидка реєстрація та автентифікація через Google.
+                    </p>
                 </div>
 
             </div>
@@ -126,10 +236,12 @@
     <section class="student-hero-card">
 
         <div class="student-hero-content">
-            <div class="student-kicker">Личный кабинет студента</div>
+            <div class="student-kicker">
+                Особистий кабінет студента
+            </div>
 
             <h1>
-                Добро пожаловать,
+                Ласкаво просимо,
                 {% if student and student.full_name %}
                     {{ student.full_name }}
                 {% else %}
@@ -138,31 +250,49 @@
             </h1>
 
             <p>
-                Продолжайте выполнение лабораторных работ и отслеживайте прогресс.
+                Продовжуйте виконання лабораторних робіт
+                і відстежуйте свій навчальний прогрес.
             </p>
 
             <div class="student-hero-actions">
                 {% if active_lab %}
-                    <a href="{{ url_for('lab_detail', lab_id=active_lab.id) }}" class="student-btn student-btn-primary">
-                        Продолжить последнюю ЛР
+                    <a
+                        href="{{ url_for('lab_detail', lab_id=active_lab.id) }}"
+                        class="student-btn student-btn-primary"
+                    >
+                        Продовжити останню лабораторну роботу
                     </a>
                 {% else %}
                     <span class="student-btn student-btn-disabled">
-                        ЛР пока нет
+                        Лабораторних робіт поки немає
                     </span>
                 {% endif %}
 
-                <a href="{{ url_for('student_gradebook') }}" class="student-btn student-btn-soft">
-                    Открыть зачётку
+                <a
+                    href="{{ url_for('student_gradebook') }}"
+                    class="student-btn student-btn-soft"
+                >
+                    Відкрити залікову книжку
                 </a>
 
                 {% if active_lab %}
-                    <a href="{{ url_for('student_learning_path_live', lab_id=active_lab.id) }}" class="student-btn student-btn-soft">
-                        AI-рекомендации
+                    <a
+                        href="{{
+                            url_for(
+                                'student_learning_path_live',
+                                lab_id=active_lab.id
+                            )
+                        }}"
+                        class="student-btn student-btn-soft"
+                    >
+                        AI-рекомендації
                     </a>
                 {% else %}
-                    <a href="{{ url_for('student_learning_path_live') }}" class="student-btn student-btn-soft">
-                        AI-рекомендации
+                    <a
+                        href="{{ url_for('student_learning_path_live') }}"
+                        class="student-btn student-btn-soft"
+                    >
+                        AI-рекомендації
                     </a>
                 {% endif %}
             </div>
@@ -170,8 +300,13 @@
 
         <div class="student-hero-visual">
             <div class="student-progress-orb">
-                <span>{{ dashboard_stats.average_score }}</span>
-                <small>средний балл</small>
+                <span>
+                    {{ dashboard_stats.average_score }}
+                </span>
+
+                <small>
+                    середній бал
+                </small>
             </div>
         </div>
 
@@ -180,194 +315,356 @@
     <section class="student-stat-grid">
 
         <article class="student-stat-card">
-            <span class="student-stat-label">Средний балл</span>
-            <strong>{{ dashboard_stats.average_score }}</strong>
-            <small>по всем попыткам</small>
+            <span class="student-stat-label">
+                Середній бал
+            </span>
+
+            <strong>
+                {{ dashboard_stats.average_score }}
+            </strong>
+
+            <small>
+                за всіма спробами
+            </small>
         </article>
 
         <article class="student-stat-card">
-            <span class="student-stat-label">Сдано лабораторных</span>
-            <strong>{{ dashboard_stats.completed_labs }}</strong>
-            <small>успешно завершено</small>
+            <span class="student-stat-label">
+                Зараховано лабораторних робіт
+            </span>
+
+            <strong>
+                {{ dashboard_stats.completed_labs }}
+            </strong>
+
+            <small>
+                успішно завершено
+            </small>
         </article>
 
         <article class="student-stat-card">
-            <span class="student-stat-label">Всего попыток</span>
-            <strong>{{ dashboard_stats.total_attempts }}</strong>
-            <small>отправок решений</small>
+            <span class="student-stat-label">
+                Усього спроб
+            </span>
+
+            <strong>
+                {{ dashboard_stats.total_attempts }}
+            </strong>
+
+            <small>
+                надсилань рішень
+            </small>
         </article>
 
         <article class="student-stat-card">
-            <span class="student-stat-label">Последняя оценка</span>
-            <strong>{{ dashboard_stats.latest_score }}</strong>
-            <small>за последнюю попытку</small>
+            <span class="student-stat-label">
+                Остання оцінка
+            </span>
+
+            <strong>
+                {{ dashboard_stats.latest_score }}
+            </strong>
+
+            <small>
+                за останню спробу
+            </small>
         </article>
 
     </section>
 
-    <section class="student-dashboard-grid">
+{% set difficulty_labels = {
+    "basic": "Базовий",
+    "medium": "Середній",
+    "advanced": "Поглиблений"
+} %}
 
-        <div class="student-main-column">
+{% set submission_status_labels = {
+    "PASSED": "Успішно",
+    "PARTIAL": "Частково виконано",
+    "FAILED": "Не пройдено",
+    "COMPILE_ERROR": "Помилка компіляції",
+    "SIMULATION_ERROR": "Помилка моделювання",
+    "SYSTEM_ERROR": "Системна помилка",
+    "TIMEOUT": "Перевищено ліміт часу",
+    "SECURITY_BLOCK": "Виконання заблоковано"
+} %}
 
-            <section class="student-section-card">
-                <div class="student-section-head">
-                    <div>
-                        <span class="student-kicker">Продолжить обучение</span>
-                        <h2>Активная лабораторная работа</h2>
-                    </div>
+<section class="student-dashboard-grid">
+
+    <div class="student-main-column">
+
+        <section class="student-section-card">
+            <div class="student-section-head">
+                <div>
+                    <span class="student-kicker">
+                        Продовжити навчання
+                    </span>
+
+                    <h2>
+                        Активна лабораторна робота
+                    </h2>
                 </div>
+            </div>
 
-                {% if active_lab %}
-                    <article class="student-active-lab">
-                        <div>
-                            <div class="student-lab-meta">
-                                <span>{{ active_lab.discipline or "FPGA-проектирование" }}</span>
-                                <span>{{ active_lab.difficulty or "basic" }}</span>
-                            </div>
+            {% if active_lab %}
+                <article class="student-active-lab">
+                    <div>
+                        <div class="student-lab-meta">
+                            <span>
+                                {{
+                                    active_lab.discipline
+                                    or "FPGA-проєктування"
+                                }}
+                            </span>
 
-                            <h3>{{ active_lab.title }}</h3>
-
-                            <p>
-                                Статус: <strong>{{ active_lab.status_label }}</strong>
-                                · Попытки: {{ active_lab.attempts_count }}{% if active_lab.max_attempts %} / {{ active_lab.max_attempts }}{% endif %}
-                            </p>
-
-                            <div class="student-progress-line">
-                                <span class="student-progress-fill"
-                                    data-progress="{{ active_lab.progress_percent }}"></span>
-                            </div>
+                            <span>
+                                {{
+                                    difficulty_labels.get(
+                                        active_lab.difficulty,
+                                        active_lab.difficulty or "—"
+                                    )
+                                }}
+                            </span>
                         </div>
 
-                        <a href="{{ url_for('lab_detail', lab_id=active_lab.id) }}" class="student-btn student-btn-primary">
-                            Открыть
-                        </a>
+                        <h3>
+                            {{ active_lab.title }}
+                        </h3>
+
+                        <p>
+                            Статус:
+                            <strong>
+                                {{ active_lab.status_label }}
+                            </strong>
+
+                            · Спроби:
+                            {{ active_lab.attempts_count }}
+                            {% if active_lab.max_attempts %}
+                                / {{ active_lab.max_attempts }}
+                            {% endif %}
+                        </p>
+
+                        <div class="student-progress-line">
+                            <span
+                                class="student-progress-fill"
+                                data-progress="{{ active_lab.progress_percent }}"
+                            ></span>
+                        </div>
+                    </div>
+
+                    <a
+                        href="{{ url_for('lab_detail', lab_id=active_lab.id) }}"
+                        class="student-btn student-btn-primary"
+                    >
+                        Відкрити
+                    </a>
+                </article>
+
+            {% else %}
+                <div class="student-empty-state">
+                    Лабораторні роботи ще не додано.
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="student-section-card">
+            <div class="student-section-head">
+                <div>
+                    <span class="student-kicker">
+                        LMS
+                    </span>
+
+                    <h2>
+                        Лабораторні роботи
+                    </h2>
+                </div>
+            </div>
+
+            <div class="student-labs-grid">
+
+                {% for lab in labs %}
+                    <article
+                        class="student-lab-card student-lab-{{ lab.status_code }}"
+                    >
+
+                        <div class="student-lab-card-top">
+                            <span
+                                class="
+                                    student-status-pill
+                                    student-status-{{ lab.status_code }}
+                                "
+                            >
+                                {{ lab.status_label }}
+                            </span>
+
+                            <span class="student-score-pill">
+                                {{ lab.best_score }} / 100
+                            </span>
+                        </div>
+
+                        <h3>
+                            {{ lab.title }}
+                        </h3>
+
+                        <div class="student-lab-details">
+                            <span>
+                                {{ lab.topic or "Загальна тема" }}
+                            </span>
+
+                            <span>
+                                {{
+                                    difficulty_labels.get(
+                                        lab.difficulty,
+                                        lab.difficulty or "—"
+                                    )
+                                }}
+                            </span>
+                        </div>
+
+                        <div class="student-progress-line">
+                            <span
+                                class="student-progress-fill"
+                                data-progress="{{ lab.progress_percent }}"
+                            ></span>
+                        </div>
+
+                        <div class="student-lab-footer">
+                            <small>
+                                Спроби:
+                                {{ lab.attempts_count }}
+                                {% if lab.max_attempts %}
+                                    / {{ lab.max_attempts }}
+                                {% endif %}
+                            </small>
+
+                            <a
+                                href="{{ url_for('lab_detail', lab_id=lab.id) }}"
+                            >
+                                Відкрити →
+                            </a>
+                        </div>
+
                     </article>
+
                 {% else %}
                     <div class="student-empty-state">
-                        Лабораторные работы пока не добавлены.
+                        Лабораторні роботи поки відсутні.
                     </div>
-                {% endif %}
-            </section>
+                {% endfor %}
 
-            <section class="student-section-card">
-                <div class="student-section-head">
-                    <div>
-                        <span class="student-kicker">LMS</span>
-                        <h2>Лабораторные работы</h2>
-                    </div>
+            </div>
+        </section>
+
+    </div>
+
+    <aside class="student-side-column">
+
+        <section class="student-section-card">
+            <div class="student-section-head">
+                <div>
+                    <span class="student-kicker">
+                        Історія
+                    </span>
+
+                    <h2>
+                        Останні спроби
+                    </h2>
                 </div>
+            </div>
 
-                <div class="student-labs-grid">
+            <div class="student-attempts-list">
 
-                    {% for lab in labs %}
-                        <article class="student-lab-card student-lab-{{ lab.status_code }}">
+                {% for submission in my_submissions %}
 
-                            <div class="student-lab-card-top">
-                                <span class="student-status-pill student-status-{{ lab.status_code }}">
-                                    {{ lab.status_label }}
-                                </span>
+                    {% if submission.status == "PASSED" %}
+                        {% set attempt_class = "success" %}
 
-                                <span class="student-score-pill">
-                                    {{ lab.best_score }} / 100
-                                </span>
-                            </div>
+                    {% elif submission.status in ["PARTIAL", "FAILED"] %}
+                        {% set attempt_class = "warning" %}
 
-                            <h3>{{ lab.title }}</h3>
-
-                            <div class="student-lab-details">
-                                <span>{{ lab.topic or "общая тема" }}</span>
-                                <span>{{ lab.difficulty or "basic" }}</span>
-                            </div>
-
-                            <div class="student-progress-line">
-                                <span class="student-progress-fill"
-                                    data-progress="{{ lab.progress_percent }}"></span>
-                            </div>
-
-                            <div class="student-lab-footer">
-                                <small>
-                                    Попытки: {{ lab.attempts_count }}{% if lab.max_attempts %} / {{ lab.max_attempts }}{% endif %}
-                                </small>
-
-                                <a href="{{ url_for('lab_detail', lab_id=lab.id) }}">
-                                    Открыть →
-                                </a>
-                            </div>
-
-                        </article>
                     {% else %}
-                        <div class="student-empty-state">
-                            Лабораторные работы пока отсутствуют.
+                        {% set attempt_class = "danger" %}
+                    {% endif %}
+
+                    <article
+                        class="
+                            student-attempt-card
+                            student-attempt-{{ attempt_class }}
+                        "
+                    >
+
+                        <div>
+                            <h3>
+                                {{ submission.lab_title }}
+                            </h3>
+
+                            <p>
+                                {{ submission.created_at }}
+                            </p>
                         </div>
-                    {% endfor %}
 
-                </div>
-            </section>
+                        <div class="student-attempt-right">
+                            <span>
+                                {{
+                                    submission_status_labels.get(
+                                        submission.status,
+                                        submission.status
+                                    )
+                                }}
+                            </span>
 
-        </div>
+                            <strong>
+                                {{ submission.score }} / 100
+                            </strong>
 
-        <aside class="student-side-column">
+                            <a
+                                href="{{
+                                    url_for(
+                                        'lab_detail',
+                                        lab_id=submission.lab_id
+                                    )
+                                }}"
+                            >
+                                Перейти
+                            </a>
+                        </div>
 
-            <section class="student-section-card">
-                <div class="student-section-head">
-                    <div>
-                        <span class="student-kicker">История</span>
-                        <h2>Последние попытки</h2>
+                    </article>
+
+                {% else %}
+                    <div class="student-empty-state">
+                        Спроб ще немає. Розпочніть виконання
+                        першої лабораторної роботи.
                     </div>
-                </div>
+                {% endfor %}
 
-                <div class="student-attempts-list">
+            </div>
+        </section>
 
-                    {% for submission in my_submissions %}
-                        {% if submission.status == "PASSED" %}
-                            {% set attempt_class = "success" %}
-                        {% elif submission.status in ["PARTIAL", "FAILED"] %}
-                            {% set attempt_class = "warning" %}
-                        {% else %}
-                            {% set attempt_class = "danger" %}
-                        {% endif %}
+    </aside>
 
-                        <article class="student-attempt-card student-attempt-{{ attempt_class }}">
-
-                            <div>
-                                <h3>{{ submission.lab_title }}</h3>
-
-                                <p>
-                                    {{ submission.created_at }}
-                                </p>
-                            </div>
-
-                            <div class="student-attempt-right">
-                                <span>{{ submission.status }}</span>
-                                <strong>{{ submission.score }} / 100</strong>
-                                <a href="{{ url_for('lab_detail', lab_id=submission.lab_id) }}">
-                                    Перейти
-                                </a>
-                            </div>
-
-                        </article>
-                    {% else %}
-                        <div class="student-empty-state">
-                            Попыток пока нет. Начните первую лабораторную работу.
-                        </div>
-                    {% endfor %}
-
-                </div>
-            </section>
-
-        </aside>
-
-    </section>
+</section>
 
 </div>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll(".student-progress-fill").forEach(function (bar) {
-        const value = Number(bar.dataset.progress || 0);
-        const safeValue = Math.max(0, Math.min(value, 100));
-        bar.style.width = safeValue + "%";
-    });
+    document
+        .querySelectorAll(".student-progress-fill")
+        .forEach(function (bar) {
+            const rawValue = Number(bar.dataset.progress);
+
+            const progressValue = Number.isFinite(rawValue)
+                ? rawValue
+                : 0;
+
+            const safeValue = Math.max(
+                0,
+                Math.min(progressValue, 100)
+            );
+
+            bar.style.width = safeValue + "%";
+        });
 });
 </script>
 

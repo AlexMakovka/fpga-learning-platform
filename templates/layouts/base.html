@@ -1,12 +1,23 @@
 <!doctype html>
-<html lang="ru">
+<html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
     <title>FPGA Learning System</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/style.css', v='32') }}" rel="stylesheet">
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link
+        href="{{ url_for('static', filename='css/style.css', v='32') }}"
+        rel="stylesheet"
+    >
 </head>
 
 {% set auth_pages = [
@@ -20,237 +31,589 @@
     "complete_phone_registration"
 ] %}
 
+{% set trainer_endpoints = [
+    "student_trainer",
+    "student_trainer_generate",
+    "student_trainer_session",
+    "student_trainer_task",
+    "student_trainer_task_submit",
+    "student_trainer_session_submit"
+] %}
+
+{% set role_labels = {
+    "student": "Студент",
+    "teacher": "Викладач",
+    "admin": "Адміністратор"
+} %}
+
 {% set endpoint = request.endpoint or "" %}
 {% set role = session.get("role") %}
 {% set username = session.get("username") or "" %}
 
 {% set is_auth_page = endpoint in auth_pages %}
-{% set is_landing_page = endpoint == "index" and not session.get("username") %}
+{% set is_landing_page = endpoint == "index" and not username %}
 {% set is_full_page = is_auth_page or is_landing_page %}
-{% set use_app_layout = session.get("username") and not is_full_page %}
+{% set use_app_layout = username and not is_full_page %}
 
 {% set user_initials = (username[:2] if username else "U")|upper %}
 
 {% if use_app_layout %}
-<body class="app-body"
-      data-theme="{{ session.get('theme') or 'light' }}"
-      data-palette="{{ session.get('palette') or 'pastel' }}"
-      data-font-size="{{ session.get('font_size') or 'normal' }}"
-      data-density="{{ session.get('ui_density') or 'comfortable' }}">
+
+<body
+    class="app-body"
+    data-theme="{{ session.get('theme') or 'light' }}"
+    data-palette="{{ session.get('palette') or 'pastel' }}"
+    data-font-size="{{ session.get('font_size') or 'normal' }}"
+    data-density="{{ session.get('ui_density') or 'comfortable' }}"
+>
+
 {% else %}
+
 <body class="auth-body">
+
 {% endif %}
 
 {% if use_app_layout %}
 
-<div class="app-layout-overlay" data-sidebar-close></div>
+<div
+    class="app-layout-overlay"
+    data-sidebar-close
+    aria-hidden="true"
+></div>
 
 <div class="app-shell">
 
-    <aside class="app-sidebar" id="appSidebar">
+    <aside
+        class="app-sidebar"
+        id="appSidebar"
+    >
 
         <div class="app-sidebar-head">
-            <a href="{{ url_for('index') }}" class="app-sidebar-brand">
-                <span class="app-sidebar-logo">FPGA</span>
+            <a
+                href="{{ url_for('index') }}"
+                class="app-sidebar-brand"
+            >
+                <span class="app-sidebar-logo">
+                    FPGA
+                </span>
 
                 <span class="app-sidebar-brand-text">
-                    <strong>FPGA Learning</strong>
-                    <small>учебная платформа</small>
+                    <strong>
+                        FPGA Learning
+                    </strong>
+
+                    <small>
+                        навчальна платформа
+                    </small>
                 </span>
             </a>
 
-            <button class="app-sidebar-close"
-                    type="button"
-                    aria-label="Закрыть меню"
-                    data-sidebar-close>
+            <button
+                class="app-sidebar-close"
+                type="button"
+                aria-label="Закрити меню"
+                aria-controls="appSidebar"
+                data-sidebar-close
+            >
                 ×
             </button>
         </div>
 
         <div class="app-sidebar-user">
-            <div class="app-sidebar-avatar">
-                {{ user_initials }}
-            </div>
+
+            {% set avatar_class = "app-sidebar-avatar" %}
+            {% include "includes/profile_avatar.html" %}
 
             <div class="app-sidebar-user-text">
-                <strong>{{ username }}</strong>
+                <strong>
+                    {{ username }}
+                </strong>
+
                 <span>
-                    {% if role == "student" %}
-                        Студент
-                    {% elif role == "teacher" %}
-                        Преподаватель
-                    {% elif role == "admin" %}
-                        Администратор
-                    {% else %}
-                        Пользователь
-                    {% endif %}
+                    {{ role_labels.get(role, "Користувач") }}
                 </span>
             </div>
+
         </div>
 
-        <nav class="app-sidebar-nav">
+        <nav
+            class="app-sidebar-nav"
+            aria-label="Основна навігація"
+        >
+
+        <nav
+            class="app-sidebar-nav"
+            aria-label="Основна навігація"
+        >
 
             {% if role == "student" %}
 
-                <div class="app-nav-section">Навигация</div>
+                <div class="app-nav-section">
+                    Навігація
+                </div>
 
-                <a href="{{ url_for('index') }}"
-                   class="app-nav-link {% if endpoint == 'index' %}is-active{% endif %}">
-                    <span class="app-nav-icon">⌂</span>
-                    <span>Главная</span>
+                <a
+                    href="{{ url_for('index') }}"
+                    class="app-nav-link {% if endpoint == 'index' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        ⌂
+                    </span>
+
+                    <span>
+                        Головна
+                    </span>
                 </a>
 
-                <a href="{{ url_for('index') }}"
-                   class="app-nav-link {% if endpoint in ['index', 'lab_detail', 'student_lab_history'] %}is-active{% endif %}">
-                    <span class="app-nav-icon">▣</span>
-                    <span>Лабораторные</span>
+                <a
+                    href="{{ url_for('index') }}"
+                    class="app-nav-link {% if endpoint in [
+                        'lab_detail',
+                        'student_lab_history'
+                    ] %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        ▣
+                    </span>
+
+                    <span>
+                        Лабораторні роботи
+                    </span>
                 </a>
 
-                <a href="{{ url_for('student_gradebook') }}"
-                   class="app-nav-link {% if endpoint == 'student_gradebook' %}is-active{% endif %}">
-                    <span class="app-nav-icon">✓</span>
-                    <span>Моя зачётка</span>
+                <a
+                    href="{{ url_for('student_gradebook') }}"
+                    class="app-nav-link {% if endpoint == 'student_gradebook' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        ✓
+                    </span>
+
+                    <span>
+                        Моя залікова книжка
+                    </span>
                 </a>
 
-                <a href="{{ url_for('student_competencies') }}"
-                   class="app-nav-link {% if endpoint == 'student_competencies' %}is-active{% endif %}">
-                    <span class="app-nav-icon">◎</span>
-                    <span>Карта компетенций</span>
+                <a
+                    href="{{ url_for('student_competencies') }}"
+                    class="app-nav-link {% if endpoint == 'student_competencies' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        ◎
+                    </span>
+
+                    <span>
+                        Карта компетентностей
+                    </span>
                 </a>
 
-                <a href="{{ url_for('student_learning_path_live') }}"
-                   class="app-nav-link {% if endpoint == 'student_learning_path_live' %}is-active{% endif %}">
-                    <span class="app-nav-icon">AI</span>
-                    <span>AI-траектория</span>
+                <a
+                    href="{{ url_for('student_learning_path_live') }}"
+                    class="app-nav-link {% if endpoint == 'student_learning_path_live' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        AI
+                    </span>
+
+                    <span>
+                        AI-траєкторія
+                    </span>
                 </a>
 
-                <a href="{{ url_for('student_trainer') }}"
-                   class="app-nav-link {% if endpoint in ['student_trainer', 'student_trainer_generate', 'student_trainer_session', 'student_trainer_task', 'student_trainer_task_submit', 'student_trainer_session_submit'] %}is-active{% endif %}">
-                    <span class="app-nav-icon">T</span>
-                    <span>Тренажёр</span>
+                <a
+                    href="{{ url_for('student_trainer') }}"
+                    class="app-nav-link {% if endpoint in trainer_endpoints %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        T
+                    </span>
+
+                    <span>
+                        Тренажер
+                    </span>
                 </a>
 
-                {# Когда добавишь маршрут AI-чата, замени href="#" на url_for(...) #}
-                <a href="#"
-                   class="app-nav-link app-nav-link-disabled">
-                    <span class="app-nav-icon">AI</span>
-                    <span>AI-чат</span>
-                    <span class="app-nav-badge">скоро</span>
+                <span
+                    class="app-nav-link app-nav-link-disabled"
+                    aria-disabled="true"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        AI
+                    </span>
+
+                    <span>
+                        AI-чат
+                    </span>
+
+                    <span class="app-nav-badge">
+                        незабаром
+                    </span>
+                </span>
+
+                <div class="app-nav-section">
+                    Обліковий запис
+                </div>
+
+                <a
+                    href="{{ url_for('profile') }}"
+                    class="app-nav-link {% if endpoint == 'profile' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        P
+                    </span>
+
+                    <span>
+                        Профіль
+                    </span>
                 </a>
 
-                <div class="app-nav-section">Аккаунт</div>
+                <a
+                    href="{{ url_for('appearance_settings') }}"
+                    class="app-nav-link {% if endpoint == 'appearance_settings' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        ⚙
+                    </span>
 
-                {# Когда добавишь маршрут настроек, замени href="#" на url_for(...) #}
-                <a href="{{ url_for('appearance_settings') }}"
-                class="app-nav-link {% if endpoint == 'appearance_settings' %}is-active{% endif %}">
-                    <span class="app-nav-icon">⚙</span>
-                    <span>Настройки</span>
+                    <span>
+                        Налаштування
+                    </span>
                 </a>
 
             {% elif role == "teacher" %}
 
-                <div class="app-nav-section">Работа преподавателя</div>
+                {% set teacher_student_endpoints = [
+                    "manage_students",
+                    "edit_student"
+                ] %}
 
-                <a href="{{ url_for('teacher_panel') }}"
-                   class="app-nav-link {% if endpoint == 'teacher_panel' %}is-active{% endif %}">
-                    <span class="app-nav-icon">⌂</span>
-                    <span>Панель</span>
+                {% set teacher_lab_endpoints = [
+                    "teacher_labs",
+                    "add_lab",
+                    "edit_lab"
+                ] %}
+
+                {% set teacher_journal_endpoints = [
+                    "teacher_journal",
+                    "update_group_journal",
+                    "teacher_grant_extra_attempt"
+                ] %}
+
+                <div class="app-nav-section">
+                    Робота викладача
+                </div>
+
+                <a
+                    href="{{ url_for('teacher_panel') }}"
+                    class="app-nav-link {% if endpoint == 'teacher_panel' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        ⌂
+                    </span>
+
+                    <span>
+                        Панель
+                    </span>
                 </a>
 
-                <a href="{{ url_for('manage_students') }}"
-                   class="app-nav-link {% if endpoint in ['manage_students', 'edit_student'] %}is-active{% endif %}">
-                    <span class="app-nav-icon">S</span>
-                    <span>Студенты</span>
+                <a
+                    href="{{ url_for('manage_students') }}"
+                    class="app-nav-link {% if endpoint in teacher_student_endpoints %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        S
+                    </span>
+
+                    <span>
+                        Студенти
+                    </span>
                 </a>
 
-                <a href="{{ url_for('teacher_labs') }}"
-                   class="app-nav-link {% if endpoint in ['teacher_labs', 'add_lab', 'edit_lab'] %}is-active{% endif %}">
-                    <span class="app-nav-icon">▣</span>
-                    <span>Лабораторные</span>
+                <a
+                    href="{{ url_for('teacher_labs') }}"
+                    class="app-nav-link {% if endpoint in teacher_lab_endpoints %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        ▣
+                    </span>
+
+                    <span>
+                        Лабораторні роботи
+                    </span>
                 </a>
 
-                <a href="{{ url_for('teacher_journal') }}"
-                   class="app-nav-link {% if endpoint in ['teacher_journal', 'update_group_journal', 'teacher_grant_extra_attempt'] %}is-active{% endif %}">
-                    <span class="app-nav-icon">J</span>
-                    <span>Журнал</span>
+                <a
+                    href="{{ url_for('teacher_journal') }}"
+                    class="app-nav-link {% if endpoint in teacher_journal_endpoints %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        J
+                    </span>
+
+                    <span>
+                        Журнал
+                    </span>
                 </a>
 
-                <a href="{{ url_for('teacher_analytics') }}"
-                   class="app-nav-link {% if endpoint == 'teacher_analytics' %}is-active{% endif %}">
-                    <span class="app-nav-icon">A</span>
-                    <span>Аналитика</span>
+                <a
+                    href="{{ url_for('teacher_analytics') }}"
+                    class="app-nav-link {% if endpoint == 'teacher_analytics' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        A
+                    </span>
+
+                    <span>
+                        Аналітика
+                    </span>
                 </a>
 
-                <a href="{{ url_for('teacher_submissions_history') }}"
-                   class="app-nav-link {% if endpoint == 'teacher_submissions_history' %}is-active{% endif %}">
-                    <span class="app-nav-icon">H</span>
-                    <span>История попыток</span>
+                <a
+                    href="{{ url_for('teacher_submissions_history') }}"
+                    class="app-nav-link {% if endpoint == 'teacher_submissions_history' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        H
+                    </span>
+
+                    <span>
+                        Історія спроб
+                    </span>
                 </a>
 
-                {# Когда добавишь маршрут чатов, замени href="#" на url_for(...) #}
-                <a href="#"
-                   class="app-nav-link app-nav-link-disabled">
-                    <span class="app-nav-icon">C</span>
-                    <span>Чаты</span>
-                    <span class="app-nav-badge">скоро</span>
+                <span
+                    class="app-nav-link app-nav-link-disabled"
+                    aria-disabled="true"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        C
+                    </span>
+
+                    <span>
+                        Чати
+                    </span>
+
+                    <span class="app-nav-badge">
+                        незабаром
+                    </span>
+                </span>
+
+                <div class="app-nav-section">
+                    Обліковий запис
+                </div>
+
+                <a
+                    href="{{ url_for('profile') }}"
+                    class="app-nav-link {% if endpoint == 'profile' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        P
+                    </span>
+
+                    <span>
+                        Профіль
+                    </span>
                 </a>
 
-                <div class="app-nav-section">Аккаунт</div>
+                <a
+                    href="{{ url_for('appearance_settings') }}"
+                    class="app-nav-link {% if endpoint == 'appearance_settings' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        ⚙
+                    </span>
 
-                {# Когда добавишь маршрут настроек, замени href="#" на url_for(...) #}
-                <a href="{{ url_for('appearance_settings') }}"
-                class="app-nav-link {% if endpoint == 'appearance_settings' %}is-active{% endif %}">
-                    <span class="app-nav-icon">⚙</span>
-                    <span>Настройки</span>
+                    <span>
+                        Налаштування
+                    </span>
                 </a>
 
             {% elif role == "admin" %}
 
-                <div class="app-nav-section">Администрирование</div>
+                {% set admin_user_endpoints = [
+                    "admin_users",
+                    "admin_approve_user",
+                    "admin_block_user"
+                ] %}
 
-                <a href="{{ url_for('admin_panel') }}"
-                   class="app-nav-link {% if endpoint == 'admin_panel' %}is-active{% endif %}">
-                    <span class="app-nav-icon">⌂</span>
-                    <span>Панель</span>
+                {% set admin_journal_endpoints = [
+                    "teacher_journal",
+                    "update_group_journal",
+                    "teacher_grant_extra_attempt"
+                ] %}
+
+                <div class="app-nav-section">
+                    Адміністрування
+                </div>
+
+                <a
+                    href="{{ url_for('admin_panel') }}"
+                    class="app-nav-link {% if endpoint == 'admin_panel' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        ⌂
+                    </span>
+
+                    <span>
+                        Панель
+                    </span>
                 </a>
 
-                <a href="{{ url_for('admin_users') }}"
-                   class="app-nav-link {% if endpoint in ['admin_users', 'admin_approve_user', 'admin_block_user'] %}is-active{% endif %}">
-                    <span class="app-nav-icon">U</span>
-                    <span>Пользователи</span>
+                <a
+                    href="{{ url_for('admin_users') }}"
+                    class="app-nav-link {% if endpoint in admin_user_endpoints %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        U
+                    </span>
+
+                    <span>
+                        Користувачі
+                    </span>
                 </a>
 
-                <a href="{{ url_for('admin_groups') }}"
-                   class="app-nav-link {% if endpoint == 'admin_groups' %}is-active{% endif %}">
-                    <span class="app-nav-icon">G</span>
-                    <span>Группы</span>
+                <a
+                    href="{{ url_for('admin_groups') }}"
+                    class="app-nav-link {% if endpoint == 'admin_groups' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        G
+                    </span>
+
+                    <span>
+                        Навчальні групи
+                    </span>
                 </a>
 
-                <a href="{{ url_for('admin_disciplines') }}"
-                   class="app-nav-link {% if endpoint == 'admin_disciplines' %}is-active{% endif %}">
-                    <span class="app-nav-icon">D</span>
-                    <span>Предметы</span>
+                <a
+                    href="{{ url_for('admin_disciplines') }}"
+                    class="app-nav-link {% if endpoint == 'admin_disciplines' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        D
+                    </span>
+
+                    <span>
+                        Дисципліни
+                    </span>
                 </a>
 
-                <a href="{{ url_for('admin_teacher_access') }}"
-                   class="app-nav-link {% if endpoint == 'admin_teacher_access' %}is-active{% endif %}">
-                    <span class="app-nav-icon">R</span>
-                    <span>Доступ преподавателей</span>
+                <a
+                    href="{{ url_for('admin_teacher_access') }}"
+                    class="app-nav-link {% if endpoint == 'admin_teacher_access' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        R
+                    </span>
+
+                    <span>
+                        Доступ викладачів
+                    </span>
                 </a>
 
-                <a href="{{ url_for('teacher_journal') }}"
-                   class="app-nav-link {% if endpoint in ['teacher_journal', 'update_group_journal', 'teacher_grant_extra_attempt'] %}is-active{% endif %}">
-                    <span class="app-nav-icon">J</span>
-                    <span>Журнал</span>
+                <a
+                    href="{{ url_for('teacher_journal') }}"
+                    class="app-nav-link {% if endpoint in admin_journal_endpoints %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        J
+                    </span>
+
+                    <span>
+                        Журнал
+                    </span>
                 </a>
 
-                <div class="app-nav-section">Аккаунт</div>
+                <div class="app-nav-section">
+                    Обліковий запис
+                </div>
 
-                {# Когда добавишь маршрут настроек, замени href="#" на url_for(...) #}
-                <a href="{{ url_for('appearance_settings') }}"
-                class="app-nav-link {% if endpoint == 'appearance_settings' %}is-active{% endif %}">
-                    <span class="app-nav-icon">⚙</span>
-                    <span>Настройки</span>
+                <a
+                    href="{{ url_for('appearance_settings') }}"
+                    class="app-nav-link {% if endpoint == 'appearance_settings' %}is-active{% endif %}"
+                >
+                    <span
+                        class="app-nav-icon"
+                        aria-hidden="true"
+                    >
+                        ⚙
+                    </span>
+
+                    <span>
+                        Налаштування
+                    </span>
                 </a>
 
             {% endif %}
@@ -258,8 +621,11 @@
         </nav>
 
         <div class="app-sidebar-footer">
-            <a href="{{ url_for('logout') }}" class="app-sidebar-logout">
-                Выйти
+            <a
+                href="{{ url_for('logout') }}"
+                class="app-sidebar-logout"
+            >
+                Вийти
             </a>
         </div>
 
@@ -271,67 +637,90 @@
 
             <div class="app-topbar-left">
 
-                <button class="app-mobile-menu-btn"
-                        type="button"
-                        aria-label="Открыть меню"
-                        data-sidebar-open>
+                <button
+                    class="app-mobile-menu-btn"
+                    type="button"
+                    aria-label="Відкрити меню"
+                    aria-controls="appSidebar"
+                    data-sidebar-open
+                >
                     ☰
                 </button>
 
-                <a href="{{ url_for('index') }}" class="app-topbar-brand">
-                    <span>FPGA Learning System</span>
-                    <small>цифровая учебная платформа</small>
+                <a
+                    href="{{ url_for('index') }}"
+                    class="app-topbar-brand"
+                >
+                    <span>
+                        FPGA Learning System
+                    </span>
+
+                    <small>
+                        цифрова навчальна платформа
+                    </small>
                 </a>
 
             </div>
 
             <div class="app-topbar-actions">
 
-            <form method="post"
-                action="{{ url_for('appearance_toggle_theme') }}"
-                class="app-theme-toggle-form">
+                <form
+                    method="post"
+                    action="{{ url_for('appearance_toggle_theme') }}"
+                    class="app-theme-toggle-form"
+                >
+                    {% include "includes/csrf_token.html" %}
 
-                {% include "includes/csrf_token.html" %}
-
-                <button class="app-theme-toggle"
+                    <button
+                        class="app-theme-toggle"
                         type="submit"
-                        title="Быстро переключить светлую/тёмную тему">
+                        title="Швидко перемкнути світлу або темну тему"
+                        aria-label="Швидко перемкнути світлу або темну тему"
+                    >
+                        {% if session.get("theme") == "dark" %}
+                            <span aria-hidden="true">
+                                ☾
+                            </span>
+                        {% else %}
+                            <span aria-hidden="true">
+                                ☀
+                            </span>
+                        {% endif %}
 
-                    {% if session.get("theme") == "dark" %}
-                        <span>☾</span>
-                    {% else %}
-                        <span>☀</span>
-                    {% endif %}
+                        <span class="app-theme-toggle-text">
+                            Тема
+                        </span>
+                    </button>
+                </form>
 
-                    <span class="app-theme-toggle-text">
-                        Тема
-                    </span>
-                </button>
+                {% set current_role_labels = {
+                    "student": "Студент",
+                    "teacher": "Викладач",
+                    "admin": "Адміністратор"
+                } %}
 
-            </form>
+                {% set current_role_label =
+                    current_role_labels.get(role, "Користувач")
+                %}
 
                 <div class="dropdown">
 
-                    <button class="app-profile-btn"
-                            type="button"
-                            data-bs-toggle="dropdown"
-                            aria-expanded="false">
-                        <span class="app-profile-avatar">
-                            {{ user_initials }}
-                        </span>
+                    <button
+                        class="app-profile-btn"
+                        type="button"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                    >
+                        {% set avatar_class = "app-profile-avatar" %}
+                        {% include "includes/profile_avatar.html" %}
 
                         <span class="app-profile-text">
-                            <strong>{{ username }}</strong>
+                            <strong>
+                                {{ username }}
+                            </strong>
+
                             <small>
-                                {% if role == "student" %}
-                                    Студент
-                                {% elif role == "teacher" %}
-                                    Преподаватель
-                                {% elif role == "admin" %}
-                                    Администратор
-                                {% else %}
-                                    Пользователь
-                                {% endif %}
+                                {{ current_role_label }}
                             </small>
                         </span>
                     </button>
@@ -345,40 +734,42 @@
 
                         <li>
                             <span class="dropdown-item-text small text-muted">
-                                Роль:
-                                {% if role == "student" %}
-                                    студент
-                                {% elif role == "teacher" %}
-                                    преподаватель
-                                {% elif role == "admin" %}
-                                    администратор
-                                {% else %}
-                                    пользователь
-                                {% endif %}
+                                Роль: {{ current_role_label|lower }}
                             </span>
                         </li>
 
-                        <li><hr class="dropdown-divider"></li>
-
-                        {# Когда добавишь маршрут профиля, замени href="#" на url_for(...) #}
                         <li>
-                            <a class="dropdown-item" href="#">
-                                Профиль
+                            <hr class="dropdown-divider">
+                        </li>
+
+                        <li>
+                            <a
+                                class="dropdown-item"
+                                href="{{ url_for('profile') }}"
+                            >
+                                Профіль
                             </a>
                         </li>
 
-                        {# Когда добавишь маршрут настроек, замени href="#" на url_for(...) #}
                         <li>
-                            <a class="dropdown-item" href="{{ url_for('appearance_settings') }}">
-                                Настройки внешнего вида
+                            <a
+                                class="dropdown-item"
+                                href="{{ url_for('appearance_settings') }}"
+                            >
+                                Налаштування вигляду
                             </a>
                         </li>
 
-                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
 
                         <li>
-                            <a class="dropdown-item text-danger" href="{{ url_for('logout') }}">
-                                Выйти
+                            <a
+                                class="dropdown-item text-danger"
+                                href="{{ url_for('logout') }}"
+                            >
+                                Вийти
                             </a>
                         </li>
                     </ul>
@@ -388,21 +779,28 @@
             </div>
 
         </header>
-
+        
         <main class="app-content">
 
             {% with messages = get_flashed_messages() %}
                 {% if messages %}
-                    <div class="app-flash-stack">
+                    <div
+                        class="app-flash-stack"
+                        aria-live="polite"
+                    >
                         {% for message in messages %}
-                            <div class="alert alert-warning alert-dismissible fade show shadow-sm" role="alert">
+                            <div
+                                class="alert alert-warning alert-dismissible fade show shadow-sm"
+                                role="alert"
+                            >
                                 {{ message }}
 
-                                <button type="button"
-                                        class="btn-close"
-                                        data-bs-dismiss="alert"
-                                        aria-label="Закрыть">
-                                </button>
+                                <button
+                                    type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="alert"
+                                    aria-label="Закрити"
+                                ></button>
                             </div>
                         {% endfor %}
                     </div>
@@ -423,36 +821,46 @@
     <div class="topbar-container">
 
         <div class="topbar-left">
-            {% if session.get("username") %}
+            {% if username %}
                 <div class="topbar-user-pill">
-                    {{ session["username"] }} · {{ session["role"] }}
+                    {{ username }}
+                    ·
+                    {{ role_labels.get(role, "Користувач") }}
                 </div>
             {% endif %}
         </div>
 
         <div class="topbar-center">
-            <a class="topbar-brand" href="{{ url_for('index') }}">
-                <span class="topbar-brand-title">FPGA Learning System</span>
-                <span class="topbar-brand-subtitle">цифровая учебная платформа</span>
+            <a
+                class="topbar-brand"
+                href="{{ url_for('index') }}"
+            >
+                <span class="topbar-brand-title">
+                    FPGA Learning System
+                </span>
+
+                <span class="topbar-brand-subtitle">
+                    цифрова навчальна платформа
+                </span>
             </a>
         </div>
 
         <div class="topbar-actions">
 
-            {% if not is_full_page %}
+            {% if not is_full_page and not username %}
+                <a
+                    href="{{ url_for('login') }}"
+                    class="topbar-btn topbar-btn-light"
+                >
+                    Увійти
+                </a>
 
-                {% if not session.get("username") %}
-
-                    <a href="{{ url_for('login') }}" class="topbar-btn topbar-btn-light">
-                        Войти
-                    </a>
-
-                    <a href="{{ url_for('register') }}" class="topbar-btn topbar-btn-outline">
-                        Регистрация
-                    </a>
-
-                {% endif %}
-
+                <a
+                    href="{{ url_for('register') }}"
+                    class="topbar-btn topbar-btn-outline"
+                >
+                    Реєстрація
+                </a>
             {% endif %}
 
         </div>
@@ -463,20 +871,30 @@
     {% if messages %}
 
         {% if is_full_page %}
-            <div class="auth-flash-wrapper">
+            <div
+                class="auth-flash-wrapper"
+                aria-live="polite"
+            >
         {% else %}
-            <div class="container mt-3">
+            <div
+                class="container mt-3"
+                aria-live="polite"
+            >
         {% endif %}
 
                 {% for message in messages %}
-                    <div class="alert alert-warning alert-dismissible fade show shadow-sm" role="alert">
+                    <div
+                        class="alert alert-warning alert-dismissible fade show shadow-sm"
+                        role="alert"
+                    >
                         {{ message }}
 
-                        <button type="button"
-                                class="btn-close"
-                                data-bs-dismiss="alert"
-                                aria-label="Закрыть">
-                        </button>
+                        <button
+                            type="button"
+                            class="btn-close"
+                            data-bs-dismiss="alert"
+                            aria-label="Закрити"
+                        ></button>
                     </div>
                 {% endfor %}
 
@@ -497,54 +915,92 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-        new bootstrap.Tooltip(tooltipTriggerEl);
-    });
+    if (window.bootstrap) {
+        document
+            .querySelectorAll('[data-bs-toggle="tooltip"]')
+            .forEach(function (element) {
+                new window.bootstrap.Tooltip(element);
+            });
 
-    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
-    popoverTriggerList.forEach(function (popoverTriggerEl) {
-        new bootstrap.Popover(popoverTriggerEl);
-    });
-});
-</script>
+        document
+            .querySelectorAll('[data-bs-toggle="popover"]')
+            .forEach(function (element) {
+                new window.bootstrap.Popover(element);
+            });
+    }
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const openButtons = document.querySelectorAll("[data-sidebar-open]");
-    const closeButtons = document.querySelectorAll("[data-sidebar-close]");
+    const openButtons = document.querySelectorAll(
+        "[data-sidebar-open]"
+    );
+
+    const closeButtons = document.querySelectorAll(
+        "[data-sidebar-close]"
+    );
+
+    // Стан мобільної бічної панелі синхронізується з aria-expanded,
+    // щоб візуальний стан інтерфейсу відповідав стану для засобів доступності.
+    function setSidebarOpen(isOpen) {
+        document.body.classList.toggle(
+            "app-sidebar-open",
+            isOpen
+        );
+
+        openButtons.forEach(function (button) {
+            button.setAttribute(
+                "aria-expanded",
+                String(isOpen)
+            );
+        });
+    }
 
     openButtons.forEach(function (button) {
+        button.setAttribute(
+            "aria-expanded",
+            "false"
+        );
+
         button.addEventListener("click", function () {
-            document.body.classList.add("app-sidebar-open");
+            setSidebarOpen(true);
         });
     });
 
     closeButtons.forEach(function (button) {
         button.addEventListener("click", function () {
-            document.body.classList.remove("app-sidebar-open");
+            setSidebarOpen(false);
         });
     });
 
     document.addEventListener("keydown", function (event) {
         if (event.key === "Escape") {
-            document.body.classList.remove("app-sidebar-open");
+            setSidebarOpen(false);
         }
     });
-});
-</script>
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const particleLayer = document.querySelector(".auth-random-particles");
+    const particleLayer = document.querySelector(
+        ".auth-random-particles"
+    );
 
     if (!particleLayer) {
         return;
     }
 
-    const particleCount = Number(particleLayer.dataset.particleCount || 100);
+    const parsedParticleCount = Number(
+        particleLayer.dataset.particleCount
+    );
 
-    const colors = [
+    // Кількість декоративних частинок обмежується для захисту
+    // інтерфейсу від помилкового або надмірного значення data-атрибута.
+    const particleCount = Number.isFinite(parsedParticleCount)
+        ? Math.max(
+            0,
+            Math.min(
+                Math.floor(parsedParticleCount),
+                200
+            )
+        )
+        : 100;
+
+    const particleStyles = [
         {
             color: "rgba(244, 114, 182, 0.38)",
             glow: "rgba(244, 114, 182, 0.22)"
@@ -574,7 +1030,11 @@ document.addEventListener("DOMContentLoaded", function () {
     for (let i = 0; i < particleCount; i++) {
         const particle = document.createElement("span");
 
-        const palette = colors[Math.floor(Math.random() * colors.length)];
+        const particleStyle = particleStyles[
+            Math.floor(
+                Math.random() * particleStyles.length
+            )
+        ];
 
         const size = randomBetween(4, 15);
         const x = randomBetween(3, 97);
@@ -587,17 +1047,60 @@ document.addEventListener("DOMContentLoaded", function () {
         const opacity = randomBetween(0.28, 0.72);
         const blur = randomBetween(0, 2.2);
 
-        particle.style.setProperty("--particle-size", `${size}px`);
-        particle.style.setProperty("--particle-x", `${x}%`);
-        particle.style.setProperty("--particle-y", `${y}%`);
-        particle.style.setProperty("--particle-drift-x", `${driftX}px`);
-        particle.style.setProperty("--particle-drift-y", `${driftY}px`);
-        particle.style.setProperty("--particle-duration", `${duration}s`);
-        particle.style.setProperty("--particle-delay", `${delay}s`);
-        particle.style.setProperty("--particle-opacity", opacity);
-        particle.style.setProperty("--particle-blur", `${blur}px`);
-        particle.style.setProperty("--particle-color", palette.color);
-        particle.style.setProperty("--particle-glow", palette.glow);
+        particle.style.setProperty(
+            "--particle-size",
+            `${size}px`
+        );
+
+        particle.style.setProperty(
+            "--particle-x",
+            `${x}%`
+        );
+
+        particle.style.setProperty(
+            "--particle-y",
+            `${y}%`
+        );
+
+        particle.style.setProperty(
+            "--particle-drift-x",
+            `${driftX}px`
+        );
+
+        particle.style.setProperty(
+            "--particle-drift-y",
+            `${driftY}px`
+        );
+
+        particle.style.setProperty(
+            "--particle-duration",
+            `${duration}s`
+        );
+
+        particle.style.setProperty(
+            "--particle-delay",
+            `${delay}s`
+        );
+
+        particle.style.setProperty(
+            "--particle-opacity",
+            opacity
+        );
+
+        particle.style.setProperty(
+            "--particle-blur",
+            `${blur}px`
+        );
+
+        particle.style.setProperty(
+            "--particle-color",
+            particleStyle.color
+        );
+
+        particle.style.setProperty(
+            "--particle-glow",
+            particleStyle.glow
+        );
 
         particleLayer.appendChild(particle);
     }

@@ -1,410 +1,644 @@
 {% extends "layouts/base.html" %}
 
+{% block title %}Журнал оцінок{% endblock %}
+
 {% block content %}
 
-{% if session.get("role") == "admin" %}
-    <a href="{{ url_for('admin_panel') }}" class="btn btn-outline-secondary btn-sm mb-3">
-        ← Назад в панель администратора
-    </a>
-{% else %}
-    <a href="{{ url_for('teacher_panel') }}" class="btn btn-outline-secondary btn-sm mb-3">
-        ← Назад в панель преподавателя
-    </a>
-{% endif %}
+{% set status_labels = {
+    "PASSED": "Зараховано",
+    "PARTIAL": "Частково виконано",
+    "FAILED": "Не зараховано",
+    "COMPILE_ERROR": "Помилка компіляції"
+} %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1 class="mb-1">Журнал оценок</h1>
-        <p class="text-muted mb-0">
-            Компактная сводка результатов студентов по лабораторным работам.
-        </p>
-    </div>
-</div>
+<div class="journal-page">
 
-<div class="card shadow-sm border-0 rounded-4 mb-4">
-    <div class="card-body">
-        <form method="get" action="{{ url_for('teacher_journal') }}">
-            <div class="row g-3">
-
-                <div class="col-md-3">
-                    <label class="form-label">Предмет</label>
-                    <select name="discipline" class="form-select">
-                        <option value="">Все предметы</option>
-
-                        {% for item in disciplines %}
-                            <option value="{{ item['discipline'] }}"
-                                {% if selected_discipline == item['discipline'] %}
-                                    selected
-                                {% endif %}>
-                                {{ item["discipline"] }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">Лабораторная</label>
-                    <select name="lab_id" class="form-select">
-                        <option value="">Все лабораторные</option>
-
-                        {% for lab in labs_for_filter %}
-                            <option value="{{ lab['id'] }}"
-                                {% if selected_lab_id|string == lab['id']|string %}
-                                    selected
-                                {% endif %}>
-                                {{ lab["title"] }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="col-md-3">
-                    <label class="form-label">Группа</label>
-                    <select name="group" class="form-select">
-                        <option value="">Все группы</option>
-
-                        {% for group in groups %}
-                            <option value="{{ group['student_group'] }}"
-                                {% if selected_group == group['student_group'] %}
-                                    selected
-                                {% endif %}>
-                                {{ group["student_group"] }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="col-md-3 d-flex align-items-end gap-2">
-                    <button type="submit" class="btn btn-dark">
-                        Показать
-                    </button>
-
-                    <a href="{{ url_for('teacher_journal') }}" class="btn btn-outline-secondary">
-                        Сбросить
-                    </a>
-                </div>
-
+    <section class="journal-hero">
+        <div>
+            <div class="journal-kicker">
+                LMS / Excel-журнал
             </div>
-        </form>
-    </div>
-</div>
 
-{% if journal_by_groups and journal_by_groups|length > 0 %}
+            <h1>
+                Журнал оцінок
+            </h1>
+
+            <p>
+                Переглядайте успішність студентів, редагуйте оцінки,
+                контролюйте кількість спроб і надавайте додаткові спроби.
+            </p>
+        </div>
+
+        <div class="journal-legend">
+            <span>
+                <i class="legend-dot legend-good"></i>
+                80–100
+            </span>
+
+            <span>
+                <i class="legend-dot legend-mid"></i>
+                60–79
+            </span>
+
+            <span>
+                <i class="legend-dot legend-bad"></i>
+                нижче 60
+            </span>
+
+            <span>
+                <i class="legend-dot legend-empty"></i>
+                немає спроб
+            </span>
+        </div>
+    </section>
+
+    <section class="journal-filter-card">
+
+        <form
+            method="get"
+            action="{{ url_for('teacher_journal') }}"
+            class="journal-filter-grid"
+        >
+
+            <div>
+                <label
+                    class="form-label"
+                    for="journalDiscipline"
+                >
+                    Дисципліна
+                </label>
+
+                <select
+                    id="journalDiscipline"
+                    name="discipline"
+                    class="form-select"
+                >
+                    <option value="">
+                        Усі дисципліни
+                    </option>
+
+                    {% for item in disciplines %}
+                        <option
+                            value="{{ item.discipline }}"
+                            {% if selected_discipline == item.discipline %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ item.discipline }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label
+                    class="form-label"
+                    for="journalLab"
+                >
+                    Лабораторна робота
+                </label>
+
+                <select
+                    id="journalLab"
+                    name="lab_id"
+                    class="form-select"
+                >
+                    <option value="">
+                        Усі лабораторні роботи
+                    </option>
+
+                    {% for lab in labs_for_filter %}
+                        <option
+                            value="{{ lab.id }}"
+                            {% if selected_lab_id|string == lab.id|string %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ lab.discipline }} · {{ lab.title }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label
+                    class="form-label"
+                    for="journalGroup"
+                >
+                    Група
+                </label>
+
+                <select
+                    id="journalGroup"
+                    name="group"
+                    class="form-select"
+                >
+                    <option value="">
+                        Усі групи
+                    </option>
+
+                    {% for group in groups %}
+                        <option
+                            value="{{ group.student_group }}"
+                            {% if selected_group == group.student_group %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ group.student_group }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="journal-filter-actions">
+                <button
+                    type="submit"
+                    class="btn btn-primary"
+                >
+                    Застосувати
+                </button>
+
+                <a
+                    href="{{ url_for('teacher_journal') }}"
+                    class="btn btn-outline-secondary"
+                >
+                    Скинути
+                </a>
+            </div>
+
+        </form>
+    </section>
 
     {% for group_name, rows in journal_by_groups.items() %}
 
-        <div class="card shadow-sm border-0 rounded-4 mb-4 journal-group-card">
+        {% set group_index = loop.index0 %}
+        {% set journal_form_id = "journalUpdateForm-" ~ group_index %}
+        {% set summary = journal_summary.get(group_name) if journal_summary else none %}
 
-            <form method="post"
+        <section class="journal-group-section">
 
-                action="{{ url_for('update_group_journal') }}"
-                class="journal-group-form">
-
-                    {% include "includes/csrf_token.html" %}
-                    <input type="hidden" name="group_name" value="{{ group_name }}">
-
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="group_name" value="{{ group_name }}">
-
-                <div class="card-body p-0">
-
-                    <div class="p-3 border-bottom bg-light rounded-top-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <div>
-                            <h3 class="mb-1">Группа {{ group_name }}</h3>
-                            <div class="text-muted small">
-                                Студентов в журнале: {{ rows|length }}
-                            </div>
-                        </div>
-
-                        {% if session.get("role") == "teacher" or session.get("role") == "admin" %}
-                            <div class="d-flex gap-2">
-                                <button type="button"
-                                        class="btn btn-outline-dark btn-sm journal-edit-toggle">
-                                    Редактировать журнал
-                                </button>
-
-                                <button type="submit"
-                                        class="btn btn-dark btn-sm journal-save-btn d-none">
-                                    Сохранить изменения
-                                </button>
-
-                                <button type="button"
-                                        class="btn btn-outline-secondary btn-sm journal-cancel-btn d-none">
-                                    Отмена
-                                </button>
-                            </div>
-                        {% endif %}
+            <div class="journal-group-head">
+                <div>
+                    <div class="journal-kicker">
+                        Група
                     </div>
 
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-sm align-middle mb-0 excel-journal-table">
-                            <thead>
-                                <tr>
-                                    <th class="student-column">
-                                        Студент
-                                    </th>
+                    <h2>
+                        {{ group_name }}
+                    </h2>
+                </div>
 
-                                    {% for lab in labs %}
-                                        <th class="lab-column text-center">
-                                            <div class="journal-lab-date">
-                                                {% if lab["created_at"] %}
-                                                    {{ lab["created_at"][8:10] }}.{{ lab["created_at"][5:7] }}
+                <span class="journal-group-count">
+                    Кількість студентів: {{ rows|length }}
+                </span>
+            </div>
+
+            <div class="journal-summary-grid">
+
+                <article class="journal-summary-card">
+                    <span>
+                        Середній бал
+                    </span>
+
+                    <strong>
+                        {% if summary and summary.average_score is not none %}
+                            {{ summary.average_score }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </strong>
+
+                    <small>
+                        за виставленими оцінками
+                    </small>
+                </article>
+
+                <article class="journal-summary-card">
+                    <span>
+                        Зараховано
+                    </span>
+
+                    <strong>
+                        {{ summary.passed_count if summary else 0 }}
+                    </strong>
+
+                    <small>
+                        оцінок від 60 балів
+                    </small>
+                </article>
+
+                <article class="journal-summary-card">
+                    <span>
+                        Вичерпано спроби
+                    </span>
+
+                    <strong>
+                        {{
+                            summary.exhausted_students_count
+                            if summary
+                            else 0
+                        }}
+                    </strong>
+
+                    <small>
+                        студентів, які досягли ліміту
+                    </small>
+                </article>
+
+                <article class="journal-summary-card">
+                    <span>
+                        Ручні коригування
+                    </span>
+
+                    <strong>
+                        {{
+                            summary.manual_overrides_count
+                            if summary
+                            else 0
+                        }}
+                    </strong>
+
+                    <small>
+                        оцінок змінено вручну
+                    </small>
+                </article>
+
+            </div>
+
+            {#
+                Поля редагування таблиці пов'язуються з цією формою
+                через атрибут form. Це дає змогу уникнути забороненого
+                HTML-вкладення форм для надання додаткової спроби.
+            #}
+            <form
+                id="{{ journal_form_id }}"
+                method="post"
+                action="{{ url_for('update_group_journal') }}"
+            >
+                {% include "includes/csrf_token.html" %}
+            </form>
+
+            <div class="journal-table-shell">
+
+                <table class="table excel-journal-table lms-journal-table">
+
+                    <thead>
+                        <tr>
+                            <th
+                                scope="col"
+                                class="student-column journal-sticky-col"
+                            >
+                                Студент
+                            </th>
+
+                            {% for lab in labs %}
+                                <th
+                                    scope="col"
+                                    class="lab-column"
+                                >
+                                    <div class="journal-lab-head">
+                                        <span>
+                                            ЛР {{ loop.index }}
+                                        </span>
+
+                                        <strong>
+                                            {{ lab.title }}
+                                        </strong>
+
+                                        <a
+                                            href="{{
+                                                url_for(
+                                                    'lab_detail',
+                                                    lab_id=lab.id
+                                                )
+                                            }}"
+                                        >
+                                            відкрити
+                                        </a>
+                                    </div>
+                                </th>
+                            {% endfor %}
+
+                            <th
+                                scope="col"
+                                class="summary-column"
+                            >
+                                Середній бал
+                            </th>
+
+                            <th
+                                scope="col"
+                                class="summary-column"
+                            >
+                                Зараховано
+                            </th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        {% for row in rows %}
+
+                            {% set row_index = loop.index0 %}
+
+                            <tr>
+                                <td
+                                    class="
+                                        student-column
+                                        journal-sticky-col
+                                    "
+                                >
+                                    <div class="journal-student-card">
+                                        <strong>
+                                            {{
+                                                row.student.full_name
+                                                or row.student.username
+                                            }}
+                                        </strong>
+
+                                        <span>
+                                            {{ row.student.username }}
+                                        </span>
+
+                                        <small>
+                                            {{
+                                                row.student.student_group
+                                                or "Без групи"
+                                            }}
+                                        </small>
+                                    </div>
+                                </td>
+
+                                {% for cell in row.cells %}
+
+                                    {% set cell_index = loop.index0 %}
+                                    {% set extra_form_id =
+                                        "extraAttemptForm-"
+                                        ~ group_index
+                                        ~ "-"
+                                        ~ row_index
+                                        ~ "-"
+                                        ~ cell_index
+                                    %}
+
+                                    {% if cell.display_score is none %}
+                                        {% set grade_class = "empty" %}
+                                    {% elif cell.display_score|int >= 80 %}
+                                        {% set grade_class = "good" %}
+                                    {% elif cell.display_score|int >= 60 %}
+                                        {% set grade_class = "mid" %}
+                                    {% else %}
+                                        {% set grade_class = "bad" %}
+                                    {% endif %}
+
+                                    {% set grade_source_label =
+                                        "ручна"
+                                        if cell.grade_source == "manual"
+                                        else "автоматична"
+                                    %}
+
+                                    {% set last_status_label =
+                                        status_labels.get(
+                                            cell.last_status,
+                                            cell.last_status
+                                            or "Немає спроб"
+                                        )
+                                    %}
+
+                                    <td
+                                        class="
+                                            journal-cell
+                                            journal-cell-{{ grade_class }}
+                                        "
+                                    >
+
+                                        <div
+                                            class="journal-cell-view"
+                                            tabindex="0"
+                                            data-bs-toggle="popover"
+                                            data-bs-trigger="focus"
+                                            data-bs-html="true"
+                                            data-bs-placement="top"
+                                            title="Деталі оцінки"
+                                            data-bs-content="
+                                                Автоматична: {{ cell.auto_score if cell.auto_score is not none else 'немає' }}<br>
+                                                Ручна: {{ cell.manual_score if cell.manual_score is not none else 'немає' }}<br>
+                                                Джерело: {{ grade_source_label }}<br>
+                                                Спроби: {{ cell.used_attempts }} / {{ cell.total_limit }}<br>
+                                                Додаткові спроби: {{ cell.extra_attempts }}<br>
+                                                Останній статус: {{ last_status_label }}<br>
+                                                Дата: {{ cell.last_created_at or 'немає' }}<br>
+                                                Коментар: {{ cell.manual_comment or 'немає' }}
+                                            "
+                                        >
+
+                                            <div class="journal-score-line">
+
+                                                {% if cell.display_score is not none %}
+                                                    <strong>
+                                                        {{ cell.display_score }}
+                                                    </strong>
                                                 {% else %}
-                                                    —
+                                                    <strong>
+                                                        —
+                                                    </strong>
+                                                {% endif %}
+
+                                                {% if cell.grade_source == "manual" %}
+                                                    <span class="journal-manual-badge">
+                                                        ручна
+                                                    </span>
+                                                {% endif %}
+
+                                            </div>
+
+                                            <div class="journal-attempt-line">
+                                                <span>
+                                                    {{ cell.used_attempts }}
+                                                    /
+                                                    {{ cell.total_limit }}
+                                                </span>
+
+                                                {% if cell.extra_attempts and cell.extra_attempts > 0 %}
+                                                    <em>
+                                                        +{{ cell.extra_attempts }}
+                                                    </em>
                                                 {% endif %}
                                             </div>
 
-                                            <a href="{{ url_for('lab_detail', lab_id=lab['id']) }}"
-                                               class="journal-lab-link"
-                                               data-bs-toggle="tooltip"
-                                               data-bs-placement="top"
-                                               title="{{ lab['title'] }} | {{ lab['discipline'] or '—' }} | {{ lab['programming_language'] or '—' }}">
-                                                ЛР{{ lab["id"] }}
-                                            </a>
-                                        </th>
-                                    {% endfor %}
-
-                                    <th class="summary-column">
-                                        Средний
-                                    </th>
-
-                                    <th class="summary-column">
-                                        Сдано
-                                    </th>
-                                </tr>
-                            </thead>
-
-                            <tbody>
-                                {% for row in rows %}
-                                    <tr>
-                                        <td class="student-column">
-                                            <b>{{ row["student"]["full_name"] }}</b>
-                                            <div class="text-muted small">
-                                                {{ row["student"]["username"] }}
+                                            <div class="journal-status-line">
+                                                {{ last_status_label }}
                                             </div>
-                                        </td>
 
-                                        {% for cell in row["cells"] %}
-                                            <td class="text-center journal-cell">
+                                        </div>
 
-                                                <div class="journal-cell-view">
-                                                    {% if cell["display_score"] is not none %}
+                                        <div class="journal-cell-edit">
 
-                                                        <button type="button"
-                                                                class="journal-grade-btn
-                                                                    {% if cell['display_score'] >= 80 %}
-                                                                        journal-grade-good
-                                                                    {% elif cell['display_score'] >= 50 %}
-                                                                        journal-grade-mid
-                                                                    {% else %}
-                                                                        journal-grade-bad
-                                                                    {% endif %}"
-                                                                data-bs-toggle="popover"
-                                                                data-bs-trigger="hover focus"
-                                                                data-bs-placement="top"
-                                                                data-bs-html="true"
-                                                                data-bs-title="Информация об оценке"
-                                                                data-bs-content="
-                                                                    <div><b>Оценка:</b> {{ cell['display_score'] }}</div>
-                                                                    <div><b>Статус:</b> {{ cell['last_status'] or '—' }}</div>
-                                                                    <div><b>Попыток:</b> {{ cell['used_attempts'] }} из {{ cell['total_limit'] }}</div>
-                                                                    {% if cell['extra_attempts'] > 0 %}
-                                                                        <div><b>Доп. попыток:</b> +{{ cell['extra_attempts'] }}</div>
-                                                                    {% endif %}
-                                                                    <div><b>Осталось:</b> {{ cell['attempts_left'] }}</div>
-                                                                    <div><b>Источник:</b> {% if cell['grade_source'] == 'manual' %}вручную{% else %}автоматически{% endif %}</div>
-                                                                    {% if cell['auto_score'] is not none and cell['grade_source'] == 'manual' %}
-                                                                        <div><b>Автооценка:</b> {{ cell['auto_score'] }}</div>
-                                                                    {% endif %}
-                                                                    {% if cell['manual_comment'] %}
-                                                                        <div><b>Комментарий:</b> {{ cell['manual_comment']|e }}</div>
-                                                                    {% endif %}
-                                                                    {% if cell['last_created_at'] %}
-                                                                        <div><b>Последняя попытка:</b> {{ cell['last_created_at'] }}</div>
-                                                                    {% endif %}
-                                                                ">
-                                                            {{ cell["display_score"] }}
-                                                        </button>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                name="score__{{ row.student.username }}__{{ cell.lab_id }}"
+                                                value="{{
+                                                    cell.manual_score
+                                                    if cell.manual_score is not none
+                                                    else ''
+                                                }}"
+                                                class="form-control"
+                                                placeholder="ручна оцінка"
+                                                form="{{ journal_form_id }}"
+                                            >
 
-                                                    {% else %}
+                                            <input
+                                                type="text"
+                                                name="comment__{{ row.student.username }}__{{ cell.lab_id }}"
+                                                value="{{
+                                                    cell.manual_comment
+                                                    or ''
+                                                }}"
+                                                class="form-control"
+                                                placeholder="коментар"
+                                                form="{{ journal_form_id }}"
+                                            >
 
-                                                        <button type="button"
-                                                                class="journal-absent-btn"
-                                                                data-bs-toggle="popover"
-                                                                data-bs-trigger="hover focus"
-                                                                data-bs-placement="top"
-                                                                data-bs-html="true"
-                                                                data-bs-title="Работа не сдана"
-                                                                data-bs-content="
-                                                                    <div>Студент пока не отправлял решение по этой лабораторной работе.</div>
-                                                                ">
-                                                            Н
-                                                        </button>
+                                        </div>
 
-                                                    {% endif %}
+                                        <form
+                                            id="{{ extra_form_id }}"
+                                            method="post"
+                                            action="{{
+                                                url_for(
+                                                    'teacher_grant_extra_attempt'
+                                                )
+                                            }}"
+                                            class="journal-extra-form"
+                                        >
+                                            {% include "includes/csrf_token.html" %}
 
-                                                    <div class="mt-1">
-                                                        <a class="journal-history-link"
-                                                        href="{{ url_for('teacher_submissions_history',
-                                                                            q=row['student']['username'],
-                                                                            lab_id=cell['lab_id']) }}">
-                                                            история
-                                                        </a>
-                                                    </div>
+                                            <input
+                                                type="hidden"
+                                                name="username"
+                                                value="{{ row.student.username }}"
+                                            >
 
-                                                    <div class="mt-1 small">
-                                                        <b>Попытки:</b>
-                                                        {{ cell["used_attempts"] }} / {{ cell["total_limit"] }}
+                                            <input
+                                                type="hidden"
+                                                name="lab_id"
+                                                value="{{ cell.lab_id }}"
+                                            >
 
-                                                        {% if cell["extra_attempts"] > 0 %}
-                                                            <span class="badge bg-info text-dark">
-                                                                +{{ cell["extra_attempts"] }}
-                                                            </span>
-                                                        {% endif %}
+                                            <input
+                                                type="hidden"
+                                                name="reason"
+                                                value="Додаткову спробу надано з журналу оцінок."
+                                            >
 
-                                                        {% if cell["is_limit_reached"] %}
-                                                            <div class="small text-danger">
-                                                                лимит исчерпан
-                                                            </div>
-                                                        {% else %}
-                                                            <div class="small text-muted">
-                                                                осталось: {{ cell["attempts_left"] }}
-                                                            </div>
-                                                        {% endif %}
-                                                    </div>
+                                            <button
+                                                type="submit"
+                                                class="journal-extra-btn"
+                                                title="Надати додаткову спробу"
+                                            >
+                                                + спроба
+                                            </button>
+                                        </form>
 
-                                                    {% if session.get("role") in ["teacher", "admin"] %}
-                                                        <div class="mt-1">
-                                                            {% if cell["is_limit_reached"] %}
-                                                                <button type="submit"
-                                                                        class="btn btn-sm btn-outline-primary"
-                                                                        formmethod="post"
-                                                                        formaction="{{ url_for(
-                                                                            'teacher_grant_extra_attempt',
-                                                                            lab_id=cell['lab_id'],
-                                                                            username=row['student']['username'],
-                                                                            reason='Лимит попыток исчерпан'
-                                                                        ) }}"
-                                                                        onclick="return confirm('Разрешить студенту ещё одну попытку по этой лабораторной?')">
-                                                                    +1 попытка
-                                                                </button>
-                                                            {% else %}
-                                                                <span class="text-muted small">
-                                                                    не требуется
-                                                                </span>
-                                                            {% endif %}
+                                    </td>
 
-                                                            {% if cell["extra_attempts"] > 0 %}
-                                                                <div class="small text-muted mt-1">
-                                                                    Выдано доп. попыток: {{ cell["extra_attempts"] }}
-                                                                </div>
-                                                            {% endif %}
-                                                        </div>
-                                                    {% endif %}
-                                                    </div>
-
-                                                <div class="journal-cell-edit d-none mt-2">
-                                                    <input type="number"
-                                                           name="score__{{ row['student']['username'] }}__{{ cell['lab_id'] }}"
-                                                           min="0"
-                                                           max="100"
-                                                           class="form-control form-control-sm mb-1"
-                                                           placeholder="Балл"
-                                                           value="{{ cell['manual_score'] if cell['manual_score'] is not none else '' }}">
-
-                                                    <input type="text"
-                                                           name="comment__{{ row['student']['username'] }}__{{ cell['lab_id'] }}"
-                                                           class="form-control form-control-sm"
-                                                           placeholder="Комментарий"
-                                                           value="{{ cell['manual_comment'] or '' }}">
-                                                </div>
-
-                                            </td>
-                                        {% endfor %}
-
-                                        <td class="text-center">
-                                            {% if row["average_score"] is not none %}
-                                                <span class="badge bg-dark">
-                                                    {{ row["average_score"] }}
-                                                </span>
-                                            {% else %}
-                                                <span class="text-muted">—</span>
-                                            {% endif %}
-                                        </td>
-
-                                        <td class="text-center">
-                                            {{ row["completed_count"] }} / {{ labs|length }}
-                                        </td>
-                                    </tr>
                                 {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
 
+                                <td class="journal-summary-cell">
+                                    {% if row.average_score is not none %}
+                                        <strong>
+                                            {{ row.average_score }}
+                                        </strong>
+                                    {% else %}
+                                        <span>
+                                            —
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <td class="journal-summary-cell">
+                                    <strong>
+                                        {{ row.completed_count }}
+                                    </strong>
+
+                                    <span>
+                                        / {{ labs|length }}
+                                    </span>
+                                </td>
+
+                            </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            <div class="journal-save-panel">
+                <div>
+                    <strong>
+                        Режим редагування журналу
+                    </strong>
+
+                    <span>
+                        Введіть ручну оцінку та коментар.
+                        Порожні поля видаляють ручне коригування.
+                    </span>
                 </div>
-            </form>
-        </div>
+
+                <button
+                    type="submit"
+                    class="btn btn-success"
+                    form="{{ journal_form_id }}"
+                >
+                    Зберегти зміни
+                </button>
+            </div>
+
+        </section>
+
+    {% else %}
+
+        <section class="journal-empty-state">
+            Журнал порожній. Перевірте фільтри, групи та призначені
+            лабораторні роботи.
+        </section>
 
     {% endfor %}
 
-{% else %}
-
-    <div class="alert alert-info rounded-4">
-        По выбранным фильтрам журнал пуст.
-    </div>
-
-{% endif %}
+</div>
 
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-        new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-
-    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
-    popoverTriggerList.forEach(function (popoverTriggerEl) {
-        new bootstrap.Popover(popoverTriggerEl);
-    });
-
-    document.querySelectorAll(".journal-group-card").forEach(function(card) {
-        const editBtn = card.querySelector(".journal-edit-toggle");
-        const saveBtn = card.querySelector(".journal-save-btn");
-        const cancelBtn = card.querySelector(".journal-cancel-btn");
-
-        if (!editBtn || !saveBtn || !cancelBtn) {
+    document.addEventListener("DOMContentLoaded", function () {
+        if (
+            !window.bootstrap
+            || !window.bootstrap.Popover
+        ) {
             return;
         }
 
-        editBtn.addEventListener("click", function() {
-            card.querySelectorAll(".journal-cell-view").forEach(function(element) {
-                element.classList.add("d-none");
-            });
+        const popoverTriggers = document.querySelectorAll(
+            '[data-bs-toggle="popover"]'
+        );
 
-            card.querySelectorAll(".journal-cell-edit").forEach(function(element) {
-                element.classList.remove("d-none");
-            });
-
-            editBtn.classList.add("d-none");
-            saveBtn.classList.remove("d-none");
-            cancelBtn.classList.remove("d-none");
-        });
-
-        cancelBtn.addEventListener("click", function() {
-            card.querySelectorAll(".journal-cell-view").forEach(function(element) {
-                element.classList.remove("d-none");
-            });
-
-            card.querySelectorAll(".journal-cell-edit").forEach(function(element) {
-                element.classList.add("d-none");
-            });
-
-            editBtn.classList.remove("d-none");
-            saveBtn.classList.add("d-none");
-            cancelBtn.classList.add("d-none");
+        popoverTriggers.forEach(function (trigger) {
+            /*
+             * Bootstrap sanitizer залишається увімкненим, оскільки
+             * вміст popover містить дані, сформовані з результатів
+             * перевірки та викладацьких коментарів.
+             */
+            new window.bootstrap.Popover(
+                trigger,
+                {
+                    sanitize: true
+                }
+            );
         });
     });
-});
 </script>
 
 {% endblock %}

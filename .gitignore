@@ -1,29 +1,29 @@
-# Виртуальное окружение
+# Віртуальне середовище
 venv/
 .venv/
 env/
 ENV/
 
-# Секреты и настройки
+# Секрети та конфігураційні файли
 .env
 .env.*
 !.env.example
 
-# База данных
+# База даних
 database.db
 *.db
 *.sqlite
 *.sqlite3
 
-# Загруженные студентами файлы
+# Файли, завантажені студентами
 uploads/*
 !uploads/.gitkeep
 
-# Временные диаграммы
+# Тимчасові файли часових діаграм
 waveforms/*
 !waveforms/.gitkeep
 
-# Python cache
+# Кеш Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -32,11 +32,11 @@ __pycache__/
 instance/
 .webassets-cache
 
-# Логи
+# Журнали роботи системи
 *.log
 logs/
 
-# IDE / редакторы
+# IDE та редактори
 .vscode/
 .idea/
 
@@ -47,15 +47,15 @@ desktop.ini
 # macOS
 .DS_Store
 
-# Pytest / coverage
+# Pytest та coverage
 .pytest_cache/
 .coverage
 htmlcov/
 
-# Docker временные файлы
+# Тимчасові PID-файли процесів
 *.pid
 
-# Архивы
+# Архіви
 *.zip
 *.rar
 *.7z

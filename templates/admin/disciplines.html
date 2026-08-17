@@ -2,33 +2,67 @@
 
 {% block content %}
 
-<a href="{{ url_for('admin_panel') }}" class="btn btn-outline-secondary btn-sm mb-3">
-    ← Назад в панель администратора
+<a
+    href="{{ url_for('admin_panel') }}"
+    class="btn btn-outline-secondary btn-sm mb-3"
+>
+    ← Назад до панелі адміністратора
 </a>
 
-<h1 class="mb-4">Учебные предметы</h1>
+<h1 class="mb-4">Навчальні дисципліни</h1>
 
 <div class="card shadow-sm border-0 rounded-4 mb-4">
     <div class="card-body p-4">
-        <h3 class="mb-3">Добавить предмет</h3>
+        <h3 class="mb-3">Додати дисципліну</h3>
 
-        <form method="post" action="{{ url_for('admin_disciplines') }}">
+        <form
+            method="post"
+            action="{{ url_for('admin_disciplines') }}"
+        >
             {% include "includes/csrf_token.html" %}
-            
+
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label class="form-label">Название предмета</label>
-                    <input type="text" name="name" class="form-control" placeholder="Например: FPGA-проектирование" required>
+                    <label
+                        for="discipline-name"
+                        class="form-label"
+                    >
+                        Назва дисципліни
+                    </label>
+
+                    <input
+                        type="text"
+                        id="discipline-name"
+                        name="name"
+                        class="form-control"
+                        placeholder="Наприклад: FPGA-проєктування"
+                        required
+                    >
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">Описание</label>
-                    <input type="text" name="description" class="form-control" placeholder="Краткое описание предмета">
+                    <label
+                        for="discipline-description"
+                        class="form-label"
+                    >
+                        Опис
+                    </label>
+
+                    <input
+                        type="text"
+                        id="discipline-description"
+                        name="description"
+                        class="form-control"
+                        placeholder="Короткий опис дисципліни"
+                    >
                 </div>
 
                 <div class="col-md-2 d-flex align-items-end">
-                    <button class="btn btn-primary w-100" type="submit">
-                        Добавить
+                    <button
+                        class="btn btn-primary w-100"
+                        type="submit"
+                    >
+                        Додати
                     </button>
                 </div>
             </div>
@@ -38,27 +72,53 @@
 
 <div class="card shadow-sm border-0 rounded-4">
     <div class="card-body p-0">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="table-dark">
-                <tr>
-                    <th>Предмет</th>
-                    <th>Описание</th>
-                    <th>Создал</th>
-                    <th>Дата создания</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {% for item in disciplines %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-dark">
                     <tr>
-                        <td><b>{{ item["name"] }}</b></td>
-                        <td>{{ item["description"] or "—" }}</td>
-                        <td>{{ item["created_by"] or "—" }}</td>
-                        <td>{{ item["created_at"] }}</td>
+                        <th scope="col">Дисципліна</th>
+                        <th scope="col">Опис</th>
+                        <th scope="col">Створив</th>
+                        <th scope="col">Дата створення</th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                </thead>
+
+                <tbody>
+                    {% if disciplines %}
+                        {% for item in disciplines %}
+                            <tr>
+                                <td>
+                                    <strong>
+                                        {{ item["name"] }}
+                                    </strong>
+                                </td>
+
+                                <td>
+                                    {{ item["description"] or "—" }}
+                                </td>
+
+                                <td>
+                                    {{ item["created_by"] or "—" }}
+                                </td>
+
+                                <td>
+                                    {{ item["created_at"] or "—" }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td
+                                colspan="4"
+                                class="text-center text-muted py-4"
+                            >
+                                Навчальні дисципліни ще не додано.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 

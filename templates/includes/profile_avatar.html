@@ -1,0 +1,35 @@
+<span
+    class="
+        {{ avatar_class }}
+        profile-avatar-shell
+        {% if profile_ui %}
+            {{ profile_ui.avatar_css_class }}
+            {{ profile_ui.frame_css_class }}
+        {% endif %}
+    "
+>
+    <span class="profile-avatar-media">
+
+        {% if profile_ui and profile_ui.avatar_kind == "image" %}
+
+            <img
+                src="{{ profile_ui.avatar_url }}"
+                alt=""
+            >
+
+        {% elif profile_ui %}
+
+            <span class="profile-avatar-symbol">
+                {{ profile_ui.avatar_symbol }}
+            </span>
+
+        {% else %}
+
+            <span class="profile-avatar-symbol">
+                {{ user_initials }}
+            </span>
+
+        {% endif %}
+
+    </span>
+</span>
